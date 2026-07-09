@@ -1,0 +1,184 @@
+<template>
+  <div class="page-container">
+    <list class="scroll-list">
+      <!-- 1. Dismiss Button -->
+      <list-item type="top-actions" class="item-container">
+        <input class="btn btn-dismiss" type="button" value="Dismiss Notification" onclick="handleDismiss" />
+      </list-item>
+
+      <!-- 2. Message detail card -->
+      <list-item type="message-card" class="message-card">
+        <text class="sender">{{sender}}</text>
+        <text class="message-body">{{text}}</text>
+      </list-item>
+
+      <!-- 3. Dynamic Quick Replies -->
+      <list-item for="{{replies}}" type="reply-button" class="item-container">
+        <input class="btn btn-reply" type="button" value="{{$item}}" onclick="handleReply($item)" />
+      </list-item>
+
+      <!-- Spacer to prevent content cut off at bottom -->
+      <list-item type="spacer" class="spacer"></list-item>
+    </list>
+  </div>
+</template>
+
+<script>
+import interconnect from '@system.interconnect'
+
+let conn = null
+
+export default {
+  private: {
+    sender: 'No Sender',
+    text: 'Waiting for notification...',
+    replies: []
+  },
+
+  onInit() {
+    console.log('index page onInit')
+    this.handleCreateConn()
+  },
+
+  handleCreateConn() {
+    console.log('creating interconnect connection')
+    try {
+      conn = interconnect.instance()
+
+      conn.getReadyState({
+        success: (data) => {
+          console.log('Interconnect state: ' + data.status)
+        }
+      })
+
+      conn.onmessage = (data) => {
+        console.log('received message from phone: ' + data.data)
+        try {
+          let payload = JSON.parse(data.data)
+          if (payload.event === 'msg_notify') {
+            this.sender = payload.sender || 'Unknown Sender'
+            this.text = payload.text || ''
+            this.replies = payload.replies || []
+          }
+        } catch (e) {
+          console.error('failed to parse notification json: ' + e)
+        }
+      }
+
+      conn.onopen = () => {
+        console.log('interconnect connection opened')
+      }
+
+      conn.onclose = (data) => {
+        console.log('interconnect connection closed')
+      }
+
+      conn.onerror = (data) => {
+        console.error('interconnect connection error')
+      }
+    } catch (e) {
+      console.error('Failed to init interconnect: ' + e)
+    }
+  },
+
+  handleReply(replyText) {
+    if (conn) {
+      conn.send({
+        data: JSON.stringify({ event: 'reply', text: replyText }),
+        success: () => {
+          console.log('sent reply event successfully')
+        },
+        fail: (data, code) => {
+          console.error('failed to send reply: ' + code)
+        }
+      })
+    }
+  },
+
+  handleDismiss() {
+    if (conn) {
+      conn.send({
+        data: JSON.stringify({ event: 'dismiss' }),
+        success: () => {
+          console.log('sent dismiss event successfully')
+        },
+        fail: (data, code) => {
+          console.error('failed to send dismiss: ' + code)
+        }
+      })
+    }
+  }
+}
+</script>
+
+<style>
+.page-container {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+}
+
+.scroll-list {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+}
+
+.item-container {
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.message-card {
+  width: 100%;
+  flex-direction: column;
+  padding: 15px 20px;
+  margin-top: 10px;
+  margin-bottom: 15px;
+  border-radius: 12px;
+  background-color: #1a1a1a;
+}
+
+.sender {
+  font-size: 24px;
+  color: #00e5ff;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.message-body {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.btn-dismiss {
+  background-color: #d32f2f;
+  color: #ffffff;
+}
+
+.btn-reply {
+  background-color: #263238;
+  border-width: 1px;
+  border-color: #00e5ff;
+  color: #00e5ff;
+}
+
+.spacer {
+  width: 100%;
+  height: 60px;
+}
+</style>
