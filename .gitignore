@@ -47,3 +47,7 @@ app.*.map.json
 /apks
 /gadgetbridge_src
 /logs
+
+# Local Environment & Test Outputs
+.env
+.test/

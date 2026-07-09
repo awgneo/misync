@@ -2,7 +2,8 @@ import 'package:flutter/material.dart' hide Notification;
 import 'dart:typed_data';
 import '../debug/logger.dart';
 import 'blobs/replies.dart';
-import 'blobs/filters.dart';
+import 'blobs/apps.dart';
+import 'blobs/messages.dart';
 import 'blobs/dnd.dart';
 import '../screen.dart';
 import 'module.dart';
@@ -64,9 +65,9 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
       builder: (context) {
         return _AppPickerSheet(
           installedApps: _installedApps.values.toList(),
-          registeredFilters: FiltersBlob.map.keys.toList(),
+          registeredFilters: AppsBlob.map.keys.toList(),
           onAppSelected: (packageName) {
-            FiltersBlob.instance.addApp(packageName);
+            AppsBlob.instance.addApp(packageName);
           },
         );
       },
@@ -112,7 +113,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
   }
 
   void _toggleAppFilter(String package, bool value) {
-    FiltersBlob.instance[package] = value;
+    AppsBlob.instance[package] = value;
     Logger.info(
       'notifications',
       'notification filter updated for $package: $value',
@@ -122,7 +123,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
   @override
   Widget buildScreen(BuildContext context, bool connected) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F1219),
         appBar: const TabBar(
@@ -130,6 +131,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           labelColor: Color(0xFF00E5FF),
           unselectedLabelColor: Colors.grey,
           tabs: [
+            Tab(icon: Icon(Icons.message), text: 'Messages'),
             Tab(icon: Icon(Icons.apps), text: 'Apps'),
             Tab(icon: Icon(Icons.reply), text: 'Replies'),
             Tab(icon: Icon(Icons.do_not_disturb), text: 'DND'),
@@ -138,7 +140,11 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
         body: TabBarView(
           children: [
             ListenableBuilder(
-              listenable: FiltersBlob.instance,
+              listenable: MessagesBlob.instance,
+              builder: (context, _) => _buildMessagesTab(connected),
+            ),
+            ListenableBuilder(
+              listenable: AppsBlob.instance,
               builder: (context, _) => _buildAppsTab(connected),
             ),
             ListenableBuilder(
@@ -155,8 +161,173 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
     );
   }
 
+  Widget _buildMessagesTab(bool connected) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        if (!_hasNotificationPermission) ...[
+          GestureDetector(
+            onTap: _requestPermission,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orangeAccent.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Notification Access is disabled. Tap to enable in system settings.',
+                      style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const Text(
+          'MESSAGES CONFIGURATION',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 10),
+        
+        // SMS switch
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141822),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF26324D)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.sms_outlined,
+                color: Color(0xFF00E5FF),
+                size: 28,
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Standard SMS Mirroring',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Mirror incoming SMS messages to the watch',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: MessagesBlob.smsEnabled,
+                activeThumbColor: const Color(0xFF00E5FF),
+                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
+                onChanged: (value) async {
+                  setState(() {
+                    MessagesBlob.smsEnabled = value;
+                  });
+                  await module.sync();
+                },
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+
+        // Quick replies fullscreen watch app switch
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141822),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF26324D)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.quickreply_outlined,
+                color: Color(0xFF00E5FF),
+                size: 28,
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Watch Messages App (Quick Replies)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Launch watch Messages app fullscreen for replies',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: MessagesBlob.quickRepliesEnabled,
+                activeThumbColor: const Color(0xFF00E5FF),
+                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
+                onChanged: (value) async {
+                  setState(() {
+                    MessagesBlob.quickRepliesEnabled = value;
+                  });
+                  await module.sync();
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildAppsTab(bool connected) {
-    final filtersMap = Map<String, bool>.from(FiltersBlob.map)..remove('__sms__');
+    final filtersMap = AppsBlob.map;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -194,71 +365,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
             ),
           ),
         ],
-        // SMS Mirroring section
-        const Text(
-          'SMS MIRRORING',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.sms_outlined,
-                color: Color(0xFF00E5FF),
-                size: 28,
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Standard SMS Mirroring',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 15,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Mirror standard SMS with watch quick replies',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: FiltersBlob.smsEnabled,
-                activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
-                onChanged: (value) {
-                  setState(() {
-                    FiltersBlob.smsEnabled = value;
-                  });
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
+        // App picker button
         const Text(
           'APP FILTERS',
           style: TextStyle(
@@ -269,7 +376,6 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           ),
         ),
         const SizedBox(height: 10),
-        // App picker button
         _isLoadingApps
             ? const Center(
                 child: Padding(
@@ -361,7 +467,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
                           color: Colors.redAccent,
                         ),
                         onPressed: () {
-                          FiltersBlob.instance.removeApp(appPackage);
+                          AppsBlob.instance.removeApp(appPackage);
                         },
                       ),
                       const SizedBox(width: 8),

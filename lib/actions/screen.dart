@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Action;
 import '../debug/logger.dart';
 import 'blobs/actions.dart';
 import '../screen.dart';
@@ -25,15 +25,15 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     super.dispose();
   }
 
-  void _testTriggerAction(String id, String name, String intent) {
+  void _testTriggerAction(Action action) {
     Logger.info(
       'actions',
-      'local trigger: Running action "$name" with intent target $intent',
+      'local trigger: Running action "${action.name}" with intent target ${action.intent}',
     );
-    ActionsModule.instance.triggerActionById(id);
+    ActionsModule.instance.triggerAction(action);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Triggered "$name" successfully!'),
+        content: Text('Triggered "${action.name}" successfully!'),
         backgroundColor: const Color(0xFF00E5FF),
       ),
     );
@@ -96,15 +96,14 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                 final name = _nameController.text.trim();
                 final intent = _intentController.text.trim();
                 if (name.isNotEmpty && intent.isNotEmpty) {
-                  final updated =
-                      List<Map<String, String>>.from(ActionsBlob.list)..add({
-                        'id': (ActionsBlob.list.length + 1).toString(),
-                        'name': name,
-                        'intent': intent,
-                        'package': intent.contains('.')
-                            ? intent.split('.').first
-                            : 'custom.action',
-                      });
+                  final updated = Map<String, Action>.from(ActionsBlob.map)
+                    ..[name] = Action(
+                      name: name,
+                      intent: intent,
+                      package: intent.contains('.')
+                          ? intent.split('.').first
+                          : 'custom.action',
+                    );
                   ActionsBlob.instance.update(updated);
                   Navigator.pop(context);
                 }
@@ -123,9 +122,9 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     );
   }
 
-  void _deleteAction(Map<String, String> action) {
-    final updated = List<Map<String, String>>.from(ActionsBlob.list)
-      ..remove(action);
+  void _deleteAction(String name) {
+    final updated = Map<String, Action>.from(ActionsBlob.map)
+      ..remove(name);
     ActionsBlob.instance.update(updated);
   }
 
@@ -134,7 +133,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     return ListenableBuilder(
       listenable: ActionsBlob.instance,
       builder: (context, _) {
-        final actions = ActionsBlob.list;
+        final actions = ActionsBlob.map.entries.toList();
 
         return Padding(
           padding: const EdgeInsets.all(24),
@@ -186,7 +185,9 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                               childAspectRatio: 0.85,
                             ),
                         itemBuilder: (context, index) {
-                          final action = actions[index];
+                          final entry = actions[index];
+                          final nameKey = entry.key;
+                          final action = entry.value;
                           return Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -212,7 +213,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        'ID: ${action['id']}',
+                                        'Action #${index + 1}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Color(0xFF00E5FF),
@@ -229,14 +230,14 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
                                       onPressed: connected
-                                          ? () => _deleteAction(action)
+                                          ? () => _deleteAction(nameKey)
                                           : null,
                                     ),
                                   ],
                                 ),
                                 const Spacer(),
                                 Text(
-                                  action['name'] ?? '',
+                                  action.name,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -247,7 +248,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  (action['intent'] ?? '').split('.').last,
+                                  action.intent.split('.').last,
                                   style: const TextStyle(
                                     color: Colors.grey,
                                     fontSize: 11,
@@ -260,11 +261,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                                   width: double.infinity,
                                   height: 36,
                                   child: ElevatedButton(
-                                    onPressed: () => _testTriggerAction(
-                                      action['id'] ?? '',
-                                      action['name'] ?? '',
-                                      action['intent'] ?? '',
-                                    ),
+                                    onPressed: () => _testTriggerAction(action),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF00E5FF),
                                       foregroundColor: Colors.black,

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Action;
 import '../module.dart';
 import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart';
@@ -22,127 +22,70 @@ class ActionsModule implements TabModule {
   static ActionsModule get instance => _instance;
   ActionsModule._();
 
+  static Map<String, dynamic>? activeNotification;
+
   @override
   Future<void> start() async {
-    DeviceConnection.listen((cmd) async {
-      // 1. Handle app status queries (subtype 6)
-      if (cmd.type == 20 && cmd.subtype == 6) {
-        if (cmd.hasThirdPartyApp() && cmd.thirdPartyApp.hasAppStatusReq()) {
-          final req = cmd.thirdPartyApp.appStatusReq;
-          Logger.info('actions', 'Watch queried app status for: ${req.packageName}');
-
-          await DeviceConnection.send(
-            type: CmdType.thirdPartyApp,
-            subtype: 7, // status response
-            builder: (replyCmd) {
-              replyCmd.thirdPartyApp = ThirdPartyApp()
-                ..appStatusResp = (ThirdPartyAppStatus()
-                  ..appInfo = req
-                  ..status = 1 // connected/running
-                );
-            },
-          );
-          Logger.info('actions', 'Replied with app status: connected');
-        }
-      }
-
-      // 2. Handle data messages from the watch app (subtype 9)
-      if (cmd.type == 20 && cmd.subtype == 9) {
-        if (cmd.hasThirdPartyApp() && cmd.thirdPartyApp.hasMessage()) {
-          final msg = cmd.thirdPartyApp.message;
-          try {
-            final String text = utf8.decode(msg.content);
-            Logger.info('actions', 'Received message from watch app: $text');
-            handleWatchMessage(text);
-          } catch (e) {
-            Logger.error('actions', 'Failed to decode watch message content: $e');
-          }
-        }
-      }
-    });
+    DeviceConnection.listen(_handleCommand);
   }
 
   @override
   Future<void> sync() async {}
 
-  void handleWatchMessage(String messageText) {
-    Logger.info('actions', 'Parsing message from watch: $messageText');
+  Future<void> _handleCommand(Command cmd) async {
+    if (cmd.type == CmdType.thirdPartyApp.value) {
+      await _handleWatchCommand(cmd);
+    }
+  }
 
-    // 1. Try parsing as JSON
-    try {
-      final dynamic data = jsonDecode(messageText);
-      if (data is Map) {
-        final id = data['actionId']?.toString();
-        if (id != null) {
-          triggerActionById(id);
-          return;
-        }
-        final intent = data['intent']?.toString();
-        if (intent != null) {
-          final package = data['package']?.toString() ?? '';
-          final name = data['name']?.toString() ?? 'Custom Action';
-          _triggerAction({
-            'id': 'custom',
-            'name': name,
-            'intent': intent,
-            'package': package,
-          });
-          return;
-        }
+  Future<void> _handleWatchCommand(Command cmd) async {
+    if (cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value) {
+      await _handleWatchMessage(cmd);
+    }
+  }
+
+  Future<void> _handleWatchMessage(Command cmd) async {
+    if (cmd.hasThirdPartyApp() && cmd.thirdPartyApp.hasMessage()) {
+      final msg = cmd.thirdPartyApp.message;
+      try {
+        final String text = utf8.decode(msg.content);
+        Logger.info('actions', 'Received message from watch app: $text');
+
+        final data = jsonDecode(text) as Map<String, dynamic>;
+        await _handleWatchAction(data);
+      } catch (e) {
+        Logger.error('actions', 'Failed to decode or parse watch message content: $e');
       }
-    } catch (_) {}
-
-    // 2. Try matching by ID
-    final idMatch = ActionsBlob.list.firstWhere(
-      (a) => a['id'] == messageText.trim(),
-      orElse: () => const {},
-    );
-    if (idMatch.isNotEmpty) {
-      _triggerAction(idMatch);
-      return;
     }
-
-    // 3. Try matching by Name
-    final nameMatch = ActionsBlob.list.firstWhere(
-      (a) => a['name']?.toLowerCase().trim() == messageText.toLowerCase().trim(),
-      orElse: () => const {},
-    );
-    if (nameMatch.isNotEmpty) {
-      _triggerAction(nameMatch);
-      return;
-    }
-
-    // 4. Try matching by package name or raw intent action
-    if (messageText.contains('.')) {
-      _triggerAction({
-        'id': 'raw',
-        'name': messageText,
-        'intent': messageText,
-        'package': messageText.split('.').first,
-      });
-      return;
-    }
-
-    Logger.warning('actions', 'Could not map watch message "$messageText" to any action');
   }
 
-  void triggerActionById(String id) {
-    final action = ActionsBlob.list.firstWhere(
-      (a) => a['id'] == id,
-      orElse: () => const {},
-    );
-    if (action.isNotEmpty) {
-      _triggerAction(action);
+  Future<void> _handleWatchAction(Map<String, dynamic> data) async {
+    // 1. Check if the watch sends an action name: e.g. { "action": "Mute Phone" }
+    final actionName = data['action']?.toString().trim();
+    if (actionName != null && actionName.isNotEmpty) {
+      final action = ActionsBlob.map[actionName];
+      if (action != null) {
+        _triggerAction(action);
+      } else {
+        Logger.info('actions', 'No action configured for name: $actionName');
+      }
     } else {
-      Logger.warning('actions', 'No action found with ID: $id');
+      Logger.info('actions', 'Invalid action payload received: $data');
     }
   }
 
-  void _triggerAction(Map<String, String> action) async {
-    final name = action['name'] ?? '';
-    final intent = action['intent'] ?? '';
-    final package = action['package'] ?? '';
-    Logger.info('actions', 'Triggering intent action: $name (intent=$intent, package=$package)');
+  void triggerAction(Action action) {
+    _triggerAction(action);
+  }
+
+  void _triggerAction(Action action) async {
+    final name = action.name;
+    final intent = action.intent;
+    final package = action.package;
+    Logger.info(
+      'actions',
+      'Triggering intent action: $name (intent=$intent, package=$package)',
+    );
 
     final Map<String, String> extras = {};
     if (intent == 'net.dinglisch.android.taskerm.ACTION_TASK') {
@@ -150,11 +93,10 @@ class ActionsModule implements TabModule {
     }
 
     try {
-      final bool? success = await PlatformModule.instance.invokeMethod<bool>('launchAction', {
-        'intent': intent,
-        'package': package,
-        'extras': extras,
-      });
+      final bool? success = await PlatformModule.instance.invokeMethod<bool>(
+        'launchAction',
+        {'intent': intent, 'package': package, 'extras': extras},
+      );
       Logger.info('actions', 'Action trigger result: $success');
     } catch (e) {
       Logger.error('actions', 'Failed to invoke launchAction: $e');

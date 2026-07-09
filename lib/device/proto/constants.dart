@@ -29,6 +29,7 @@ enum SystemSubtype implements ValuedEnum {
 
 enum NotificationSubtype implements ValuedEnum {
   push(0),
+  dismiss(1),
   repliesQuery(9),
   repliesDelete(11),
   replies(12),
@@ -59,4 +60,28 @@ enum ScheduleSubtype implements ValuedEnum {
   @override
   final int value;
   const ScheduleSubtype(this.value);
+}
+
+enum ThirdPartyAppSubtype implements ValuedEnum {
+  rpkList(0),
+  rpkInstall(1),
+  rpkInstalled(2),
+  rpkDelete(3),
+  launchApp(4),
+  requestPhoneAppStatus(6),
+  responsePhoneAppStatus(7),
+  sendPhoneMessage(8),
+  sendWearMessage(9);
+
+  @override
+  final int value;
+  const ThirdPartyAppSubtype(this.value);
+}
+
+enum DataUploadSubtype implements ValuedEnum {
+  uploadStart(0);
+
+  @override
+  final int value;
+  const DataUploadSubtype(this.value);
 }

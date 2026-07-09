@@ -1,10 +1,10 @@
 import '../../storage/blob.dart';
 
-class FiltersBlob extends Blob<Map<String, bool>> {
-  static final FiltersBlob _instance = FiltersBlob._();
-  static FiltersBlob get instance => _instance;
+class AppsBlob extends Blob<Map<String, bool>> {
+  static final AppsBlob _instance = AppsBlob._();
+  static AppsBlob get instance => _instance;
 
-  FiltersBlob._()
+  AppsBlob._()
       : super(
           module: 'notifications',
           name: 'filters',
@@ -17,11 +17,6 @@ class FiltersBlob extends Blob<Map<String, bool>> {
         );
 
   static Map<String, bool> get map => _instance.value;
-
-  static bool get smsEnabled => map['__sms__'] ?? true;
-  static set smsEnabled(bool value) {
-    _instance[ '__sms__' ] = value;
-  }
 
   bool? operator [](String package) => value[package];
   void operator []=(String package, bool val) {

@@ -1,0 +1,3 @@
+[submodule "flows"]
+	path = flows
+	url = git@gitea-ssh.thoughtpatterns.ai:cellular/flows.git

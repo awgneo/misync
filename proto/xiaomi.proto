@@ -23,7 +23,6 @@ message Command {
   optional Notification notification = 9;
   optional Weather weather = 12;
   optional Schedule schedule = 19;
-  optional Rpk rpk = 22;
 
   // command type 21
   optional Phonebook phonebook = 23;
@@ -32,7 +31,7 @@ message Command {
   optional DataUpload dataUpload = 24;
 
   // command type 20 (third-party/Quick App messaging)
-  optional ThirdPartyApp thirdPartyApp = 18;
+  optional ThirdPartyApp thirdPartyApp = 22;
 
   optional uint32 status = 100; // 0 on success on some
 }
@@ -459,18 +458,7 @@ message WatchfaceInstallFinish {
   optional uint32 unknown4 = 4; // 0
 }
 
-//
-// Rpk
-//
-
-message Rpk{
-  optional RpkList rpkList = 1;
-
-  optional RpkInfo rpkInfo = 2;
-  optional RpkInfoList rpkDel = 5;
-
-  optional RpkInstallStart rpkInstallStart = 3;
-}
+// Rpk message removed - unified with ThirdPartyApp under tag 22
 
 message RpkList {
   repeated RpkInfoList rpkInfo = 1;
@@ -1049,10 +1037,13 @@ message Phonebook {
 
 // Third party App/Interconnect communication (type 20)
 message ThirdPartyApp {
+  optional RpkList rpkList = 1;
+  optional RpkInfo rpkInfo = 2;
+  optional RpkInstallStart rpkInstallStart = 3;
   optional ThirdPartyAppInfo appStatusReq = 5;
+  optional ThirdPartyAppLaunch appLaunchReq = 6;
   optional ThirdPartyAppStatus appStatusResp = 8;
   optional ThirdPartyAppMessage message = 9;
-  optional ThirdPartyAppLaunch appLaunchReq = 6;
 }
 
 message ThirdPartyAppInfo {

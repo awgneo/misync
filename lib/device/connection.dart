@@ -437,6 +437,16 @@ class DeviceConnection extends ChangeNotifier {
     _connection!.output.add(Uint8List.fromList(bytes));
   }
 
+  static Future<void> sendDataChunk(Uint8List chunk) async {
+    final instance = _instance;
+    if (!instance._connected || instance._protocol == null) {
+      Logger.error('device', 'cannot send data chunk: not connected');
+      return;
+    }
+    final framed = instance._protocol!.wrapDataChunk(chunk);
+    await instance._write(framed);
+  }
+
   // ==========================================
   // 4. Connection Teardown & Reconnection
   // ==========================================
@@ -476,15 +486,5 @@ class DeviceConnection extends ChangeNotifier {
   void notifyListeners() {
     connected.value = _connected;
     super.notifyListeners();
-  }
-
-  static Future<void> sendDataChunk(Uint8List chunk) async {
-    final instance = _instance;
-    if (instance == null || !instance._connected || instance._protocol == null) {
-      Logger.error('device', 'cannot send data chunk: not connected');
-      return;
-    }
-    final framed = instance._protocol!.wrapDataChunk(chunk);
-    await instance._write(framed);
   }
 }

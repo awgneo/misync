@@ -3,7 +3,7 @@
   "name": "Messages",
   "versionName": "1.0.0",
   "versionCode": 1,
-  "minPlatformVersion": 1200,
+  "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "simulationVersion": "default",
   "deviceTypeList": [
@@ -15,11 +15,20 @@
     },
     {
       "name": "system.interconnect"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.device"
     }
   ],
   "config": {
     "logLevel": "log",
-    "designWidth": 480
+    "designWidth": "device-width"
+  },
+  "display": {
+    "backgroundColor": "#000000"
   },
   "router": {
     "entry": "pages/index",

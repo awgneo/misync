@@ -1,6 +1,32 @@
 import '../../storage/blob.dart';
 
-class ActionsBlob extends Blob<List<Map<String, String>>> {
+class Action {
+  final String name;
+  final String intent;
+  final String package;
+
+  Action({
+    required this.name,
+    required this.intent,
+    required this.package,
+  });
+
+  factory Action.fromJson(Map<String, dynamic> json) {
+    return Action(
+      name: json['name'] as String? ?? '',
+      intent: json['intent'] as String? ?? '',
+      package: json['package'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'intent': intent,
+    'package': package,
+  };
+}
+
+class ActionsBlob extends Blob<Map<String, Action>> {
   static final ActionsBlob _instance = ActionsBlob._();
   static ActionsBlob get instance => _instance;
 
@@ -8,45 +34,36 @@ class ActionsBlob extends Blob<List<Map<String, String>>> {
       : super(
           module: 'actions',
           name: 'settings',
-          defaultValue: const [
-            {
-              'id': '1',
-              'name': 'Mute Phone',
-              'intent': 'com.llamalab.automate.intent.action.START_FLOW',
-              'package': 'com.llamalab.automate',
-            },
-            {
-              'id': '2',
-              'name': 'Find My Car',
-              'intent': 'net.dinglisch.android.taskerm.ACTION_TASK',
-              'package': 'net.dinglisch.android.taskerm',
-            },
-          ],
+          defaultValue: {
+            'Mute Phone': Action(
+              name: 'Mute Phone',
+              intent: 'com.llamalab.automate.intent.action.START_FLOW',
+              package: 'com.llamalab.automate',
+            ),
+            'Find My Car': Action(
+              name: 'Find My Car',
+              intent: 'net.dinglisch.android.taskerm.ACTION_TASK',
+              package: 'net.dinglisch.android.taskerm',
+            ),
+          },
         );
 
-  static List<Map<String, String>> get list => _instance.value;
+  static Map<String, Action> get map => _instance.value;
 
-  static void ensureMessageReplyAction() {
-    final list = List<Map<String, String>>.from(_instance.value);
-    final exists = list.any((a) => a['id'] == 'msg_reply');
-    if (!exists) {
-      list.add({
-        'id': 'msg_reply',
-        'name': 'Incoming Message Reply',
-        'intent': 'com.misync.action.MESSAGE_REPLY',
-        'package': 'com.misync',
-      });
-      _instance.write(list);
-    }
+  @override
+  Map<String, Action> parse(dynamic json) {
+    final raw = json as Map<dynamic, dynamic>?;
+    if (raw == null) return defaultValue;
+    return raw.map(
+      (key, val) => MapEntry(
+        key.toString(),
+        Action.fromJson(Map<String, dynamic>.from(val as Map)),
+      ),
+    );
   }
 
   @override
-  List<Map<String, String>> parse(dynamic json) {
-    final raw = json as List<dynamic>?;
-    if (raw == null) return [];
-    return raw.map((item) => Map<String, String>.from(item as Map)).toList();
+  dynamic serialize(Map<String, Action> value) {
+    return value.map((key, val) => MapEntry(key, val.toJson()));
   }
-
-  @override
-  dynamic serialize(List<Map<String, String>> value) => value;
 }

@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive.dart';
-import 'package:crypto/crypto.dart';
-import 'package:convert/convert.dart';
 import '../device/connection.dart';
+import '../device/proto/xiaomi.pb.dart' as pb;
 import '../debug/logger.dart';
+import '../notifications/module.dart';
 import 'module.dart';
 
 class AppsScreen extends StatefulWidget {
@@ -18,6 +17,13 @@ class AppsScreen extends StatefulWidget {
 
 class _AppsScreenState extends State<AppsScreen> {
   final _module = AppsModule.instance;
+
+  String _getInternalAppName(String packageId) {
+    final name = _module.internalApps[packageId];
+    if (name != null) return '$name Watch App';
+    final suffix = packageId.split('.').last;
+    return '${suffix[0].toUpperCase()}${suffix.substring(1)} Watch App';
+  }
 
   @override
   void initState() {
@@ -31,7 +37,7 @@ class _AppsScreenState extends State<AppsScreen> {
 
   Future<void> _pickAndInstallRpk() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.any,
         withData: true,
       );
@@ -48,12 +54,14 @@ class _AppsScreenState extends State<AppsScreen> {
       final archive = ZipDecoder().decodeBytes(bytes);
       final manifestFile = archive.findFile('manifest.json');
       if (manifestFile == null) {
-        throw StateError('Invalid RPK: manifest.json not found inside package.');
+        throw StateError(
+          'Invalid RPK: manifest.json not found inside package.',
+        );
       }
-      
+
       final manifestString = utf8.decode(manifestFile.content as List<int>);
       final manifestJson = jsonDecode(manifestString) as Map<String, dynamic>;
-      
+
       final packageId = manifestJson['package'] as String? ?? '';
       final appName = manifestJson['name'] as String? ?? file.name;
       final versionCode = manifestJson['versionCode'] as int? ?? 1;
@@ -62,14 +70,17 @@ class _AppsScreenState extends State<AppsScreen> {
         throw StateError('Package identifier is missing in manifest.json');
       }
 
-      Logger.info('apps', 'User selected RPK: $appName ($packageId), version: $versionCode');
+      Logger.info(
+        'apps',
+        'User selected RPK: $appName ($packageId), version: $versionCode',
+      );
 
       setState(() {
         _module.isUploading.value = true;
       });
 
-      final success = await _module.installApp(packageId, versionCode, bytes);
-      
+      final success = await _module.installRpk(packageId, versionCode, bytes);
+
       setState(() {
         _module.isUploading.value = false;
       });
@@ -77,7 +88,11 @@ class _AppsScreenState extends State<AppsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Successfully installed $appName!' : 'Failed to install $appName.'),
+          content: Text(
+            success
+                ? 'Successfully installed $appName!'
+                : 'Failed to install $appName.',
+          ),
           backgroundColor: success ? const Color(0xFF00E5FF) : Colors.redAccent,
         ),
       );
@@ -88,41 +103,8 @@ class _AppsScreenState extends State<AppsScreen> {
       Logger.error('apps', 'Failed to pick or parse custom RPK: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
       );
-    }
-  }
-
-  Future<void> _installSystemApp() async {
-    try {
-      setState(() {
-        _module.isUploading.value = true;
-      });
-      
-      final assetData = await DefaultAssetBundle.of(context).load('assets/rpk/com.misync.messages.rpk');
-      final bytes = assetData.buffer.asUint8List();
-      
-      final success = await _module.installApp('com.misync.messages', 1, bytes);
-      
-      setState(() {
-        _module.isUploading.value = false;
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success ? 'Successfully installed Messages App!' : 'Failed to install Messages App.'),
-          backgroundColor: success ? const Color(0xFF00E5FF) : Colors.redAccent,
-        ),
-      );
-    } catch (e) {
-      setState(() {
-        _module.isUploading.value = false;
-      });
-      Logger.error('apps', 'Failed to install system RPK: $e');
     }
   }
 
@@ -150,7 +132,7 @@ class _AppsScreenState extends State<AppsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'APPS MANAGER',
+                        'APP MANAGEMENT',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -162,24 +144,13 @@ class _AppsScreenState extends State<AppsScreen> {
                       if (!connected) ...[
                         _buildStatusCard(
                           title: 'Disconnected',
-                          subtitle: 'Connect to the watch to manage applications.',
+                          subtitle:
+                              'Connect to the watch to manage applications.',
                           icon: Icons.link_off,
                           color: Colors.orangeAccent,
                         ),
                       ] else ...[
-                        _buildSystemAppCard(),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'INSTALLED APPS',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInstalledAppsList(),
+                        _buildAppList(connected),
                       ],
                     ],
                   ),
@@ -200,7 +171,7 @@ class _AppsScreenState extends State<AppsScreen> {
                     )
                   : null,
             ),
-            
+
             // Progress Indicator Overlay
             ValueListenableBuilder<bool>(
               valueListenable: _module.isUploading,
@@ -223,7 +194,9 @@ class _AppsScreenState extends State<AppsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF00E5FF),
+                                ),
                               ),
                               const SizedBox(height: 24),
                               ValueListenableBuilder<String>(
@@ -248,13 +221,21 @@ class _AppsScreenState extends State<AppsScreen> {
                                     children: [
                                       LinearProgressIndicator(
                                         value: progress,
-                                        backgroundColor: const Color(0xFF26324D),
-                                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
+                                        backgroundColor: const Color(
+                                          0xFF26324D,
+                                        ),
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                              Color(0xFF00E5FF),
+                                            ),
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
                                         '${(progress * 100).toStringAsFixed(0)}%',
-                                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ],
                                   );
@@ -312,70 +293,7 @@ class _AppsScreenState extends State<AppsScreen> {
     );
   }
 
-  Widget _buildSystemAppCard() {
-    return ValueListenableBuilder<List<dynamic>>(
-      valueListenable: _module.installedApps,
-      builder: (context, list, _) {
-        final messagesInstalled = list.any((app) => app.id == 'com.misync.messages');
-        
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.chat_bubble_outline,
-                size: 40,
-                color: Color(0xFF00E5FF),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Messages Watch App',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      messagesInstalled ? 'Status: Sideloaded' : 'Status: Missing',
-                      style: TextStyle(
-                        color: messagesInstalled ? const Color(0xFF00E5FF) : Colors.orangeAccent,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: _installSystemApp,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00E5FF),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(messagesInstalled ? 'Update' : 'Install'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInstalledAppsList() {
+  Widget _buildAppList(bool connected) {
     return ValueListenableBuilder<bool>(
       valueListenable: _module.isSyncing,
       builder: (context, syncing, _) {
@@ -390,71 +308,211 @@ class _AppsScreenState extends State<AppsScreen> {
           );
         }
 
-        return ValueListenableBuilder<List<dynamic>>(
+        return ValueListenableBuilder<List<pb.RpkInfoList>>(
           valueListenable: _module.installedApps,
           builder: (context, list, _) {
-            if (list.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(32),
-                alignment: Alignment.center,
-                child: const Text(
-                  'No third-party apps found.',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              );
-            }
+            final internalAppIds = _module.internalApps.keys.toList();
 
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: list.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final app = list[index];
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF141822),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF26324D)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.android, color: Colors.grey, size: 28),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            final otherApps = list
+                .where((app) => !_module.internalApps.containsKey(app.id))
+                .toList();
+
+            return Column(
+              children: [
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: internalAppIds.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final appId = internalAppIds[index];
+                    final targetApp = list.firstWhere(
+                      (app) => app.id == appId,
+                      orElse: () => pb.RpkInfoList(),
+                    );
+                    final isInstalled = targetApp.id.isNotEmpty;
+                    final displayName = _getInternalAppName(appId);
+
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF141822),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF26324D)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const SizedBox(width: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: appId == NotificationModule.companionAppId
+                                    ? Image.network(
+                                        'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Google_Messages_icon_%282022%29.svg/512px-Google_Messages_icon_%282022%29.svg.png',
+                                        width: 32,
+                                        height: 32,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) =>
+                                            const Icon(
+                                              Icons.chat_bubble_outline,
+                                              color: Color(0xFF00E5FF),
+                                              size: 32,
+                                            ),
+                                      )
+                                    : const Icon(
+                                        Icons.apps,
+                                        color: Color(0xFF00E5FF),
+                                        size: 32,
+                                      ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      displayName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      appId,
+                                      style: TextStyle(
+                                        color: isInstalled
+                                            ? const Color(0xFF00E5FF)
+                                            : Colors.grey,
+                                        fontSize: 11,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: isInstalled,
+                                activeThumbColor: const Color(0xFF00E5FF),
+                                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                                inactiveThumbColor: Colors.grey,
+                                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
+                                onChanged: (value) async {
+                                  if (value) {
+                                    setState(() {
+                                      _module.isUploading.value = true;
+                                      _module.uploadStatus.value = 'Installing $displayName...';
+                                    });
+                                    try {
+                                      final success = await _module.install(appId);
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            success
+                                                ? '$displayName installed successfully!'
+                                                : 'Failed to install $displayName.',
+                                          ),
+                                          backgroundColor: success
+                                              ? const Color(0xFF00E5FF)
+                                              : Colors.redAccent,
+                                        ),
+                                      );
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() {
+                                          _module.isUploading.value = false;
+                                        });
+                                      }
+                                    }
+                                  } else {
+                                    if (targetApp.id.isNotEmpty) {
+                                      await _module.deleteApp(targetApp.id, targetApp.sha);
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('$displayName uninstalled from watch.'),
+                                          backgroundColor: const Color(0xFF00E5FF),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                if (otherApps.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: otherApps.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final app = otherApps[index];
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF141822),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF26324D)),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              app.name.isNotEmpty ? app.name : 'Unknown Application',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontSize: 14,
+                            IconButton(
+                              onPressed: () => _module.deleteApp(app.id, app.sha),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              app.id,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
-                                fontFamily: 'monospace',
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.android,
+                              color: Colors.grey,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    app.name.isNotEmpty ? app.name : 'Unknown Application',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    app.id,
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 11,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => _module.deleteApp(app.id, app.sha),
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
+                ],
+              ],
             );
           },
         );

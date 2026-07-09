@@ -1,111 +1,308 @@
 <template>
   <div class="page-container">
-    <list class="scroll-list">
-      <!-- 1. Dismiss Button -->
-      <list-item type="top-actions" class="item-container">
-        <input class="btn btn-dismiss" type="button" value="Dismiss Notification" onclick="handleDismiss" />
+    <list class="scroll-view" id="main-list">
+      <!-- Combined Main screen containing the 6 rows (fills 100% viewport) -->
+      <list-item type="main" class="list-item-main">
+        <div class="main-block">
+          <!-- Row 1: Dismiss Button -->
+          <div class="row-container dismiss-row">
+            <input class="btn-dismiss" type="button" value="Dismiss" onclick="handleDismiss" />
+          </div>
+
+          <!-- Row 2: Input Display Row -->
+          <div class="row-container input-row">
+            <div class="input-display-box">
+              <text class="input-display-text">{{inputText || 'Type a reply...'}}</text>
+            </div>
+            <input class="btn-send {{inputText ? 'send-enabled' : ''}}" type="button" value="➤" onclick="handleSend" />
+          </div>
+
+          <!-- Rows 3, 4, 5: Keyboard QWERTY rows inside horizontal scroll -->
+          <div class="keyboard-scroll-container">
+            <scroll class="keyboard-scroll-x" scroll-x="{{true}}">
+              <div class="keyboard-keys-container">
+                <!-- Row 3: QWERTY Row 1 -->
+                <div class="keyboard-row row-padding">
+                  <div class="key-btn {{activeKey === item ? 'key-btn-active' : ''}}" for="{{item in row1}}" onclick="handleKeyPress(item)">
+                    <text class="key-text {{activeKey === item ? 'text-active-black' : ''}}">{{item}}</text>
+                  </div>
+                </div>
+                <!-- Row 4: QWERTY Row 2 -->
+                <div class="keyboard-row row-offset-1 row-padding">
+                  <div class="key-btn {{activeKey === item ? 'key-btn-active' : ''}}" for="{{item in row2}}" onclick="handleKeyPress(item)">
+                    <text class="key-text {{activeKey === item ? 'text-active-black' : ''}}">{{item}}</text>
+                  </div>
+                </div>
+                <!-- Row 5: QWERTY Row 3 -->
+                <div class="keyboard-row row-offset-2 row-padding">
+                  <div class="key-btn {{activeKey === item ? 'key-btn-active' : ''}}" for="{{item in row3}}" onclick="handleKeyPress(item)">
+                    <text class="key-text {{activeKey === item ? 'text-active-black' : ''}}">{{item}}</text>
+                  </div>
+                  <!-- Space bar inline in third row -->
+                  <div class="key-btn space-key {{activeKey === ' ' ? 'key-btn-active' : ''}}" onclick="handleKeyPress(' ')">
+                    <text class="key-text space-text {{activeKey === ' ' ? 'text-active-black' : ''}}">Space</text>
+                  </div>
+                </div>
+              </div>
+            </scroll>
+          </div>
+
+          <!-- Row 6: Control Row -->
+          <div class="row-container control-row">
+            <!-- Shift Key / Symbol modifier -->
+            <div class="control-btn ctrl-left {{upperFlag && !numFlag ? 'ctrl-active' : ''}} {{activeKey === 'shift' ? 'ctrl-btn-active' : ''}}" onclick="handleToggleShift()">
+              <text class="control-text {{upperFlag && !numFlag ? 'text-active' : ''}} {{activeKey === 'shift' ? 'text-active-black' : ''}}">{{numFlag ? '#+=' : '⇧'}}</text>
+            </div>
+
+            <!-- Number mode key -->
+            <div class="control-btn ctrl-center {{numFlag ? 'ctrl-active' : ''}} {{activeKey === 'num' ? 'ctrl-btn-active' : ''}}" onclick="handleToggleNum()">
+              <text class="control-text {{numFlag ? 'text-active' : ''}} {{activeKey === 'num' ? 'text-active-black' : ''}}">{{numFlag ? 'abc' : '123'}}</text>
+            </div>
+
+            <!-- Delete key -->
+            <div class="control-btn ctrl-right {{activeKey === 'del' ? 'ctrl-btn-active' : ''}}" onclick="handleDeletePress()">
+              <text class="control-text {{activeKey === 'del' ? 'text-active-black' : ''}}">⌫</text>
+            </div>
+          </div>
+        </div>
       </list-item>
 
-      <!-- 2. Message detail card -->
-      <list-item type="message-card" class="message-card">
-        <text class="sender">{{sender}}</text>
-        <text class="message-body">{{text}}</text>
+      <!-- 3. Quick Replies -->
+      <list-item type="reply" for="{{replies}}" class="list-item-reply">
+        <div class="item-container">
+          <input class="btn btn-reply" type="button" value="{{$item}}" onclick="handleReply($item)" />
+        </div>
       </list-item>
 
-      <!-- 3. Dynamic Quick Replies -->
-      <list-item for="{{replies}}" type="reply-button" class="item-container">
-        <input class="btn btn-reply" type="button" value="{{$item}}" onclick="handleReply($item)" />
+      <!-- Bottom Spacer -->
+      <list-item type="spacer" class="list-item-spacer">
+        <div class="spacer"></div>
       </list-item>
-
-      <!-- Spacer to prevent content cut off at bottom -->
-      <list-item type="spacer" class="spacer"></list-item>
     </list>
   </div>
 </template>
 
 <script>
 import interconnect from '@system.interconnect'
-
-let conn = null
+import vibrator from '@system.vibrator'
 
 export default {
+  public: {
+    sender: '',
+    text: ''
+  },
   private: {
-    sender: 'No Sender',
-    text: 'Waiting for notification...',
-    replies: []
+    connect: null,
+    replies: [],
+    inputText: '',
+    upperFlag: false,
+    numFlag: false,
+    activeKey: '',
+    row1: [],
+    row2: [],
+    row3: [],
+    keys: {
+      full: [
+        ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+        ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+        ["Z", "X", "C", "V", "B", "N", "M"]
+      ],
+      sign: [
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+        ["~", "!", "@", "#", "%", "\"", "\"", "*", "?", "/"],
+        ["(", ")", "-", "_", ":", ";", ",", ".", "!"]
+      ]
+    }
   },
 
   onInit() {
-    console.log('index page onInit')
+    if (this.sender) {
+      this.sender = decodeURIComponent(this.sender)
+    }
+    if (this.text) {
+      this.text = decodeURIComponent(this.text)
+    }
+    this.updateKeyboardRows()
+  },
+
+  onRefresh(query) {
+    if (query) {
+      if (query.sender) {
+        this.sender = decodeURIComponent(query.sender)
+      }
+      if (query.text) {
+        this.text = decodeURIComponent(query.text)
+      }
+    }
+    this.inputText = '' // Clear input on refresh/new notification
+    this.upperFlag = false
+    this.numFlag = false
+    this.activeKey = ''
+    this.updateKeyboardRows()
+    this.requestReplies()
+  },
+
+  onReady() {
     this.handleCreateConn()
   },
 
   handleCreateConn() {
-    console.log('creating interconnect connection')
+    const self = this
     try {
-      conn = interconnect.instance()
+      this.connect = interconnect.instance()
 
-      conn.getReadyState({
-        success: (data) => {
-          console.log('Interconnect state: ' + data.status)
-        }
-      })
-
-      conn.onmessage = (data) => {
-        console.log('received message from phone: ' + data.data)
+      this.connect.onmessage = (data) => {
         try {
           let payload = JSON.parse(data.data)
-          if (payload.event === 'msg_notify') {
-            this.sender = payload.sender || 'Unknown Sender'
-            this.text = payload.text || ''
-            this.replies = payload.replies || []
+          if (payload.sender) {
+            self.sender = payload.sender
+          }
+          if (payload.text) {
+            self.text = payload.text
+          }
+          if (payload.response) {
+            self.replies = payload.response
           }
         } catch (e) {
-          console.error('failed to parse notification json: ' + e)
+          console.error('json error: ' + e)
         }
       }
 
-      conn.onopen = () => {
-        console.log('interconnect connection opened')
+      this.connect.onopen = () => {
+        self.requestReplies()
       }
 
-      conn.onclose = (data) => {
-        console.log('interconnect connection closed')
+      this.connect.onclose = (data) => {
+        console.log('interconnect closed code: ' + (data ? data.code : 'unknown'))
       }
 
-      conn.onerror = (data) => {
-        console.error('interconnect connection error')
+      this.connect.onerror = (data) => {
+        console.error('interconnect error code: ' + (data ? data.code : 'unknown'))
       }
+
+      this.connect.getReadyState({
+        success: (data) => {
+          if (data && (data.status == 1 || data.status === '1')) {
+            self.requestReplies()
+          }
+        }
+      })
     } catch (e) {
-      console.error('Failed to init interconnect: ' + e)
+      console.error('init error: ' + e)
+    }
+  },
+
+  requestReplies() {
+    if (this.connect) {
+      try {
+        this.connect.send({
+          data: { command: 'getReplies' }
+        })
+      } catch (e) {
+        console.error('send error: ' + e)
+      }
+    }
+  },
+
+  updateKeyboardRows() {
+    const keysSource = this.numFlag ? this.keys.sign : this.keys.full;
+    this.row1 = keysSource[0].map(c => this.numFlag ? c : (this.upperFlag ? c.toUpperCase() : c.toLowerCase()));
+    this.row2 = keysSource[1].map(c => this.numFlag ? c : (this.upperFlag ? c.toUpperCase() : c.toLowerCase()));
+    this.row3 = keysSource[2].map(c => this.numFlag ? c : (this.upperFlag ? c.toUpperCase() : c.toLowerCase()));
+  },
+
+  triggerActiveFeedback(keyId) {
+    const self = this;
+    this.activeKey = keyId;
+    setTimeout(() => {
+      if (self.activeKey === keyId) {
+        self.activeKey = '';
+      }
+    }, 250);
+  },
+
+  handleKeyPress(char) {
+    try {
+      vibrator.vibrate({ mode: 'short' })
+    } catch(e) {}
+    this.inputText += char
+    this.triggerActiveFeedback(char)
+  },
+
+  handleDeletePress() {
+    try {
+      vibrator.vibrate({ mode: 'short' })
+    } catch(e) {}
+    if (this.inputText.length > 0) {
+      this.inputText = this.inputText.substring(0, this.inputText.length - 1)
+    }
+    this.triggerActiveFeedback('del')
+  },
+
+  handleToggleShift() {
+    try {
+      vibrator.vibrate({ mode: 'short' })
+    } catch(e) {}
+    this.upperFlag = !this.upperFlag
+    this.updateKeyboardRows()
+    this.triggerActiveFeedback('shift')
+  },
+
+  handleToggleNum() {
+    try {
+      vibrator.vibrate({ mode: 'short' })
+    } catch(e) {}
+    this.numFlag = !this.numFlag
+    this.updateKeyboardRows()
+    this.triggerActiveFeedback('num')
+  },
+
+  handleSend() {
+    if (this.inputText) {
+      this.handleReply(this.inputText)
     }
   },
 
   handleReply(replyText) {
-    if (conn) {
-      conn.send({
-        data: JSON.stringify({ event: 'reply', text: replyText }),
+    const self = this;
+    if (this.connect) {
+      this.connect.send({
+        data: { command: 'reply', text: replyText },
         success: () => {
-          console.log('sent reply event successfully')
+          self.$app.exit()
         },
-        fail: (data, code) => {
-          console.error('failed to send reply: ' + code)
+        fail: () => {
+          self.$app.exit()
         }
       })
+    } else {
+      self.$app.exit()
     }
   },
 
   handleDismiss() {
-    if (conn) {
-      conn.send({
-        data: JSON.stringify({ event: 'dismiss' }),
+    const self = this;
+    if (this.connect) {
+      this.connect.send({
+        data: { command: 'dismiss' },
         success: () => {
-          console.log('sent dismiss event successfully')
+          self.$app.exit()
         },
-        fail: (data, code) => {
-          console.error('failed to send dismiss: ' + code)
+        fail: () => {
+          self.$app.exit()
         }
       })
+    } else {
+      self.$app.exit()
+    }
+  },
+
+  onDestroy() {
+    if (this.connect) {
+      this.connect.onmessage = null
+      this.connect.onopen = null
+      this.connect.onclose = null
+      this.connect.onerror = null
     }
   }
 }
@@ -119,62 +316,249 @@ export default {
   flex-direction: column;
 }
 
-.scroll-list {
+.scroll-view {
   width: 100%;
   height: 100%;
+}
+
+.list-item-main {
+  width: 100%;
+  height: 480px;
+}
+
+.main-block {
+  width: 100%;
+  height: 480px;
   flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.row-container {
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.dismiss-row {
+  flex: 1;
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.btn-dismiss {
+  background-color: #d32f2f;
+  color: #ffffff;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  font-size: 28px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.input-row {
+  flex: 1;
+  width: 92%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.input-display-box {
+  flex: 1;
+  height: 100%;
+  background-color: #161616;
+  border-radius: 12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-right: 8px;
+  border-width: 3px;
+  border-color: rgba(255, 255, 255, 0.15);
+  justify-content: center;
+}
+
+.input-display-text {
+  font-size: 28px;
+  color: #ffffff;
+}
+
+.btn-send {
+  width: 70px;
+  height: 100%;
+  border-radius: 16px;
+  background-color: #222222;
+  color: #666666;
+  font-size: 28px;
+  text-align: center;
+  font-weight: bold;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+}
+
+.send-enabled {
+  background-color: #00e5ff;
+  color: #000000;
+}
+
+.keyboard-scroll-container {
+  flex: 3;
+  width: 100%;
+}
+
+.keyboard-scroll-x {
+  width: 100%;
+  height: 100%;
+}
+
+.keyboard-keys-container {
+  flex-direction: column;
+  width: 650px;
+  height: 100%;
+  justify-content: space-between;
+  padding-left: 8px;
+  padding-right: 16px;
+}
+
+.keyboard-row {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+}
+
+.row-padding {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.row-offset-1 {
+  margin-left: 20px;
+}
+
+.row-offset-2 {
+  margin-left: 40px;
+}
+
+.key-btn {
+  width: 54px;
+  height: 100%;
+  background-color: #242424;
+  border-radius: 12px;
+  margin-right: 6px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  justify-content: center;
+  align-items: center;
+}
+
+.key-btn-active {
+  background-color: #ffffff;
+}
+
+.key-text {
+  font-size: 28px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.text-active-black {
+  color: #000000;
+}
+
+.space-key {
+  width: 110px;
+  background-color: #383838;
+}
+
+.space-text {
+  font-size: 28px;
+}
+
+.control-row {
+  flex: 1;
+  width: 96%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 4px;
+  padding-right: 4px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.control-btn {
+  flex: 1;
+  height: 100%;
+  background-color: #1a1a1a;
+  border-width: 3px;
+  border-color: rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.ctrl-btn-active {
+  background-color: #ffffff;
+}
+
+.ctrl-center {
+  margin-left: 6px;
+  margin-right: 6px;
+}
+
+.ctrl-active {
+  background-color: #00e5ff;
+}
+
+.text-active {
+  color: #000000;
+}
+
+.control-text {
+  font-size: 28px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.list-item-reply {
+  width: 100%;
+  height: 64px;
+  justify-content: center;
+  align-items: center;
+}
+
+.list-item-spacer {
+  width: 100%;
+  height: 60px;
 }
 
 .item-container {
   width: 100%;
   justify-content: center;
   align-items: center;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
-.message-card {
-  width: 100%;
-  flex-direction: column;
-  padding: 15px 20px;
-  margin-top: 10px;
-  margin-bottom: 15px;
-  border-radius: 12px;
-  background-color: #1a1a1a;
-}
-
-.sender {
-  font-size: 24px;
-  color: #00e5ff;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.message-body {
-  font-size: 20px;
-  color: #ffffff;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .btn {
   width: 100%;
-  height: 48px;
-  border-radius: 24px;
-  font-size: 18px;
+  height: 54px;
+  border-radius: 27px;
+  font-size: 28px;
   text-align: center;
-}
-
-.btn-dismiss {
-  background-color: #d32f2f;
-  color: #ffffff;
+  font-weight: bold;
 }
 
 .btn-reply {
-  background-color: #263238;
+  background-color: #1a1a1a;
   border-width: 1px;
-  border-color: #00e5ff;
-  color: #00e5ff;
+  border-color: #333333;
+  color: #ffffff;
+  height: 48px;
+  border-radius: 24px;
 }
 
 .spacer {

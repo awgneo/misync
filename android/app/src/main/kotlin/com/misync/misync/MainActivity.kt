@@ -119,6 +119,18 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(success)
                 }
+                "dismissNotification" -> {
+                    val key = call.argument<String>("key")
+                    val id = call.argument<Int>("id")
+                    val success = if (key != null && key.isNotEmpty()) {
+                        NotificationService.instance?.dismiss(key) ?: false
+                    } else if (id != null) {
+                        NotificationService.instance?.dismissById(id) ?: false
+                    } else {
+                        false
+                    }
+                    result.success(success)
+                }
                 "launchAction" -> {
                     val intentAction = call.argument<String>("intent") ?: ""
                     val packageName = call.argument<String>("package")
@@ -212,6 +224,26 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Force Android to rebind NotificationListenerService by toggling its component state
+        try {
+            val componentName = android.content.ComponentName(applicationContext, NotificationService::class.java)
+            val packageManager = applicationContext.packageManager
+            packageManager.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            packageManager.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            Log.d(TAG, "Force reset NotificationService component enabled setting successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to force reset NotificationService component: ", e)
+        }
+
         // Register receiver for notification events
         val filter = IntentFilter(NotificationService.ACTION_NOTIFICATION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -268,6 +300,7 @@ class MainActivity : FlutterActivity() {
         val deviceManager = getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
         val request = AssociationRequest.Builder()
             .setSingleDevice(true)
+            .setDeviceProfile(AssociationRequest.DEVICE_PROFILE_WATCH)
             .build()
 
         Log.d(TAG, "Requesting Companion device association...")

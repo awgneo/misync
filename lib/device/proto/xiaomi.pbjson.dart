@@ -86,7 +86,6 @@ const Command$json = {
       '6': '.xiaomi.Schedule',
       '10': 'schedule'
     },
-    {'1': 'rpk', '3': 22, '4': 1, '5': 11, '6': '.xiaomi.Rpk', '10': 'rpk'},
     {
       '1': 'phonebook',
       '3': 23,
@@ -105,7 +104,7 @@ const Command$json = {
     },
     {
       '1': 'thirdPartyApp',
-      '3': 18,
+      '3': 22,
       '4': 1,
       '5': 11,
       '6': '.xiaomi.ThirdPartyApp',
@@ -125,10 +124,10 @@ final $typed_data.Uint8List commandDescriptor = $convert.base64Decode(
     'gLMg0ueGlhb21pLk11c2ljUgVtdXNpYxI4Cgxub3RpZmljYXRpb24YCSABKAsyFC54aWFvbWku'
     'Tm90aWZpY2F0aW9uUgxub3RpZmljYXRpb24SKQoHd2VhdGhlchgMIAEoCzIPLnhpYW9taS5XZW'
     'F0aGVyUgd3ZWF0aGVyEiwKCHNjaGVkdWxlGBMgASgLMhAueGlhb21pLlNjaGVkdWxlUghzY2hl'
-    'ZHVsZRIdCgNycGsYFiABKAsyCy54aWFvbWkuUnBrUgNycGsSLwoJcGhvbmVib29rGBcgASgLMh'
-    'EueGlhb21pLlBob25lYm9va1IJcGhvbmVib29rEjIKCmRhdGFVcGxvYWQYGCABKAsyEi54aWFv'
-    'bWkuRGF0YVVwbG9hZFIKZGF0YVVwbG9hZBI7Cg10aGlyZFBhcnR5QXBwGBIgASgLMhUueGlhb2'
-    '1pLlRoaXJkUGFydHlBcHBSDXRoaXJkUGFydHlBcHASFgoGc3RhdHVzGGQgASgNUgZzdGF0dXM=');
+    'ZHVsZRIvCglwaG9uZWJvb2sYFyABKAsyES54aWFvbWkuUGhvbmVib29rUglwaG9uZWJvb2sSMg'
+    'oKZGF0YVVwbG9hZBgYIAEoCzISLnhpYW9taS5EYXRhVXBsb2FkUgpkYXRhVXBsb2FkEjsKDXRo'
+    'aXJkUGFydHlBcHAYFiABKAsyFS54aWFvbWkuVGhpcmRQYXJ0eUFwcFINdGhpcmRQYXJ0eUFwcB'
+    'IWCgZzdGF0dXMYZCABKA1SBnN0YXR1cw==');
 
 @$core.Deprecated('Use authDescriptor instead')
 const Auth$json = {
@@ -1444,52 +1443,6 @@ final $typed_data.Uint8List watchfaceInstallFinishDescriptor = $convert.base64De
     'ChZXYXRjaGZhY2VJbnN0YWxsRmluaXNoEg4KAmlkGAEgASgJUgJpZBIaCgh1bmtub3duMhgCIA'
     'EoDVIIdW5rbm93bjISGgoIdW5rbm93bjMYAyABKA1SCHVua25vd24zEhoKCHVua25vd240GAQg'
     'ASgNUgh1bmtub3duNA==');
-
-@$core.Deprecated('Use rpkDescriptor instead')
-const Rpk$json = {
-  '1': 'Rpk',
-  '2': [
-    {
-      '1': 'rpkList',
-      '3': 1,
-      '4': 1,
-      '5': 11,
-      '6': '.xiaomi.RpkList',
-      '10': 'rpkList'
-    },
-    {
-      '1': 'rpkInfo',
-      '3': 2,
-      '4': 1,
-      '5': 11,
-      '6': '.xiaomi.RpkInfo',
-      '10': 'rpkInfo'
-    },
-    {
-      '1': 'rpkDel',
-      '3': 5,
-      '4': 1,
-      '5': 11,
-      '6': '.xiaomi.RpkInfoList',
-      '10': 'rpkDel'
-    },
-    {
-      '1': 'rpkInstallStart',
-      '3': 3,
-      '4': 1,
-      '5': 11,
-      '6': '.xiaomi.RpkInstallStart',
-      '10': 'rpkInstallStart'
-    },
-  ],
-};
-
-/// Descriptor for `Rpk`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List rpkDescriptor = $convert.base64Decode(
-    'CgNScGsSKQoHcnBrTGlzdBgBIAEoCzIPLnhpYW9taS5ScGtMaXN0UgdycGtMaXN0EikKB3Jwa0'
-    'luZm8YAiABKAsyDy54aWFvbWkuUnBrSW5mb1IHcnBrSW5mbxIrCgZycGtEZWwYBSABKAsyEy54'
-    'aWFvbWkuUnBrSW5mb0xpc3RSBnJwa0RlbBJBCg9ycGtJbnN0YWxsU3RhcnQYAyABKAsyFy54aW'
-    'FvbWkuUnBrSW5zdGFsbFN0YXJ0Ug9ycGtJbnN0YWxsU3RhcnQ=');
 
 @$core.Deprecated('Use rpkListDescriptor instead')
 const RpkList$json = {
@@ -3431,12 +3384,44 @@ const ThirdPartyApp$json = {
   '1': 'ThirdPartyApp',
   '2': [
     {
+      '1': 'rpkList',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.RpkList',
+      '10': 'rpkList'
+    },
+    {
+      '1': 'rpkInfo',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.RpkInfo',
+      '10': 'rpkInfo'
+    },
+    {
+      '1': 'rpkInstallStart',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.RpkInstallStart',
+      '10': 'rpkInstallStart'
+    },
+    {
       '1': 'appStatusReq',
       '3': 5,
       '4': 1,
       '5': 11,
       '6': '.xiaomi.ThirdPartyAppInfo',
       '10': 'appStatusReq'
+    },
+    {
+      '1': 'appLaunchReq',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.ThirdPartyAppLaunch',
+      '10': 'appLaunchReq'
     },
     {
       '1': 'appStatusResp',
@@ -3454,24 +3439,19 @@ const ThirdPartyApp$json = {
       '6': '.xiaomi.ThirdPartyAppMessage',
       '10': 'message'
     },
-    {
-      '1': 'appLaunchReq',
-      '3': 6,
-      '4': 1,
-      '5': 11,
-      '6': '.xiaomi.ThirdPartyAppLaunch',
-      '10': 'appLaunchReq'
-    },
   ],
 };
 
 /// Descriptor for `ThirdPartyApp`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List thirdPartyAppDescriptor = $convert.base64Decode(
-    'Cg1UaGlyZFBhcnR5QXBwEj0KDGFwcFN0YXR1c1JlcRgFIAEoCzIZLnhpYW9taS5UaGlyZFBhcn'
-    'R5QXBwSW5mb1IMYXBwU3RhdHVzUmVxEkEKDWFwcFN0YXR1c1Jlc3AYCCABKAsyGy54aWFvbWku'
-    'VGhpcmRQYXJ0eUFwcFN0YXR1c1INYXBwU3RhdHVzUmVzcBI2CgdtZXNzYWdlGAkgASgLMhwueG'
-    'lhb21pLlRoaXJkUGFydHlBcHBNZXNzYWdlUgdtZXNzYWdlEj8KDGFwcExhdW5jaFJlcRgGIAEo'
-    'CzIbLnhpYW9taS5UaGlyZFBhcnR5QXBwTGF1bmNoUgxhcHBMYXVuY2hSZXE=');
+    'Cg1UaGlyZFBhcnR5QXBwEikKB3Jwa0xpc3QYASABKAsyDy54aWFvbWkuUnBrTGlzdFIHcnBrTG'
+    'lzdBIpCgdycGtJbmZvGAIgASgLMg8ueGlhb21pLlJwa0luZm9SB3Jwa0luZm8SQQoPcnBrSW5z'
+    'dGFsbFN0YXJ0GAMgASgLMhcueGlhb21pLlJwa0luc3RhbGxTdGFydFIPcnBrSW5zdGFsbFN0YX'
+    'J0Ej0KDGFwcFN0YXR1c1JlcRgFIAEoCzIZLnhpYW9taS5UaGlyZFBhcnR5QXBwSW5mb1IMYXBw'
+    'U3RhdHVzUmVxEj8KDGFwcExhdW5jaFJlcRgGIAEoCzIbLnhpYW9taS5UaGlyZFBhcnR5QXBwTG'
+    'F1bmNoUgxhcHBMYXVuY2hSZXESQQoNYXBwU3RhdHVzUmVzcBgIIAEoCzIbLnhpYW9taS5UaGly'
+    'ZFBhcnR5QXBwU3RhdHVzUg1hcHBTdGF0dXNSZXNwEjYKB21lc3NhZ2UYCSABKAsyHC54aWFvbW'
+    'kuVGhpcmRQYXJ0eUFwcE1lc3NhZ2VSB21lc3NhZ2U=');
 
 @$core.Deprecated('Use thirdPartyAppInfoDescriptor instead')
 const ThirdPartyAppInfo$json = {

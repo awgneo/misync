@@ -27,10 +27,9 @@ class Command extends $pb.GeneratedMessage {
     Health? health,
     Weather? weather,
     Calendar? calendar,
-    ThirdPartyApp? thirdPartyApp,
     Schedule? schedule,
     Music? music,
-    Rpk? rpk,
+    ThirdPartyApp? thirdPartyApp,
     Phonebook? phonebook,
     DataUpload? dataUpload,
     $core.int? status,
@@ -45,10 +44,9 @@ class Command extends $pb.GeneratedMessage {
     if (health != null) result.health = health;
     if (weather != null) result.weather = weather;
     if (calendar != null) result.calendar = calendar;
-    if (thirdPartyApp != null) result.thirdPartyApp = thirdPartyApp;
     if (schedule != null) result.schedule = schedule;
     if (music != null) result.music = music;
-    if (rpk != null) result.rpk = rpk;
+    if (thirdPartyApp != null) result.thirdPartyApp = thirdPartyApp;
     if (phonebook != null) result.phonebook = phonebook;
     if (dataUpload != null) result.dataUpload = dataUpload;
     if (status != null) result.status = status;
@@ -82,12 +80,11 @@ class Command extends $pb.GeneratedMessage {
         subBuilder: Weather.create)
     ..aOM<Calendar>(14, _omitFieldNames ? '' : 'calendar',
         subBuilder: Calendar.create)
-    ..aOM<ThirdPartyApp>(18, _omitFieldNames ? '' : 'thirdPartyApp',
-        protoName: 'thirdPartyApp', subBuilder: ThirdPartyApp.create)
     ..aOM<Schedule>(19, _omitFieldNames ? '' : 'schedule',
         subBuilder: Schedule.create)
     ..aOM<Music>(20, _omitFieldNames ? '' : 'music', subBuilder: Music.create)
-    ..aOM<Rpk>(22, _omitFieldNames ? '' : 'rpk', subBuilder: Rpk.create)
+    ..aOM<ThirdPartyApp>(22, _omitFieldNames ? '' : 'thirdPartyApp',
+        protoName: 'thirdPartyApp', subBuilder: ThirdPartyApp.create)
     ..aOM<Phonebook>(23, _omitFieldNames ? '' : 'phonebook',
         subBuilder: Phonebook.create)
     ..aOM<DataUpload>(24, _omitFieldNames ? '' : 'dataUpload',
@@ -208,81 +205,70 @@ class Command extends $pb.GeneratedMessage {
   @$pb.TagNumber(14)
   Calendar ensureCalendar() => $_ensure(8);
 
-  /// command type 20 (third-party/Quick App messaging)
-  @$pb.TagNumber(18)
-  ThirdPartyApp get thirdPartyApp => $_getN(9);
-  @$pb.TagNumber(18)
-  set thirdPartyApp(ThirdPartyApp value) => $_setField(18, value);
-  @$pb.TagNumber(18)
-  $core.bool hasThirdPartyApp() => $_has(9);
-  @$pb.TagNumber(18)
-  void clearThirdPartyApp() => $_clearField(18);
-  @$pb.TagNumber(18)
-  ThirdPartyApp ensureThirdPartyApp() => $_ensure(9);
-
   @$pb.TagNumber(19)
-  Schedule get schedule => $_getN(10);
+  Schedule get schedule => $_getN(9);
   @$pb.TagNumber(19)
   set schedule(Schedule value) => $_setField(19, value);
   @$pb.TagNumber(19)
-  $core.bool hasSchedule() => $_has(10);
+  $core.bool hasSchedule() => $_has(9);
   @$pb.TagNumber(19)
   void clearSchedule() => $_clearField(19);
   @$pb.TagNumber(19)
-  Schedule ensureSchedule() => $_ensure(10);
+  Schedule ensureSchedule() => $_ensure(9);
 
   @$pb.TagNumber(20)
-  Music get music => $_getN(11);
+  Music get music => $_getN(10);
   @$pb.TagNumber(20)
   set music(Music value) => $_setField(20, value);
   @$pb.TagNumber(20)
-  $core.bool hasMusic() => $_has(11);
+  $core.bool hasMusic() => $_has(10);
   @$pb.TagNumber(20)
   void clearMusic() => $_clearField(20);
   @$pb.TagNumber(20)
-  Music ensureMusic() => $_ensure(11);
+  Music ensureMusic() => $_ensure(10);
 
+  /// command type 20 (third-party/Quick App messaging)
   @$pb.TagNumber(22)
-  Rpk get rpk => $_getN(12);
+  ThirdPartyApp get thirdPartyApp => $_getN(11);
   @$pb.TagNumber(22)
-  set rpk(Rpk value) => $_setField(22, value);
+  set thirdPartyApp(ThirdPartyApp value) => $_setField(22, value);
   @$pb.TagNumber(22)
-  $core.bool hasRpk() => $_has(12);
+  $core.bool hasThirdPartyApp() => $_has(11);
   @$pb.TagNumber(22)
-  void clearRpk() => $_clearField(22);
+  void clearThirdPartyApp() => $_clearField(22);
   @$pb.TagNumber(22)
-  Rpk ensureRpk() => $_ensure(12);
+  ThirdPartyApp ensureThirdPartyApp() => $_ensure(11);
 
   /// command type 21
   @$pb.TagNumber(23)
-  Phonebook get phonebook => $_getN(13);
+  Phonebook get phonebook => $_getN(12);
   @$pb.TagNumber(23)
   set phonebook(Phonebook value) => $_setField(23, value);
   @$pb.TagNumber(23)
-  $core.bool hasPhonebook() => $_has(13);
+  $core.bool hasPhonebook() => $_has(12);
   @$pb.TagNumber(23)
   void clearPhonebook() => $_clearField(23);
   @$pb.TagNumber(23)
-  Phonebook ensurePhonebook() => $_ensure(13);
+  Phonebook ensurePhonebook() => $_ensure(12);
 
   /// type 22
   @$pb.TagNumber(24)
-  DataUpload get dataUpload => $_getN(14);
+  DataUpload get dataUpload => $_getN(13);
   @$pb.TagNumber(24)
   set dataUpload(DataUpload value) => $_setField(24, value);
   @$pb.TagNumber(24)
-  $core.bool hasDataUpload() => $_has(14);
+  $core.bool hasDataUpload() => $_has(13);
   @$pb.TagNumber(24)
   void clearDataUpload() => $_clearField(24);
   @$pb.TagNumber(24)
-  DataUpload ensureDataUpload() => $_ensure(14);
+  DataUpload ensureDataUpload() => $_ensure(13);
 
   @$pb.TagNumber(100)
-  $core.int get status => $_getIZ(15);
+  $core.int get status => $_getIZ(14);
   @$pb.TagNumber(100)
-  set status($core.int value) => $_setUnsignedInt32(15, value);
+  set status($core.int value) => $_setUnsignedInt32(14, value);
   @$pb.TagNumber(100)
-  $core.bool hasStatus() => $_has(15);
+  $core.bool hasStatus() => $_has(14);
   @$pb.TagNumber(100)
   void clearStatus() => $_clearField(100);
 }
@@ -4863,107 +4849,6 @@ class WatchfaceInstallFinish extends $pb.GeneratedMessage {
   $core.bool hasUnknown4() => $_has(3);
   @$pb.TagNumber(4)
   void clearUnknown4() => $_clearField(4);
-}
-
-class Rpk extends $pb.GeneratedMessage {
-  factory Rpk({
-    RpkList? rpkList,
-    RpkInfo? rpkInfo,
-    RpkInstallStart? rpkInstallStart,
-    RpkInfoList? rpkDel,
-  }) {
-    final result = create();
-    if (rpkList != null) result.rpkList = rpkList;
-    if (rpkInfo != null) result.rpkInfo = rpkInfo;
-    if (rpkInstallStart != null) result.rpkInstallStart = rpkInstallStart;
-    if (rpkDel != null) result.rpkDel = rpkDel;
-    return result;
-  }
-
-  Rpk._();
-
-  factory Rpk.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromBuffer(data, registry);
-  factory Rpk.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromJson(json, registry);
-
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'Rpk',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
-      createEmptyInstance: create)
-    ..aOM<RpkList>(1, _omitFieldNames ? '' : 'rpkList',
-        protoName: 'rpkList', subBuilder: RpkList.create)
-    ..aOM<RpkInfo>(2, _omitFieldNames ? '' : 'rpkInfo',
-        protoName: 'rpkInfo', subBuilder: RpkInfo.create)
-    ..aOM<RpkInstallStart>(3, _omitFieldNames ? '' : 'rpkInstallStart',
-        protoName: 'rpkInstallStart', subBuilder: RpkInstallStart.create)
-    ..aOM<RpkInfoList>(5, _omitFieldNames ? '' : 'rpkDel',
-        protoName: 'rpkDel', subBuilder: RpkInfoList.create)
-    ..hasRequiredFields = false;
-
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  Rpk clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  Rpk copyWith(void Function(Rpk) updates) =>
-      super.copyWith((message) => updates(message as Rpk)) as Rpk;
-
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
-
-  @$core.pragma('dart2js:noInline')
-  static Rpk create() => Rpk._();
-  @$core.override
-  Rpk createEmptyInstance() => create();
-  @$core.pragma('dart2js:noInline')
-  static Rpk getDefault() =>
-      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Rpk>(create);
-  static Rpk? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  RpkList get rpkList => $_getN(0);
-  @$pb.TagNumber(1)
-  set rpkList(RpkList value) => $_setField(1, value);
-  @$pb.TagNumber(1)
-  $core.bool hasRpkList() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearRpkList() => $_clearField(1);
-  @$pb.TagNumber(1)
-  RpkList ensureRpkList() => $_ensure(0);
-
-  @$pb.TagNumber(2)
-  RpkInfo get rpkInfo => $_getN(1);
-  @$pb.TagNumber(2)
-  set rpkInfo(RpkInfo value) => $_setField(2, value);
-  @$pb.TagNumber(2)
-  $core.bool hasRpkInfo() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearRpkInfo() => $_clearField(2);
-  @$pb.TagNumber(2)
-  RpkInfo ensureRpkInfo() => $_ensure(1);
-
-  @$pb.TagNumber(3)
-  RpkInstallStart get rpkInstallStart => $_getN(2);
-  @$pb.TagNumber(3)
-  set rpkInstallStart(RpkInstallStart value) => $_setField(3, value);
-  @$pb.TagNumber(3)
-  $core.bool hasRpkInstallStart() => $_has(2);
-  @$pb.TagNumber(3)
-  void clearRpkInstallStart() => $_clearField(3);
-  @$pb.TagNumber(3)
-  RpkInstallStart ensureRpkInstallStart() => $_ensure(2);
-
-  @$pb.TagNumber(5)
-  RpkInfoList get rpkDel => $_getN(3);
-  @$pb.TagNumber(5)
-  set rpkDel(RpkInfoList value) => $_setField(5, value);
-  @$pb.TagNumber(5)
-  $core.bool hasRpkDel() => $_has(3);
-  @$pb.TagNumber(5)
-  void clearRpkDel() => $_clearField(5);
-  @$pb.TagNumber(5)
-  RpkInfoList ensureRpkDel() => $_ensure(3);
 }
 
 class RpkList extends $pb.GeneratedMessage {
@@ -11402,12 +11287,18 @@ class Phonebook extends $pb.GeneratedMessage {
 /// Third party App/Interconnect communication (type 20)
 class ThirdPartyApp extends $pb.GeneratedMessage {
   factory ThirdPartyApp({
+    RpkList? rpkList,
+    RpkInfo? rpkInfo,
+    RpkInstallStart? rpkInstallStart,
     ThirdPartyAppInfo? appStatusReq,
     ThirdPartyAppLaunch? appLaunchReq,
     ThirdPartyAppStatus? appStatusResp,
     ThirdPartyAppMessage? message,
   }) {
     final result = create();
+    if (rpkList != null) result.rpkList = rpkList;
+    if (rpkInfo != null) result.rpkInfo = rpkInfo;
+    if (rpkInstallStart != null) result.rpkInstallStart = rpkInstallStart;
     if (appStatusReq != null) result.appStatusReq = appStatusReq;
     if (appLaunchReq != null) result.appLaunchReq = appLaunchReq;
     if (appStatusResp != null) result.appStatusResp = appStatusResp;
@@ -11428,6 +11319,12 @@ class ThirdPartyApp extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ThirdPartyApp',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
+    ..aOM<RpkList>(1, _omitFieldNames ? '' : 'rpkList',
+        protoName: 'rpkList', subBuilder: RpkList.create)
+    ..aOM<RpkInfo>(2, _omitFieldNames ? '' : 'rpkInfo',
+        protoName: 'rpkInfo', subBuilder: RpkInfo.create)
+    ..aOM<RpkInstallStart>(3, _omitFieldNames ? '' : 'rpkInstallStart',
+        protoName: 'rpkInstallStart', subBuilder: RpkInstallStart.create)
     ..aOM<ThirdPartyAppInfo>(5, _omitFieldNames ? '' : 'appStatusReq',
         protoName: 'appStatusReq', subBuilder: ThirdPartyAppInfo.create)
     ..aOM<ThirdPartyAppLaunch>(6, _omitFieldNames ? '' : 'appLaunchReq',
@@ -11457,49 +11354,82 @@ class ThirdPartyApp extends $pb.GeneratedMessage {
       $pb.GeneratedMessage.$_defaultFor<ThirdPartyApp>(create);
   static ThirdPartyApp? _defaultInstance;
 
+  @$pb.TagNumber(1)
+  RpkList get rpkList => $_getN(0);
+  @$pb.TagNumber(1)
+  set rpkList(RpkList value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRpkList() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRpkList() => $_clearField(1);
+  @$pb.TagNumber(1)
+  RpkList ensureRpkList() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  RpkInfo get rpkInfo => $_getN(1);
+  @$pb.TagNumber(2)
+  set rpkInfo(RpkInfo value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRpkInfo() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRpkInfo() => $_clearField(2);
+  @$pb.TagNumber(2)
+  RpkInfo ensureRpkInfo() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  RpkInstallStart get rpkInstallStart => $_getN(2);
+  @$pb.TagNumber(3)
+  set rpkInstallStart(RpkInstallStart value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRpkInstallStart() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRpkInstallStart() => $_clearField(3);
+  @$pb.TagNumber(3)
+  RpkInstallStart ensureRpkInstallStart() => $_ensure(2);
+
   @$pb.TagNumber(5)
-  ThirdPartyAppInfo get appStatusReq => $_getN(0);
+  ThirdPartyAppInfo get appStatusReq => $_getN(3);
   @$pb.TagNumber(5)
   set appStatusReq(ThirdPartyAppInfo value) => $_setField(5, value);
   @$pb.TagNumber(5)
-  $core.bool hasAppStatusReq() => $_has(0);
+  $core.bool hasAppStatusReq() => $_has(3);
   @$pb.TagNumber(5)
   void clearAppStatusReq() => $_clearField(5);
   @$pb.TagNumber(5)
-  ThirdPartyAppInfo ensureAppStatusReq() => $_ensure(0);
+  ThirdPartyAppInfo ensureAppStatusReq() => $_ensure(3);
 
   @$pb.TagNumber(6)
-  ThirdPartyAppLaunch get appLaunchReq => $_getN(1);
+  ThirdPartyAppLaunch get appLaunchReq => $_getN(4);
   @$pb.TagNumber(6)
   set appLaunchReq(ThirdPartyAppLaunch value) => $_setField(6, value);
   @$pb.TagNumber(6)
-  $core.bool hasAppLaunchReq() => $_has(1);
+  $core.bool hasAppLaunchReq() => $_has(4);
   @$pb.TagNumber(6)
   void clearAppLaunchReq() => $_clearField(6);
   @$pb.TagNumber(6)
-  ThirdPartyAppLaunch ensureAppLaunchReq() => $_ensure(1);
+  ThirdPartyAppLaunch ensureAppLaunchReq() => $_ensure(4);
 
   @$pb.TagNumber(8)
-  ThirdPartyAppStatus get appStatusResp => $_getN(2);
+  ThirdPartyAppStatus get appStatusResp => $_getN(5);
   @$pb.TagNumber(8)
   set appStatusResp(ThirdPartyAppStatus value) => $_setField(8, value);
   @$pb.TagNumber(8)
-  $core.bool hasAppStatusResp() => $_has(2);
+  $core.bool hasAppStatusResp() => $_has(5);
   @$pb.TagNumber(8)
   void clearAppStatusResp() => $_clearField(8);
   @$pb.TagNumber(8)
-  ThirdPartyAppStatus ensureAppStatusResp() => $_ensure(2);
+  ThirdPartyAppStatus ensureAppStatusResp() => $_ensure(5);
 
   @$pb.TagNumber(9)
-  ThirdPartyAppMessage get message => $_getN(3);
+  ThirdPartyAppMessage get message => $_getN(6);
   @$pb.TagNumber(9)
   set message(ThirdPartyAppMessage value) => $_setField(9, value);
   @$pb.TagNumber(9)
-  $core.bool hasMessage() => $_has(3);
+  $core.bool hasMessage() => $_has(6);
   @$pb.TagNumber(9)
   void clearMessage() => $_clearField(9);
   @$pb.TagNumber(9)
-  ThirdPartyAppMessage ensureMessage() => $_ensure(3);
+  ThirdPartyAppMessage ensureMessage() => $_ensure(6);
 }
 
 class ThirdPartyAppInfo extends $pb.GeneratedMessage {
