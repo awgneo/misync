@@ -6,7 +6,7 @@ import '../device/connection.dart';
 import '../debug/logger.dart';
 import 'screen.dart';
 
-class HealthModule implements TabModule {
+class HealthModule extends TabModule {
   @override
   String get name => 'health';
 

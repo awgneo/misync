@@ -11,7 +11,7 @@ import '../platform/module.dart';
 import 'blobs/alarms.dart';
 import 'screen.dart';
 
-class ClockModule implements TabModule {
+class ClockModule extends TabModule {
   @override
   String get name => 'clock';
 

@@ -7,6 +7,7 @@ import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../debug/logger.dart';
 import '../screen.dart';
+import '../crc32.dart';
 import 'module.dart';
 
 class FacesScreen extends StatefulWidget {
@@ -47,27 +48,6 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
     } catch (e) {
       Logger.error('faces', 'error picking file: $e');
     }
-  }
-
-  // Pure Dart CRC32 implementation for the checksum footer
-  int _crc32(List<int> bytes) {
-    final table = List<int>.generate(256, (i) {
-      int c = i;
-      for (int k = 0; k < 8; ++k) {
-        if ((c & 1) != 0) {
-          c = 0xEDB88320 ^ (c >> 1);
-        } else {
-          c = c >> 1;
-        }
-      }
-      return c;
-    });
-
-    int c = 0xFFFFFFFF;
-    for (int i = 0; i < bytes.length; ++i) {
-      c = table[(c ^ bytes[i]) & 0xFF] ^ (c >> 8);
-    }
-    return c ^ 0xFFFFFFFF;
   }
 
   Future<void> _startUpload() async {
@@ -125,7 +105,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
     headerBuilder.add(bytes);
 
     final payload = headerBuilder.takeBytes();
-    final crc = _crc32(payload);
+    final crc = Crc32.calculate(payload);
     final crcByteData = ByteData(4)..setUint32(0, crc, Endian.little);
 
     final fullPayload = BytesBuilder()

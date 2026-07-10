@@ -30,6 +30,9 @@ class StorageModule extends ChangeNotifier implements Module {
   @override
   Future<void> sync() async {}
 
+  @override
+  List<String> get permissions => const [];
+
   Future<void> save(String module, String name, dynamic jsonValue) async {
     final cacheKey = '$module.$name';
     _cache[cacheKey] = jsonValue;

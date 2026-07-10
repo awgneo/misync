@@ -4,7 +4,9 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.content.Intent
 import android.os.Bundle
+import android.os.Build
 import android.app.RemoteInput
+import android.app.Notification
 import android.util.Log
 import android.content.Context
 
@@ -13,6 +15,7 @@ class NotificationService : NotificationListenerService() {
 
     companion object {
         const val ACTION_NOTIFICATION = "com.misync.misync.NOTIFICATION_RECEIVED"
+        const val ACTION_NOTIFICATION_REMOVED = "com.misync.misync.NOTIFICATION_REMOVED"
         const val EXTRA_PACKAGE = "package"
         const val EXTRA_TITLE = "title"
         const val EXTRA_BODY = "body"
@@ -38,6 +41,13 @@ class NotificationService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
         val notification = sbn.notification
+
+        // Skip group summaries (generic grouped message container notifications)
+        if ((notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) {
+            Log.d(TAG, "Filtering out group summary notification from $packageName")
+            return
+        }
+
         val extras = notification.extras
 
         // Get friendly app label
@@ -80,7 +90,52 @@ class NotificationService : NotificationListenerService() {
         val key = sbn.key
         val category = notification.category ?: ""
 
-        Log.d(TAG, "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category")
+        var phoneNumber = ""
+        if (category == Notification.CATEGORY_CALL || packageName.contains("dialer") || packageName.contains("telecom") || packageName.contains("phone")) {
+            phoneNumber = extras.getString("android.phoneNumber") ?: ""
+            if (phoneNumber.isEmpty()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val person = extras.getParcelable<android.app.Person>("android.callPerson")
+                    val uriStr = person?.uri?.toString() ?: ""
+                    if (uriStr.startsWith("tel:")) {
+                        phoneNumber = uriStr.substring(4)
+                    } else if (uriStr.startsWith("content://com.android.contacts/")) {
+                        try {
+                            val contactUri = android.net.Uri.parse(uriStr)
+                            val cursor = contentResolver.query(contactUri, null, null, null, null)
+                            if (cursor != null) {
+                                if (cursor.moveToFirst()) {
+                                    val idCol = cursor.getColumnIndex(android.provider.ContactsContract.Contacts._ID)
+                                    if (idCol != -1) {
+                                        val contactId = cursor.getString(idCol)
+                                        val phones = contentResolver.query(
+                                            android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                            arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                            android.provider.ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                                            arrayOf(contactId), null
+                                        )
+                                        if (phones != null) {
+                                            if (phones.moveToFirst()) {
+                                                phoneNumber = phones.getString(0)
+                                            }
+                                            phones.close()
+                                        }
+                                    }
+                                }
+                                cursor.close()
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error resolving contact URI: $uriStr", e)
+                        }
+                    }
+                }
+            }
+            if (phoneNumber.isEmpty() && title.matches(Regex("^[+]?[0-9\\s\\-()]{7,20}$"))) {
+                phoneNumber = title.replace("\\s".toRegex(), "")
+            }
+        }
+
+        Log.d(TAG, "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category, phoneNumber: $phoneNumber")
 
         val intent = Intent(ACTION_NOTIFICATION).apply {
             putExtra(EXTRA_PACKAGE, packageName)
@@ -89,6 +144,26 @@ class NotificationService : NotificationListenerService() {
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, key)
             putExtra(EXTRA_APP_NAME, appName)
+            putExtra("category", category)
+            putExtra("phoneNumber", phoneNumber)
+            setPackage(this@NotificationService.packageName)
+        }
+        sendBroadcast(intent)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        super.onNotificationRemoved(sbn)
+        if (sbn == null) return
+
+        val packageName = sbn.packageName
+        val id = sbn.id
+        val key = sbn.key
+        val category = sbn.notification.category ?: ""
+
+        val intent = Intent(ACTION_NOTIFICATION_REMOVED).apply {
+            putExtra(EXTRA_PACKAGE, packageName)
+            putExtra(EXTRA_ID, id)
+            putExtra(EXTRA_KEY, key)
             putExtra("category", category)
             setPackage(this@NotificationService.packageName)
         }
@@ -138,20 +213,48 @@ class NotificationService : NotificationListenerService() {
     }
 
     fun declineCall(key: String): Boolean {
+        Log.d(TAG, "declineCall called for key: $key")
         val activeNotifications = activeNotifications ?: return false
-        val sbn = activeNotifications.find { it.key == key } ?: return false
-        val actions = sbn.notification.actions ?: return false
 
-        val keywords = listOf("decline", "hang", "reject", "挂断", "拒", "拒绝")
+        // Try exact match first
+        var sbn = activeNotifications.find { it.key == key }
+
+        // Fallback: search for any active call notification
+        if (sbn == null) {
+            Log.d(TAG, "Exact notification not found for key: $key. Searching active notifications for call...")
+            sbn = activeNotifications.find { s ->
+                val cat = s.notification.category ?: ""
+                val pkg = s.packageName.lowercase()
+                cat == Notification.CATEGORY_CALL ||
+                pkg.contains("dialer") ||
+                pkg.contains("telecom") ||
+                pkg.contains("phone")
+            }
+        }
+
+        if (sbn == null) {
+            Log.w(TAG, "No call notification found to decline")
+            return false
+        }
+
+        val actions = sbn.notification.actions
+        if (actions == null) {
+            Log.w(TAG, "No actions found for notification: ${sbn.key}")
+            return false
+        }
+
+        Log.d(TAG, "Found actions for call notification ${sbn.key}: ${actions.map { it.title?.toString() }}")
+
+        val keywords = listOf("decline", "hang", "reject", "挂断", "拒", "拒绝", "dismiss", "ignore")
         for (action in actions) {
             val title = action.title?.toString()?.lowercase() ?: continue
             if (keywords.any { title.contains(it) }) {
                 try {
                     action.actionIntent.send()
-                    Log.d(TAG, "Successfully triggered decline action: ${action.title} for key: $key")
+                    Log.d(TAG, "Successfully triggered decline action: ${action.title} for key: ${sbn.key}")
                     return true
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error triggering decline action: ", e)
+                    Log.e(TAG, "Error triggering decline action for key: ${sbn.key}", e)
                 }
             }
         }

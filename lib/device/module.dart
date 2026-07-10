@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter/services.dart';
 import 'blobs/settings.dart';
 import 'proto/constants.dart';
@@ -11,7 +11,7 @@ import '../debug/logger.dart';
 import 'connection.dart';
 import 'screen.dart';
 
-class DeviceModule implements TabModule {
+class DeviceModule extends TabModule {
   @override
   String get name => 'device';
 
@@ -20,6 +20,9 @@ class DeviceModule implements TabModule {
 
   @override
   Widget get screen => const DeviceScreen();
+
+  @override
+  List<String> get permissions => const ['companion'];
 
   static final DeviceModule _instance = DeviceModule._();
   static DeviceModule get instance => _instance;
@@ -140,78 +143,90 @@ class DeviceModule implements TabModule {
     _checkPermissions();
     PlatformModule.instance.register(_handleMethodCall);
     DeviceConnection.instance.addListener(_onConnectionChanged);
-    DeviceConnection.listen(_onWatchCommand);
+    DeviceConnection.listen(_handleCommand);
     SettingsBlob.instance.addListener(_updateSyncTimer);
     DeviceConnection.connect();
   }
 
-  void _onWatchCommand(Command cmd) {
-    if (cmd.type != CmdType.system.value) return;
+  void _handleCommand(Command cmd) {
+    if (cmd.type == CmdType.system.value) {
+      _handleSystemCommand(cmd);
+    }
+  }
 
-    final sys = cmd.system;
+  void _handleSystemCommand(Command cmd) {
+    if (cmd.subtype == SystemSubtype.deviceInfo.value) {
+      _handleDeviceInfo(cmd);
+    } else if (cmd.subtype == SystemSubtype.battery.value) {
+      _handleBattery(cmd);
+    } else if (cmd.subtype == SystemSubtype.deviceState.value) {
+      _handleDeviceState(cmd);
+    }
+  }
+
+  void _handleDeviceInfo(Command cmd) {
+    if (!cmd.system.hasDeviceInfo()) return;
+    final info = cmd.system.deviceInfo;
     final current = DeviceBlob.infoState;
+    Logger.info(
+      'device',
+      'received device info: serial=${info.serialNumber}, firmware=${info.firmware}, model=${info.model}',
+    );
+    DeviceBlob.instance.update(
+      DeviceInfoState(
+        serialNumber: info.serialNumber,
+        firmwareVersion: info.firmware,
+        model: info.model,
+        batteryLevel: current.batteryLevel,
+        isCharging: current.isCharging,
+        isWorn: current.isWorn,
+        isUserAsleep: current.isUserAsleep,
+      ),
+    );
+  }
 
-    if (cmd.subtype == SystemSubtype.deviceInfo.value && sys.hasDeviceInfo()) {
-      final info = sys.deviceInfo;
-      Logger.info(
-        'device',
-        'received device info: serial=${info.serialNumber}, firmware=${info.firmware}, model=${info.model}',
-      );
-      DeviceBlob.instance.update(
-        DeviceInfoState(
-          serialNumber: info.serialNumber,
-          firmwareVersion: info.firmware,
-          model: info.model,
-          batteryLevel: current.batteryLevel,
-          isCharging: current.isCharging,
-          isWorn: current.isWorn,
-          isUserAsleep: current.isUserAsleep,
-        ),
-      );
-    }
+  void _handleBattery(Command cmd) {
+    if (!cmd.system.hasPower() || !cmd.system.power.hasBattery()) return;
+    final battery = cmd.system.power.battery;
+    final current = DeviceBlob.infoState;
+    Logger.info(
+      'device',
+      'received battery state: level=${battery.level}, state=${battery.state}',
+    );
+    DeviceBlob.instance.update(
+      DeviceInfoState(
+        serialNumber: current.serialNumber,
+        firmwareVersion: current.firmwareVersion,
+        model: current.model,
+        batteryLevel: battery.level,
+        isCharging: battery.state == 1 || battery.state == 3,
+        isWorn: current.isWorn,
+        isUserAsleep: current.isUserAsleep,
+      ),
+    );
+  }
 
-    if (cmd.subtype == SystemSubtype.battery.value &&
-        sys.hasPower() &&
-        sys.power.hasBattery()) {
-      final battery = sys.power.battery;
-      Logger.info(
-        'device',
-        'received battery state: level=${battery.level}, state=${battery.state}',
-      );
-      DeviceBlob.instance.update(
-        DeviceInfoState(
-          serialNumber: current.serialNumber,
-          firmwareVersion: current.firmwareVersion,
-          model: current.model,
-          batteryLevel: battery.level,
-          isCharging: battery.state == 1 || battery.state == 3,
-          isWorn: current.isWorn,
-          isUserAsleep: current.isUserAsleep,
-        ),
-      );
-    }
-
-    if (cmd.subtype == SystemSubtype.deviceState.value &&
-        sys.hasBasicDeviceState()) {
-      final state = sys.basicDeviceState;
-      Logger.info(
-        'device',
-        'received basic device state: charging=${state.isCharging}, level=${state.batteryLevel}, worn=${state.isWorn}, sleep=${state.isUserAsleep}',
-      );
-      DeviceBlob.instance.update(
-        DeviceInfoState(
-          serialNumber: current.serialNumber,
-          firmwareVersion: current.firmwareVersion,
-          model: current.model,
-          batteryLevel: state.hasBatteryLevel()
-              ? state.batteryLevel
-              : current.batteryLevel,
-          isCharging: state.isCharging,
-          isWorn: state.isWorn,
-          isUserAsleep: state.isUserAsleep,
-        ),
-      );
-    }
+  void _handleDeviceState(Command cmd) {
+    if (!cmd.system.hasBasicDeviceState()) return;
+    final state = cmd.system.basicDeviceState;
+    final current = DeviceBlob.infoState;
+    Logger.info(
+      'device',
+      'received basic device state: charging=${state.isCharging}, level=${state.batteryLevel}, worn=${state.isWorn}, sleep=${state.isUserAsleep}',
+    );
+    DeviceBlob.instance.update(
+      DeviceInfoState(
+        serialNumber: current.serialNumber,
+        firmwareVersion: current.firmwareVersion,
+        model: current.model,
+        batteryLevel: state.hasBatteryLevel()
+            ? state.batteryLevel
+            : current.batteryLevel,
+        isCharging: state.isCharging,
+        isWorn: state.isWorn,
+        isUserAsleep: state.isUserAsleep,
+      ),
+    );
   }
 
   void _onConnectionChanged() {
@@ -287,5 +302,4 @@ class DeviceModule implements TabModule {
         await PlatformModule.instance.invokeMethod('startPresenceObservation');
       } catch (_) {}
     }
-  }
-}
+  }}

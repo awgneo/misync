@@ -8,24 +8,29 @@ import '../device/module.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../device/proto/constants.dart';
 import '../debug/logger.dart';
-import '../actions/module.dart';
 import 'dart:async';
 import '../apps/module.dart';
-import 'blobs/messages.dart';
+import '../apps/blobs/apps.dart' as app_registry;
+import 'blobs/contact.dart';
 import 'blobs/apps.dart';
 import 'blobs/replies.dart';
 import 'blobs/dnd.dart';
-import 'blobs/calls.dart';
 import 'screen.dart';
 
-class NotificationModule implements TabModule {
+class NotificationModule extends TabModule {
   @override
   String get name => 'notifications';
 
   @override
   IconData get icon => Icons.notifications;
 
-  DateTime _lastPushTime = DateTime.fromMillisecondsSinceEpoch(0);
+  @override
+  List<String> get permissions => const ['notification', 'sms', 'contacts'];
+
+  DateTime _lastMessageTime = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _lastMessageKey;
+  DateTime _lastCallTime = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _lastCallNumber;
 
   @override
   Widget get screen => const NotificationsScreen();
@@ -33,7 +38,7 @@ class NotificationModule implements TabModule {
   static NotificationModule get instance => _instance;
   NotificationModule._();
 
-  static const String companionAppId = 'com.misync.messages';
+  static const String messagesPackage = 'com.misync.messages';
 
   @override
   Future<void> start() async {
@@ -51,12 +56,25 @@ class NotificationModule implements TabModule {
       final data = Map<String, dynamic>.from(call.arguments);
       Logger.info('notifications', 'Incoming notification arguments: $data');
       _handlePhoneNotification(data);
+    } else if (call.method == 'onNotificationRemoved') {
+      final data = Map<String, dynamic>.from(call.arguments);
+      Logger.info('notifications', 'Removed notification arguments: $data');
+      _handleNotificationRemoved(data);
     }
   }
 
   void _handlePhoneNotification(Map<String, dynamic> data) async {
     final String package = data['package'] ?? '';
     final String category = data['category'] ?? '';
+
+    // Ignore dialer/phone notifications if category is not call (missed calls, voicemails, transcriptions)
+    final bool isDialerPackage =
+        package.contains('dialer') ||
+        package.contains('telecom') ||
+        package.contains('phone');
+    if (isDialerPackage && category != 'call') {
+      return;
+    }
 
     String? defaultSmsPkg;
     try {
@@ -66,16 +84,11 @@ class NotificationModule implements TabModule {
     } catch (_) {}
 
     final bool isSms = defaultSmsPkg != null && package == defaultSmsPkg;
-    final bool isCall = category == 'call' ||
-        package.contains('dialer') ||
-        package.contains('telecom') ||
-        package.contains('phone');
+    final bool isCall = category == 'call';
 
-    final bool isAllowed = isCall
-        ? CallsBlob.callsEnabled
-        : (isSms
-            ? MessagesBlob.smsEnabled
-            : (AppsBlob.map[package] == true));
+    final bool isAllowed = (isCall || isSms)
+        ? ContactBlob.enabled
+        : (AppsBlob.map[package] == true);
 
     if (!isAllowed) {
       return; // Filtered out
@@ -98,7 +111,7 @@ class NotificationModule implements TabModule {
       ..package = package
       ..appName = appName
       ..title = title
-      ..body = body
+      ..body = isCall ? '' : body
       ..id = id
       ..key = key
       ..unknown4 = ''
@@ -111,7 +124,7 @@ class NotificationModule implements TabModule {
       ..repliesAllowed = true
       ..openOnPhone = true;
 
-    _lastPushTime = DateTime.now();
+    // Handled below based on category
     await DeviceConnection.send(
       type: CmdType.notification,
       subtype: NotificationSubtype.push,
@@ -131,15 +144,12 @@ class NotificationModule implements TabModule {
         package.contains('telecom') ||
         package.contains('phone');
 
-    if (MessagesBlob.quickRepliesEnabled && (isSms || isChatApp)) {
-      // Store notification data in ActionsModule for wrist reply matching and launch streaming
-      ActionsModule.activeNotification = {
-        'id': id,
-        'key': key,
-        'package': package,
-        'title': title,
-        'body': body,
-      };
+    if (isCall) {
+      _lastCallNumber = data['phoneNumber']?.toString() ?? '';
+      _lastCallTime = DateTime.now();
+    } else if (ContactBlob.enabled && (isSms || isChatApp)) {
+      _lastMessageKey = key;
+      _lastMessageTime = DateTime.now();
     }
   }
 
@@ -177,7 +187,22 @@ class NotificationModule implements TabModule {
     if (cmd.hasNotification() && cmd.notification.hasNotificationDismiss()) {
       final dismiss = cmd.notification.notificationDismiss;
 
-      final elapsed = DateTime.now().difference(_lastPushTime);
+      final target = dismiss.notificationId.isNotEmpty
+          ? dismiss.notificationId.first
+          : null;
+      final pkg = target?.package.toLowerCase() ?? '';
+      final key = target?.key.toLowerCase() ?? '';
+      final bool isCallDismiss =
+          pkg.contains('dialer') ||
+          pkg.contains('telecom') ||
+          pkg.contains('phone') ||
+          pkg.contains('contacts') ||
+          key.contains('dialer') ||
+          key.contains('telecom') ||
+          key.contains('phone');
+
+      final lastPushTime = isCallDismiss ? _lastCallTime : _lastMessageTime;
+      final elapsed = DateTime.now().difference(lastPushTime);
       if (elapsed.inMilliseconds < 1200) {
         Logger.info(
           'notifications',
@@ -191,47 +216,102 @@ class NotificationModule implements TabModule {
         'Wrist native dismiss event received on notification ID(s) ${dismiss.notificationId}. CONSOLE COMMAND: native wrist dismiss',
       );
 
-      final active = ActionsModule.activeNotification;
-      if (active != null) {
-        final activePkg = active['package'] as String? ?? '';
-        final activeTitle = active['title'] as String? ?? '';
-        final activeBody = active['body'] as String? ?? '';
-        final activeKey = active['key'];
-        final activeId = active['id'];
+      // 0. Handle Call Dismiss immediately (always decline call, only launch watch messages app if recent <= 5s)
+      if (isCallDismiss && target != null) {
+        Logger.info(
+          'notifications',
+          'Call dismiss detected (elapsed: ${elapsed.inSeconds}s). Declining incoming call...',
+        );
+        PlatformModule.instance.invokeMethod('dismissNotification', {
+          'key': target.key,
+          'id': target.id,
+        });
 
+        if (elapsed.inSeconds <= 5) {
+          Logger.info(
+            'notifications',
+            'Launching watch quick replies app for call...',
+          );
+          try {
+            final uri = 'hap://app/com.misync.messages';
+            AppsModule.instance.launch(messagesPackage, uri: uri);
+          } catch (e) {
+            Logger.error(
+              'notifications',
+              'failed to launch watch app on call dismiss: $e',
+            );
+          }
+        }
+        return;
+      }
+
+      // 1. Clear All or multi-dismiss -> dismiss on phone & skip watch app launch
+      if (dismiss.notificationId.length > 1) {
+        Logger.info(
+          'notifications',
+          'Multi-dismiss or Clear All detected. Skipping watch app launch.',
+        );
+        for (var notifId in dismiss.notificationId) {
+          PlatformModule.instance.invokeMethod('dismissNotification', {
+            'key': notifId.key,
+            'id': notifId.id,
+          });
+        }
+        return;
+      }
+
+      // 2. Delayed drawer swipe (> 5 seconds) -> dismiss on phone & skip watch app launch
+      final bool isRecent = elapsed.inSeconds <= 5;
+      if (!isRecent) {
+        Logger.info(
+          'notifications',
+          'Dismiss outside 5s active window (elapsed: ${elapsed.inSeconds}s). Skipping watch app launch.',
+        );
+        if (dismiss.notificationId.isNotEmpty) {
+          final target = dismiss.notificationId.first;
+          PlatformModule.instance.invokeMethod('dismissNotification', {
+            'key': target.key,
+            'id': target.id,
+          });
+        }
+        return;
+      }
+
+      // 3. Active popup swipe (<= 5 seconds) -> check package directly
+      if (dismiss.notificationId.isNotEmpty) {
+        final target = dismiss.notificationId.first;
+        final pkg = target.package.toLowerCase();
         final bool isChatApp =
-            activePkg.contains('whatsapp') ||
-            activePkg.contains('tele') ||
-            activePkg.contains('msgr') ||
-            activePkg.contains('message') ||
-            activePkg.contains('messaging') ||
-            activePkg.contains('sms') ||
-            activePkg.contains('discord') ||
-            activePkg.contains('dialer') ||
-            activePkg.contains('telecom') ||
-            activePkg.contains('phone');
+            pkg.contains('whatsapp') ||
+            pkg.contains('tele') ||
+            pkg.contains('msgr') ||
+            pkg.contains('message') ||
+            pkg.contains('messaging') ||
+            pkg.contains('sms') ||
+            pkg.contains('discord') ||
+            pkg.contains('dialer') ||
+            pkg.contains('telecom') ||
+            pkg.contains('phone');
 
         if (isChatApp) {
           Logger.info(
             'notifications',
-            'Wrist dismiss received for chat app ($activePkg): launching watch app immediately...',
+            'Wrist dismiss received for chat app ($pkg): launching watch app...',
           );
           try {
-            // Launch the watch Messages app directly
             final uri = 'hap://app/com.misync.messages';
-            await AppsModule.instance.launch(companionAppId, uri: uri);
+            AppsModule.instance.launch(messagesPackage, uri: uri);
           } catch (e) {
             Logger.error('notifications', 'failed to launch on dismiss: $e');
           }
         } else {
-          // Dismiss the notification on the phone as well (sync dismiss)
           Logger.info(
             'notifications',
-            'Auto dismissing active notification on phone: key=$activeKey, id=$activeId',
+            'Sync dismissing non-chat app ($pkg) on phone.',
           );
           PlatformModule.instance.invokeMethod('dismissNotification', {
-            'key': activeKey,
-            'id': activeId,
+            'key': target.key,
+            'id': target.id,
           });
         }
       }
@@ -242,7 +322,7 @@ class NotificationModule implements TabModule {
     if (cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value) {
       if (cmd.hasThirdPartyApp() && cmd.thirdPartyApp.hasMessage()) {
         final msg = cmd.thirdPartyApp.message;
-        if (msg.appInfo.packageName == companionAppId) {
+        if (msg.appInfo.packageName == messagesPackage) {
           try {
             final String text = utf8.decode(msg.content);
             Logger.info(
@@ -272,11 +352,10 @@ class NotificationModule implements TabModule {
   }
 
   Future<void> _handleWatchGetReplies() async {
-    final active = ActionsModule.activeNotification;
     final repliesPayload = {
       'response': RepliesBlob.list,
-      'sender': active?['title']?.toString() ?? '',
-      'text': active?['body']?.toString() ?? '',
+      'sender': '',
+      'text': '',
     };
     final jsonPayload = jsonEncode(repliesPayload);
     Logger.info(
@@ -284,13 +363,10 @@ class NotificationModule implements TabModule {
       'Watch requested replies. Sending: $jsonPayload',
     );
 
-    final appInfo = ThirdPartyAppInfo()..packageName = companionAppId;
-    final installed = AppsModule.instance.installedApps.value.firstWhere(
-      (app) => app.id == companionAppId,
-      orElse: () => RpkInfoList(),
-    );
-    if (installed.id.isNotEmpty && installed.sha.isNotEmpty) {
-      appInfo.fingerprint = installed.sha;
+    final appInfo = ThirdPartyAppInfo()..packageName = messagesPackage;
+    final installed = app_registry.AppsBlob.instance.value[messagesPackage];
+    if (installed != null && installed.fingerprint.isNotEmpty) {
+      appInfo.fingerprint = installed.fingerprint;
     }
 
     final appMsg = ThirdPartyAppMessage()
@@ -306,41 +382,53 @@ class NotificationModule implements TabModule {
   }
 
   Future<void> _handleWatchReply(String replyText) async {
-    final active = ActionsModule.activeNotification;
-    if (active != null) {
-      final activeId = active['id'];
-      final activeKey = active['key']?.toString() ?? '';
+    final bool isCallRecent = _lastCallTime.isAfter(_lastMessageTime);
+
+    if (isCallRecent &&
+        _lastCallNumber != null &&
+        _lastCallNumber!.isNotEmpty) {
+      final phoneNumber = _lastCallNumber!;
       Logger.info(
         'notifications',
-        'Received reply from watch: "$replyText" for notification: key=$activeKey, id=$activeId',
+        'Received reply from watch: "$replyText" for incoming call from: $phoneNumber',
+      );
+
+      final success =
+          await PlatformModule.instance.invokeMethod<bool>('sendSms', {
+            'phoneNumber': phoneNumber,
+            'message': replyText,
+          }) ??
+          false;
+      Logger.info('notifications', 'SMS reply status: $success');
+    } else if (_lastMessageKey != null && _lastMessageKey!.isNotEmpty) {
+      Logger.info(
+        'notifications',
+        'Received reply from watch: "$replyText" for notification: key=$_lastMessageKey',
       );
 
       await PlatformModule.instance.invokeMethod('replyToNotification', {
-        'key': activeKey,
-        'id': activeId,
+        'key': _lastMessageKey,
         'message': replyText,
       });
 
       await PlatformModule.instance.invokeMethod('dismissNotification', {
-        'key': activeKey,
-        'id': activeId,
+        'key': _lastMessageKey,
       });
     }
   }
 
   Future<void> _handleWatchDismiss() async {
-    final active = ActionsModule.activeNotification;
-    if (active != null) {
-      final activeId = active['id'];
-      final activeKey = active['key']?.toString() ?? '';
+    final bool isCallRecent = _lastCallTime.isAfter(_lastMessageTime);
+    final keyToDismiss = isCallRecent ? null : _lastMessageKey;
+
+    if (keyToDismiss != null && keyToDismiss.isNotEmpty) {
       Logger.info(
         'notifications',
-        'Received dismiss from watch Messages app for notification: key=$activeKey, id=$activeId',
+        'Received dismiss from watch Messages app for notification: key=$keyToDismiss',
       );
 
       await PlatformModule.instance.invokeMethod('dismissNotification', {
-        'key': activeKey,
-        'id': activeId,
+        'key': keyToDismiss,
       });
     }
   }
@@ -365,21 +453,37 @@ class NotificationModule implements TabModule {
               ..dndStatus = (DoNotDisturb()..status = dndEnabled ? 1 : 0)),
       );
 
-      // 2. Orchestrate RPK installation and custom actions if SMS or Quick Replies enabled
-      if (MessagesBlob.smsEnabled || MessagesBlob.quickRepliesEnabled) {
+      // 2. Orchestrate RPK installation and custom actions if Contact Sync is enabled
+      if (ContactBlob.enabled) {
         Logger.info(
           'notifications',
-          'SMS or Quick Replies enabled: ensuring watch app $companionAppId...',
+          'Contact Sync enabled: ensuring watch app $messagesPackage...',
         );
-
-        // Idempotent watch Messages companion app installation check
-        await AppsModule.instance.install(companionAppId);
+        await AppsModule.instance.enable(messagesPackage);
+      } else {
+        Logger.info(
+          'notifications',
+          'Contact Sync disabled: ensuring watch app $messagesPackage is disabled...',
+        );
+        await AppsModule.instance.disable(messagesPackage);
       }
 
       Logger.info('notifications', 'notification settings sync finished');
     } catch (e) {
       Logger.error('notifications', 'error during notification sync: $e');
     }
+  }
+
+  Future<void> enableContact() async {
+    ContactBlob.enabled = true;
+    await AppsModule.instance.enable(messagesPackage);
+    Logger.info('notifications', 'Contact sync enabled from controller');
+  }
+
+  Future<void> disableContact() async {
+    ContactBlob.enabled = false;
+    await AppsModule.instance.disable(messagesPackage);
+    Logger.info('notifications', 'Contact sync disabled from controller');
   }
 
   Future<Map<String, Map<String, dynamic>>> loadInstalledApps() async {
@@ -401,22 +505,31 @@ class NotificationModule implements TabModule {
     return const {};
   }
 
-  Future<bool> checkNotificationPermission() async {
-    try {
-      return await PlatformModule.instance.invokeMethod<bool>(
-            'checkNotificationPermission',
-          ) ??
-          false;
-    } catch (_) {
-      return false;
-    }
-  }
+  void _handleNotificationRemoved(Map<String, dynamic> data) async {
+    if (!DeviceConnection.connected.value) return;
 
-  Future<void> requestNotificationPermission() async {
-    try {
-      await PlatformModule.instance.invokeMethod(
-        'requestNotificationPermission',
-      );
-    } catch (_) {}
+    final String package = data['package'] ?? '';
+    final String category = data['category'] ?? '';
+    final String key = data['key'] ?? '';
+    final int id = data['id'] ?? 0;
+
+    Logger.info(
+      'notifications',
+      'Phone dismissed notification: pkg=$package, category=$category, key=$key. Sending dismiss to watch...',
+    );
+
+    final idProto = NotificationId()
+      ..id = id
+      ..package = package
+      ..key = key;
+
+    await DeviceConnection.send(
+      type: CmdType.notification,
+      subtype: NotificationSubtype.dismiss, // 1
+      builder: (c) =>
+          c.notification = (Notification()
+            ..notificationDismiss = (NotificationDismiss()
+              ..notificationId.add(idProto))),
+    );
   }
 }

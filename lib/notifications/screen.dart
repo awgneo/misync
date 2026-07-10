@@ -3,9 +3,8 @@ import 'dart:typed_data';
 import '../debug/logger.dart';
 import 'blobs/replies.dart';
 import 'blobs/apps.dart';
-import 'blobs/messages.dart';
+import 'blobs/contact.dart';
 import 'blobs/dnd.dart';
-import 'blobs/calls.dart';
 import '../screen.dart';
 import 'module.dart';
 
@@ -16,11 +15,9 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends ScreenState<NotificationsScreen>
-    with WidgetsBindingObserver {
+class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   late final TextEditingController _replyController;
   late final TextEditingController _appController;
-  bool _hasNotificationPermission = true;
   Map<String, Map<String, dynamic>> _installedApps = {};
   bool _isLoadingApps = false;
 
@@ -30,32 +27,34 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _replyController = TextEditingController();
     _appController = TextEditingController();
-    _checkPermission();
     _loadInstalledApps();
   }
 
   Future<void> _loadInstalledApps() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingApps = true;
     });
     try {
       final apps = await module.loadInstalledApps();
+      if (!mounted) return;
       setState(() {
         _installedApps = apps;
       });
     } catch (e) {
       Logger.error('notifications', 'Failed to load installed apps: $e');
     } finally {
-      setState(() {
-        _isLoadingApps = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingApps = false;
+        });
+      }
     }
   }
 
-  void _showAppPicker() {
+  void _pickApp() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -77,30 +76,9 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _replyController.dispose();
     _appController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkPermission();
-    }
-  }
-
-  Future<void> _checkPermission() async {
-    final enabled = await module.checkNotificationPermission();
-    if (mounted && _hasNotificationPermission != enabled) {
-      setState(() {
-        _hasNotificationPermission = enabled;
-      });
-    }
-  }
-
-  Future<void> _requestPermission() async {
-    await module.requestNotificationPermission();
   }
 
   void _saveReplies(List<String> repliesList) async {
@@ -124,7 +102,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
   @override
   Widget buildScreen(BuildContext context, bool connected) {
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F1219),
         appBar: const TabBar(
@@ -132,8 +110,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           labelColor: Color(0xFF00E5FF),
           unselectedLabelColor: Colors.grey,
           tabs: [
-            Tab(icon: Icon(Icons.call), text: 'Calls'),
-            Tab(icon: Icon(Icons.message), text: 'Messages'),
+            Tab(icon: Icon(Icons.contacts), text: 'Contact'),
             Tab(icon: Icon(Icons.apps), text: 'Apps'),
             Tab(icon: Icon(Icons.reply), text: 'Replies'),
             Tab(icon: Icon(Icons.do_not_disturb), text: 'DND'),
@@ -142,12 +119,8 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
         body: TabBarView(
           children: [
             ListenableBuilder(
-              listenable: CallsBlob.instance,
-              builder: (context, _) => _buildCallsTab(connected),
-            ),
-            ListenableBuilder(
-              listenable: MessagesBlob.instance,
-              builder: (context, _) => _buildMessagesTab(connected),
+              listenable: ContactBlob.instance,
+              builder: (context, _) => _buildContactTab(connected),
             ),
             ListenableBuilder(
               listenable: AppsBlob.instance,
@@ -167,45 +140,13 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
     );
   }
 
-  Widget _buildCallsTab(bool connected) {
+  Widget _buildContactTab(bool connected) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(20),
       children: [
-        if (!_hasNotificationPermission) ...[
-          GestureDetector(
-            onTap: _requestPermission,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orangeAccent.withValues(alpha: 0.3),
-                ),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Notification Access is disabled. Tap to enable in system settings.',
-                      style: TextStyle(
-                        color: Colors.orangeAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
         const Text(
-          'CALLS CONFIGURATION',
+          'CONTACT CONFIGURATION',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
@@ -214,115 +155,8 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           ),
         ),
         const SizedBox(height: 10),
-        
-        // Calls switch
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.call_outlined,
-                color: Color(0xFF00E5FF),
-                size: 28,
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Standard Phone Call Mirroring',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 15,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Mirror incoming phone calls to the watch',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: CallsBlob.callsEnabled,
-                activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
-                onChanged: (value) async {
-                  setState(() {
-                    CallsBlob.callsEnabled = value;
-                  });
-                  await module.sync();
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildMessagesTab(bool connected) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
-      children: [
-        if (!_hasNotificationPermission) ...[
-          GestureDetector(
-            onTap: _requestPermission,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orangeAccent.withValues(alpha: 0.3),
-                ),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Notification Access is disabled. Tap to enable in system settings.',
-                      style: TextStyle(
-                        color: Colors.orangeAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-        const Text(
-          'MESSAGES CONFIGURATION',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 10),
-        
-        // SMS switch
+        // Contact switch
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -333,7 +167,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           child: Row(
             children: [
               const Icon(
-                Icons.sms_outlined,
+                Icons.contact_phone_outlined,
                 color: Color(0xFF00E5FF),
                 size: 28,
               ),
@@ -343,7 +177,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Standard SMS Mirroring',
+                      'Calls & Messages Mirroring',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -352,84 +186,26 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Mirror incoming SMS messages to the watch',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
+                      'Mirror incoming phone calls and text messages to the watch',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ],
                 ),
               ),
               Switch(
-                value: MessagesBlob.smsEnabled,
+                value: ContactBlob.enabled,
                 activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                activeTrackColor: const Color(
+                  0xFF00E5FF,
+                ).withValues(alpha: 0.3),
                 inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
                 onChanged: (value) async {
-                  setState(() {
-                    MessagesBlob.smsEnabled = value;
-                  });
-                  await module.sync();
-                },
-              ),
-            ],
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-
-        // Quick replies fullscreen watch app switch
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.quickreply_outlined,
-                color: Color(0xFF00E5FF),
-                size: 28,
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Watch Messages App (Quick Replies)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 15,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Launch watch Messages app fullscreen for replies',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: MessagesBlob.quickRepliesEnabled,
-                activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
-                onChanged: (value) async {
-                  setState(() {
-                    MessagesBlob.quickRepliesEnabled = value;
-                  });
-                  await module.sync();
+                  if (value) {
+                    await module.enableContact();
+                  } else {
+                    await module.disableContact();
+                  }
                 },
               ),
             ],
@@ -446,38 +222,6 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(20),
       children: [
-        if (!_hasNotificationPermission) ...[
-          GestureDetector(
-            onTap: _requestPermission,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orangeAccent.withValues(alpha: 0.3),
-                ),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Notification Access is disabled. Tap to enable in system settings.',
-                      style: TextStyle(
-                        color: Colors.orangeAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
         // App picker button
         const Text(
           'APP FILTERS',
@@ -497,7 +241,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
                 ),
               )
             : ElevatedButton.icon(
-                onPressed: _showAppPicker,
+                onPressed: _pickApp,
                 icon: const Icon(Icons.add, color: Color(0xFF0F1219)),
                 label: const Text(
                   'Add App to Filter',

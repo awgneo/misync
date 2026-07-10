@@ -12,9 +12,9 @@ class ClockScreen extends StatefulWidget {
 
 class _ClockScreenState extends ScreenState<ClockScreen> {
   @override
-  Module get module => ClockModule.instance;
+  ClockModule get module => ClockModule.instance;
 
-  Future<void> _showAddAlarmDialog() async {
+  Future<void> _createAlarm() async {
     final customAlarms = AlarmsBlob.list;
     if (customAlarms.length >= 9) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +135,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                         Icons.add_alarm,
                         color: Color(0xFF00E5FF),
                       ),
-                      onPressed: connected ? _showAddAlarmDialog : null,
+                      onPressed: _createAlarm,
                     ),
                   ],
                 ),
@@ -177,7 +177,10 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                               value: enabled,
                               onChanged: connected
                                   ? (val) {
-                                      ClockModule.instance.toggleAlarm(alarm.id, val);
+                                      ClockModule.instance.toggleAlarm(
+                                        alarm.id,
+                                        val,
+                                      );
                                     }
                                   : null,
                               title: Text(
@@ -196,16 +199,19 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                                 ),
                               ),
                               activeThumbColor: const Color(0xFF00E5FF),
-                              activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                              activeTrackColor: const Color(
+                                0xFF00E5FF,
+                              ).withValues(alpha: 0.3),
                               inactiveThumbColor: Colors.grey,
-                              inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
+                              inactiveTrackColor: Colors.grey.withValues(
+                                alpha: 0.3,
+                              ),
                               secondary: IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                onPressed: connected
-                                    ? () {
-                                        ClockModule.instance.deleteAlarm(alarm.id);
-                                      }
-                                    : null,
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.redAccent,
+                                ),
+                                onPressed: () => module.deleteAlarm(alarm.id),
                               ),
                             );
 
@@ -213,7 +219,10 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                               return Column(
                                 children: [
                                   item,
-                                  const Divider(color: Color(0xFF26324D), height: 1),
+                                  const Divider(
+                                    color: Color(0xFF26324D),
+                                    height: 1,
+                                  ),
                                 ],
                               );
                             }

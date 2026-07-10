@@ -29,7 +29,6 @@ class MainActivity : FlutterActivity() {
 
     private var methodChannel: MethodChannel? = null
 
-    // BroadcastReceiver to receive notifications from NotificationService
     private val notificationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == NotificationService.ACTION_NOTIFICATION) {
@@ -40,6 +39,7 @@ class MainActivity : FlutterActivity() {
                 val key = intent.getStringExtra(NotificationService.EXTRA_KEY) ?: ""
                 val appName = intent.getStringExtra(NotificationService.EXTRA_APP_NAME) ?: ""
                 val category = intent.getStringExtra("category") ?: ""
+                val phoneNumber = intent.getStringExtra("phoneNumber") ?: ""
  
                  val data = mapOf(
                      "package" to packageName,
@@ -48,10 +48,26 @@ class MainActivity : FlutterActivity() {
                      "id" to id,
                      "key" to key,
                      "appName" to appName,
-                     "category" to category
+                     "category" to category,
+                     "phoneNumber" to phoneNumber
                  )
                 runOnUiThread {
                     methodChannel?.invokeMethod("onNotificationReceived", data)
+                }
+            } else if (intent?.action == NotificationService.ACTION_NOTIFICATION_REMOVED) {
+                val packageName = intent.getStringExtra(NotificationService.EXTRA_PACKAGE) ?: ""
+                val id = intent.getIntExtra(NotificationService.EXTRA_ID, 0)
+                val key = intent.getStringExtra(NotificationService.EXTRA_KEY) ?: ""
+                val category = intent.getStringExtra("category") ?: ""
+
+                val data = mapOf(
+                    "package" to packageName,
+                    "id" to id,
+                    "key" to key,
+                    "category" to category
+                )
+                runOnUiThread {
+                    methodChannel?.invokeMethod("onNotificationRemoved", data)
                 }
             }
         }
@@ -90,11 +106,41 @@ class MainActivity : FlutterActivity() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
-                "checkNotificationPermission" -> {
-                    result.success(isNotificationServiceEnabled())
+                "checkPermissions" -> {
+                    val permissions = call.argument<List<String>>("permissions") ?: emptyList()
+                    val missing = mutableListOf<String>()
+                    for (perm in permissions) {
+                        when (perm) {
+                            "notification" -> if (!isNotificationServiceEnabled()) missing.add("notification")
+                            "sms" -> if (checkSelfPermission(android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) missing.add("sms")
+                            "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) missing.add("contacts")
+                            "companion" -> if (!isDeviceAssociated()) missing.add("companion")
+                        }
+                    }
+                    result.success(missing)
                 }
-                "requestNotificationPermission" -> {
-                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                "requestPermissions" -> {
+                    val permissions = call.argument<List<String>>("permissions") ?: emptyList()
+                    val runtimePerms = mutableListOf<String>()
+                    for (perm in permissions) {
+                        when (perm) {
+                            "notification" -> if (!isNotificationServiceEnabled()) {
+                                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                            }
+                            "sms" -> if (checkSelfPermission(android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                                runtimePerms.add(android.Manifest.permission.SEND_SMS)
+                            }
+                            "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                                runtimePerms.add(android.Manifest.permission.READ_CONTACTS)
+                            }
+                            "companion" -> if (!isDeviceAssociated()) {
+                                associateDevice()
+                            }
+                        }
+                    }
+                    if (runtimePerms.isNotEmpty()) {
+                        requestPermissions(runtimePerms.toTypedArray(), 102)
+                    }
                     result.success(true)
                 }
                 "checkCompanionAssociation" -> {
@@ -137,6 +183,39 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(success)
                 }
+                "getAppIcon" -> {
+                    val packageName = call.argument<String>("packageName") ?: ""
+                    val size = call.argument<Int>("size") ?: 96
+                    try {
+                        val pm = packageManager
+                        val drawable = if (packageName == "com.google.android.dialer" || packageName == "phone_call_icon") {
+                            val intent = Intent(Intent.ACTION_DIAL)
+                            val resolveInfo = pm.resolveActivity(intent, 0)
+                            if (resolveInfo != null) {
+                                resolveInfo.activityInfo.loadIcon(pm)
+                            } else {
+                                pm.getApplicationIcon(packageName)
+                            }
+                        } else {
+                            pm.getApplicationIcon(packageName)
+                        }
+
+                        val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else size
+                        val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else size
+                        val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        val canvas = Canvas(bmp)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+
+                        val scaledBmp = Bitmap.createScaledBitmap(bmp, size, size, true)
+                        val byteBuffer = java.nio.ByteBuffer.allocate(scaledBmp.byteCount)
+                        scaledBmp.copyPixelsToBuffer(byteBuffer)
+                        result.success(byteBuffer.array())
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to get app icon for $packageName", e)
+                        result.error("ERROR", e.message, null)
+                    }
+                }
                 "launchAction" -> {
                     val intentAction = call.argument<String>("intent") ?: ""
                     val packageName = call.argument<String>("package")
@@ -166,6 +245,29 @@ class MainActivity : FlutterActivity() {
                         Log.e(TAG, "Failed to launch action: $intentAction", e)
                         result.success(false)
                     }
+                }
+                "sendSms" -> {
+                    val phoneNumber = call.argument<String>("phoneNumber")
+                    val message = call.argument<String>("message") ?: ""
+                    val success = if (phoneNumber != null && phoneNumber.isNotEmpty()) {
+                        try {
+                            val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                getSystemService(android.telephony.SmsManager::class.java)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                android.telephony.SmsManager.getDefault()
+                            }
+                            smsManager.sendTextMessage(phoneNumber, null, message, null, null)
+                            Log.d(TAG, "SMS sent to $phoneNumber successfully")
+                            true
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to send SMS to $phoneNumber", e)
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                    result.success(success)
                 }
                 "getDefaultSmsPackage" -> {
                     val defaultSmsPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
@@ -251,7 +353,10 @@ class MainActivity : FlutterActivity() {
         }
 
         // Register receiver for notification events
-        val filter = IntentFilter(NotificationService.ACTION_NOTIFICATION)
+        val filter = IntentFilter().apply {
+            addAction(NotificationService.ACTION_NOTIFICATION)
+            addAction(NotificationService.ACTION_NOTIFICATION_REMOVED)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(notificationReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {

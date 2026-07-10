@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import '../module.dart';
 
-class PlatformModule implements Module {
+class PlatformModule extends Module {
   static final PlatformModule _instance = PlatformModule._();
   static PlatformModule get instance => _instance;
   PlatformModule._();
@@ -26,6 +26,24 @@ class PlatformModule implements Module {
         } catch (_) {}
       }
     });
+  }
+
+  Future<List<String>> checkPermissions(List<String> permissions) async {
+    try {
+      final List<dynamic>? missing = await invokeMethod<List<dynamic>>(
+        'checkPermissions',
+        {'permissions': permissions},
+      );
+      return missing?.cast<String>() ?? [];
+    } catch (_) {
+      return permissions;
+    }
+  }
+
+  Future<void> requestPermissions(List<String> permissions) async {
+    try {
+      await invokeMethod('requestPermissions', {'permissions': permissions});
+    } catch (_) {}
   }
 
   @override

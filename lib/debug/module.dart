@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../module.dart';
 import 'screen.dart';
 
-class DebugModule implements TabModule {
+class DebugModule extends TabModule {
   @override
   String get name => 'debug';
 

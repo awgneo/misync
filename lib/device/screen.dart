@@ -4,10 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'pairing/extractor.dart';
 import 'connection.dart';
 import 'module.dart';
-import '../platform/module.dart';
-import '../debug/logger.dart';
 import 'blobs/settings.dart';
 import 'blobs/device.dart';
+import '../screen.dart';
 
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
@@ -16,41 +15,12 @@ class DeviceScreen extends StatefulWidget {
   State<DeviceScreen> createState() => _DeviceScreenState();
 }
 
-class _DeviceScreenState extends State<DeviceScreen> {
+class _DeviceScreenState extends ScreenState<DeviceScreen> {
+  @override
+  DeviceModule get module => DeviceModule.instance;
+
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isCompanionAssociated = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkCompanionStatus();
-  }
-
-  Future<void> _checkCompanionStatus() async {
-    try {
-      final associated = await PlatformModule.instance.invokeMethod<bool>('checkCompanionAssociation') ?? false;
-      if (mounted) {
-        setState(() {
-          _isCompanionAssociated = associated;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _requestCompanion() async {
-    try {
-      await PlatformModule.instance.invokeMethod('requestCompanionAssociation');
-      for (int i = 1; i <= 5; i++) {
-        await Future.delayed(Duration(seconds: i * 2));
-        await _checkCompanionStatus();
-        if (_isCompanionAssociated) break;
-      }
-    } catch (e) {
-      Logger.error('device', 'Failed to request companion association: $e');
-    }
-  }
-
   Future<void> _pickAndParseLog() async {
     setState(() {
       _isLoading = true;
@@ -132,14 +102,18 @@ class _DeviceScreenState extends State<DeviceScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, bool connected) {
     final bool isPaired =
         SettingsBlob.authKeyHex.isNotEmpty && SettingsBlob.watchMac.isNotEmpty;
 
     return ListenableBuilder(
-      listenable: Listenable.merge([DeviceConnection.instance, DeviceBlob.instance]),
+      listenable: Listenable.merge([
+        DeviceConnection.instance,
+        DeviceBlob.instance,
+      ]),
       builder: (context, _) {
         return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,9 +251,15 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   Widget _buildPairedView() {
     final infoState = DeviceBlob.infoState;
-    final modelName = infoState.model.isNotEmpty ? infoState.model : 'Xiaomi Smart Band 10 Pro';
-    final serial = infoState.serialNumber.isNotEmpty ? infoState.serialNumber : 'Unknown';
-    final firmware = infoState.firmwareVersion.isNotEmpty ? infoState.firmwareVersion : 'Unknown';
+    final modelName = infoState.model.isNotEmpty
+        ? infoState.model
+        : 'Xiaomi Smart Band 10 Pro';
+    final serial = infoState.serialNumber.isNotEmpty
+        ? infoState.serialNumber
+        : 'Unknown';
+    final firmware = infoState.firmwareVersion.isNotEmpty
+        ? infoState.firmwareVersion
+        : 'Unknown';
 
     String statusText = 'PAIRED';
     Color statusColor = const Color(0xFF00E5FF);
@@ -328,7 +308,8 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   ),
                 ),
               ),
-              if (DeviceConnection.connected.value && infoState.batteryLevel > 0)
+              if (DeviceConnection.connected.value &&
+                  infoState.batteryLevel > 0)
                 Row(
                   children: [
                     Icon(
@@ -360,69 +341,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 16),
-          // Companion Device Role Status Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _isCompanionAssociated
-                  ? const Color(0xFF00E676).withValues(alpha: 0.05)
-                  : Colors.orangeAccent.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _isCompanionAssociated
-                    ? const Color(0xFF00E676).withValues(alpha: 0.3)
-                    : Colors.orangeAccent.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _isCompanionAssociated ? Icons.check_circle_outline : Icons.warning_amber_rounded,
-                  color: _isCompanionAssociated ? const Color(0xFF00E676) : Colors.orangeAccent,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isCompanionAssociated ? 'Watch Companion Role Active' : 'Companion Role Missing',
-                        style: TextStyle(
-                          color: _isCompanionAssociated ? const Color(0xFF00E676) : Colors.orangeAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _isCompanionAssociated
-                            ? 'The system recognizes MiSync as a wear companion. SMS contents will show normally.'
-                            : 'Required on Android 15+ to prevent notifications from being hidden as "Sensitive".',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!_isCompanionAssociated) ...[
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _requestCompanion,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orangeAccent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Grant'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+
           _buildInfoRow('MAC Address', SettingsBlob.watchMac),
           const Divider(color: Color(0xFF26324D), height: 24),
           _buildInfoRow('Serial Number', serial),
@@ -438,15 +357,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
             height: 48,
             child: ElevatedButton.icon(
               onPressed: () async {
-                await DeviceModule.instance.sync();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Manual sync triggered successfully!'),
-                      backgroundColor: Color(0xFF00E5FF),
-                    ),
-                  );
-                }
+                await module.sync();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Manual sync triggered successfully!'),
+                    backgroundColor: Color(0xFF00E5FF),
+                  ),
+                );
               },
               icon: const Icon(Icons.sync, color: Colors.black),
               label: const Text(
@@ -533,11 +450,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       children: [
         const Text(
           'AUTO-SYNC FREQUENCY',
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey,
-            letterSpacing: 1,
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 1),
         ),
         const SizedBox(height: 10),
         Container(

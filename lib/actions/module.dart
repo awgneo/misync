@@ -9,7 +9,7 @@ import '../platform/module.dart';
 import 'blobs/actions.dart';
 import 'screen.dart';
 
-class ActionsModule implements TabModule {
+class ActionsModule extends TabModule {
   @override
   String get name => 'actions';
 
@@ -21,8 +21,6 @@ class ActionsModule implements TabModule {
   static final ActionsModule _instance = ActionsModule._();
   static ActionsModule get instance => _instance;
   ActionsModule._();
-
-  static Map<String, dynamic>? activeNotification;
 
   @override
   Future<void> start() async {
