@@ -48,7 +48,7 @@ Future<String?> showMiTextModal({
             child: const Text(
               'Add',
               style: TextStyle(
-                color: const Color(0xFF00E5FF),
+                color: Color(0xFF00E5FF),
                 fontWeight: FontWeight.bold,
               ),
             ),

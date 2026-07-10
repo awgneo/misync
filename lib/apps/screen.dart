@@ -3,6 +3,10 @@ import 'package:file_picker/file_picker.dart';
 import 'module.dart';
 import 'blobs/apps.dart';
 import '../screen.dart';
+import '../widgets/panel.dart';
+import '../widgets/item.dart';
+import '../widgets/items.dart';
+import '../widgets/button.dart';
 
 class AppsScreen extends StatefulWidget {
   const AppsScreen({super.key});
@@ -56,56 +60,30 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {
-    return Container(
-      color: const Color(0xFF0F111A),
-      child: Stack(
-        children: [
-          SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return MiPanel(
+      buttons: connected
+          ? MiButtons(
               children: [
-                const Text(
-                  'APP MANAGEMENT',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                    color: Colors.grey,
-                  ),
+                MiButton(
+                  label: 'Install Custom RPK',
+                  icon: Icons.add,
+                  pressed: _install,
                 ),
-                const SizedBox(height: 16),
-                if (!connected) ...[
-                  _buildStatusCard(
-                    title: 'Disconnected',
-                    subtitle: 'Connect to the watch to manage applications.',
-                    icon: Icons.link_off,
-                    color: Colors.orangeAccent,
-                  ),
-                ] else ...[
-                  _buildAppList(connected),
-                ],
               ],
-            ),
-          ),
-          if (connected)
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: FloatingActionButton.extended(
-                onPressed: _install,
-                backgroundColor: const Color(0xFF00E5FF),
-                icon: const Icon(Icons.add, color: Colors.black),
-                label: const Text(
-                  'Install Custom RPK',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!connected)
+            _buildStatusCard(
+              title: 'Disconnected',
+              subtitle: 'Connect to the watch to manage applications.',
+              icon: Icons.link_off,
+              color: Colors.orangeAccent,
+            )
+          else
+            _buildAppList(connected),
         ],
       ),
     );
@@ -148,58 +126,6 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
     );
   }
 
-  Widget _buildAppItem(String package, App app) {
-    final displayName = app.name.isNotEmpty ? app.name : _getAppName(package);
-
-    if (app.external) {
-      return ListTile(
-        leading: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-          onPressed: () => _module.uninstall(package),
-        ),
-        title: Text(
-          displayName,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          package,
-          style: const TextStyle(color: Colors.grey, fontSize: 11),
-        ),
-      );
-    } else {
-      return SwitchListTile(
-        value: app.enabled,
-        onChanged: (val) {
-          if (val) {
-            _module.enable(package);
-          } else {
-            _module.disable(package);
-          }
-        },
-        title: Text(
-          displayName,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          package,
-          style: const TextStyle(color: Colors.grey, fontSize: 11),
-        ),
-        activeThumbColor: const Color(0xFF00E5FF),
-        activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-        inactiveThumbColor: Colors.grey,
-        inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
-      );
-    }
-  }
-
   Widget _buildAppList(bool connected) {
     return ListenableBuilder(
       listenable: AppsBlob.instance,
@@ -219,21 +145,29 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
           );
         }
 
-        return Material(
-          color: const Color(0xFF141822),
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFF26324D)),
-          ),
-          child: Column(
-            children: [
-              for (int i = 0; i < apps.length; i++) ...[
-                if (i > 0) const Divider(color: Color(0xFF26324D), height: 1),
-                _buildAppItem(apps[i].key, apps[i].value),
-              ],
-            ],
-          ),
+        return MiItems(
+          children: apps.map((entry) {
+            final package = entry.key;
+            final app = entry.value;
+            final displayName = app.name.isNotEmpty ? app.name : _getAppName(package);
+
+            return MiItem(
+              title: displayName,
+              subtitle: package,
+              icon: app.external ? Icons.apps : Icons.settings_applications,
+              delete: app.external ? () => _module.uninstall(package) : null,
+              enabled: app.external ? null : app.enabled,
+              toggled: app.external
+                  ? null
+                  : (val) {
+                      if (val) {
+                        _module.enable(package);
+                      } else {
+                        _module.disable(package);
+                      }
+                    },
+            );
+          }).toList(),
         );
       },
     );

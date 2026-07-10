@@ -9,6 +9,8 @@ import '../debug/logger.dart';
 import '../screen.dart';
 import '../crc32.dart';
 import 'module.dart';
+import '../widgets/panel.dart';
+import '../widgets/button.dart';
 
 class FacesScreen extends StatefulWidget {
   const FacesScreen({super.key});
@@ -161,157 +163,119 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return MiPanel(
+      buttons: connected && !_isUploading
+          ? MiButtons(
+              children: [
+                MiButton(
+                  label: 'Select bin file',
+                  icon: Icons.file_open,
+                  pressed: _pickWatchFace,
+                  color: Colors.purpleAccent,
+                ),
+                if (_selectedFaceBytes != null)
+                  MiButton(
+                    label: 'Install Watch Face',
+                    icon: Icons.upload,
+                    pressed: _startUpload,
+                    color: const Color(0xFF00E5FF),
+                  ),
+              ],
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141822),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF26324D)),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.watch_outlined,
+                  size: 60,
+                  color: Color(0xFF00E5FF),
+                ),
+                const SizedBox(height: 16),
+                if (_selectedFaceName != null) ...[
+                  Text(
+                    _selectedFaceName!,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${(_selectedFaceBytes!.length / 1024).toStringAsFixed(1)} KB',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                ] else ...[
+                  const Text(
+                    'No File Selected',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Select a watch face binary file (.bin) to install.',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (_isUploading) ...[
+            const SizedBox(height: 32),
             const Text(
-              'CUSTOM WATCH FACES',
+              'INSTALLING WATCH FACE...',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
                 color: Colors.grey,
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF141822),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF26324D)),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.watch_outlined,
-                    size: 60,
-                    color: Color(0xFF00E5FF),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_selectedFaceName != null) ...[
-                    Text(
-                      _selectedFaceName!,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${(_selectedFaceBytes!.length / 1024).toStringAsFixed(1)} KB',
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ] else ...[
-                    const Text(
-                      'No File Selected',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Select a watch face binary file (.bin) to install.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: (connected && !_isUploading)
-                            ? _pickWatchFace
-                            : null,
-                        icon: const Icon(Icons.file_open, color: Colors.black),
-                        label: const Text(
-                          'Select bin file',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00E5FF),
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      if (_selectedFaceBytes != null) ...[
-                        const SizedBox(width: 16),
-                        ElevatedButton.icon(
-                          onPressed: (connected && !_isUploading)
-                              ? _startUpload
-                              : null,
-                          icon: const Icon(Icons.upload, color: Colors.black),
-                          label: const Text(
-                            'Install',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00E5FF),
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: _uploadProgress,
+                backgroundColor: const Color(0xFF141822),
+                color: const Color(0xFF00E5FF),
+                minHeight: 12,
               ),
             ),
-            if (_isUploading) ...[
-              const SizedBox(height: 32),
-              const Text(
-                'INSTALLING WATCH FACE...',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: _uploadProgress,
-                  backgroundColor: const Color(0xFF141822),
-                  color: const Color(0xFF00E5FF),
-                  minHeight: 12,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${(_uploadProgress * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const Text(
-                    'Keep phone close to band',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                const Text(
+                  'Keep phone close to band',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

@@ -4,10 +4,13 @@ class MiItem extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? delete;
-  final IconData? icon;
+  final dynamic icon;
   final bool? enabled;
   final ValueChanged<bool>? toggled;
   final Widget? order;
+  final Map<dynamic, String>? options;
+  final dynamic value;
+  final ValueChanged<dynamic>? selected;
 
   const MiItem({
     super.key,
@@ -18,6 +21,9 @@ class MiItem extends StatelessWidget {
     this.enabled,
     this.toggled,
     this.order,
+    this.options,
+    this.value,
+    this.selected,
   });
 
   @override
@@ -27,16 +33,21 @@ class MiItem extends StatelessWidget {
       child: Row(
         children: [
           if (delete != null) ...[
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              onPressed: delete,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
+            InkWell(
+              onTap: delete,
+              borderRadius: BorderRadius.circular(6),
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 6),
           ],
           if (icon != null) ...[
-            Icon(icon, color: const Color(0xFF00E5FF), size: 22),
+            if (icon is IconData)
+              Icon(icon as IconData, color: const Color(0xFF00E5FF), size: 22)
+            else if (icon is Widget)
+              icon as Widget,
             const SizedBox(width: 12),
           ],
           Expanded(
@@ -65,7 +76,29 @@ class MiItem extends StatelessWidget {
               ],
             ),
           ),
-          if (enabled != null && toggled != null) ...[
+          if (options != null) ...[
+            const SizedBox(width: 8),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<dynamic>(
+                value: value,
+                dropdownColor: const Color(0xFF141822),
+                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF)),
+                style: const TextStyle(
+                  color: Color(0xFF00E5FF),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                items: options!.entries.map((e) {
+                  return DropdownMenuItem<dynamic>(
+                    value: e.key,
+                    child: Text(e.value),
+                  );
+                }).toList(),
+                onChanged: selected,
+              ),
+            ),
+          ],
+          if (enabled != null) ...[
             const SizedBox(width: 8),
             Switch(
               value: enabled!,

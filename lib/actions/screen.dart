@@ -3,6 +3,11 @@ import '../debug/logger.dart';
 import 'blobs/actions.dart';
 import '../screen.dart';
 import 'module.dart';
+import '../widgets/panel.dart';
+import '../widgets/item.dart';
+import '../widgets/items.dart';
+import '../widgets/button.dart';
+import '../widgets/modal.dart';
 
 class ActionsScreen extends StatefulWidget {
   const ActionsScreen({super.key});
@@ -12,18 +17,8 @@ class ActionsScreen extends StatefulWidget {
 }
 
 class _ActionsScreenState extends ScreenState<ActionsScreen> {
-  final _nameController = TextEditingController();
-  final _intentController = TextEditingController();
-
   @override
   Module get module => ActionsModule.instance;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _intentController.dispose();
-    super.dispose();
-  }
 
   void _testTriggerAction(Action action) {
     Logger.info(
@@ -39,87 +34,31 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     );
   }
 
-  void _showAddActionDialog() {
-    _nameController.clear();
-    _intentController.clear();
-
-    showDialog(
+  void _showAddActionDialog() async {
+    final name = await showMiTextModal(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF141822),
-          title: const Text(
-            'Add Shortcut Action',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Action Name',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF26324D)),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF00E5FF)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _intentController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Android Intent Action',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF26324D)),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF00E5FF)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () {
-                final name = _nameController.text.trim();
-                final intent = _intentController.text.trim();
-                if (name.isNotEmpty && intent.isNotEmpty) {
-                  final updated = Map<String, Action>.from(ActionsBlob.map)
-                    ..[name] = Action(
-                      name: name,
-                      intent: intent,
-                      package: intent.contains('.')
-                          ? intent.split('.').first
-                          : 'custom.action',
-                    );
-                  ActionsBlob.instance.update(updated);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text(
-                'Add',
-                style: TextStyle(
-                  color: Color(0xFF00E5FF),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      title: 'Add Shortcut Action',
+      labelText: 'Shortcut Name (e.g. Open Map)',
     );
+    if (name == null || name.isEmpty) return;
+
+    if (!mounted) return;
+    final intent = await showMiTextModal(
+      context: context,
+      title: 'Action Android Intent',
+      labelText: 'Intent Action or Package Name',
+    );
+    if (intent == null || intent.isEmpty) return;
+
+    final updated = Map<String, Action>.from(ActionsBlob.map)
+      ..[name] = Action(
+        name: name,
+        intent: intent,
+        package: intent.contains('.')
+            ? intent.split('.').first
+            : 'custom.action',
+      );
+    ActionsBlob.instance.update(updated);
   }
 
   void _deleteAction(String name) {
@@ -135,155 +74,70 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
       builder: (context, _) {
         final actions = ActionsBlob.map.entries.toList();
 
-        return Padding(
-          padding: const EdgeInsets.all(24),
+        return MiPanel(
+          buttons: connected
+              ? MiButtons(
+                  children: [
+                    MiButton(
+                      label: 'Add Action',
+                      icon: Icons.add_to_photos,
+                      pressed: _showAddActionDialog,
+                    ),
+                  ],
+                )
+              : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'WATCH ACTIONS SHORTCUTS',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                      color: Colors.grey,
-                    ),
+              if (actions.isEmpty)
+                Container(
+                  height: 150,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141822),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF26324D)),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_to_photos,
-                      color: Color(0xFF00E5FF),
-                    ),
-                    onPressed: connected ? _showAddActionDialog : null,
+                  child: const Text(
+                    'No shortcut actions configured yet.',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: actions.isEmpty
-                    ? const SingleChildScrollView(
-                        physics: AlwaysScrollableScrollPhysics(),
-                        child: Center(
-                          heightFactor: 5,
-                          child: Text(
-                            'No shortcut actions configured yet.',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    : GridView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: actions.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.85,
-                            ),
-                        itemBuilder: (context, index) {
-                          final entry = actions[index];
-                          final nameKey = entry.key;
-                          final action = entry.value;
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF141822),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFF26324D),
+                )
+              else
+                MiItems(
+                  children: actions.map((entry) {
+                    final nameKey = entry.key;
+                    final action = entry.value;
+
+                    return MiItem(
+                      title: action.name,
+                      subtitle: action.intent,
+                      icon: Icons.flash_on,
+                      delete: connected ? () => _deleteAction(nameKey) : null,
+                      order: connected
+                          ? ElevatedButton.icon(
+                              onPressed: () => _testTriggerAction(action),
+                              icon: const Icon(Icons.play_arrow, size: 14, color: Colors.black),
+                              label: const Text(
+                                'Test',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFF00E5FF,
-                                        ).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'Action #${index + 1}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF00E5FF),
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.redAccent,
-                                        size: 18,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onPressed: connected
-                                          ? () => _deleteAction(nameKey)
-                                          : null,
-                                    ),
-                                  ],
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00E5FF),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                const Spacer(),
-                                Text(
-                                  action.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  action.intent.split('.').last,
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 36,
-                                  child: ElevatedButton(
-                                    onPressed: () => _testTriggerAction(action),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF00E5FF),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Test Run',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-              ),
+                              ),
+                            )
+                          : null,
+                    );
+                  }).toList(),
+                ),
             ],
           ),
         );

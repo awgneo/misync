@@ -7,6 +7,10 @@ import 'module.dart';
 import 'blobs/settings.dart';
 import 'blobs/device.dart';
 import '../screen.dart';
+import '../widgets/panel.dart';
+import '../widgets/item.dart';
+import '../widgets/items.dart';
+import '../widgets/button.dart';
 
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
@@ -21,6 +25,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+
   Future<void> _pickAndParseLog() async {
     setState(() {
       _isLoading = true;
@@ -66,7 +71,6 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
         return;
       }
 
-      // Save credentials via singleton
       await SettingsBlob.instance.update(
         Settings(
           authKeyHex: creds.authKey,
@@ -110,24 +114,55 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
       listenable: Listenable.merge([
         DeviceConnection.instance,
         DeviceBlob.instance,
+        SettingsBlob.instance,
       ]),
       builder: (context, _) {
-        return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
+        final MiButtons? panelActions;
+        if (_isLoading) {
+          panelActions = null;
+        } else if (!isPaired) {
+          panelActions = MiButtons(
+            children: [
+              MiButton(
+                label: 'Browse Files',
+                icon: Icons.search,
+                pressed: _pickAndParseLog,
+              ),
+            ],
+          );
+        } else {
+          panelActions = MiButtons(
+            children: [
+              MiButton(
+                label: 'Sync All Now',
+                icon: Icons.sync,
+                pressed: () async {
+                  await module.sync();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Manual sync triggered successfully!'),
+                      backgroundColor: Color(0xFF00E5FF),
+                    ),
+                  );
+                },
+                color: const Color(0xFF00E5FF),
+              ),
+              MiButton(
+                label: 'Unpair Device',
+                icon: Icons.link_off,
+                pressed: _triggerUnpair,
+                color: Colors.redAccent,
+              ),
+            ],
+          );
+        }
+
+        return MiPanel(
+          buttons: panelActions,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'PAIRING & AUTHENTICATION',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 16),
               if (_isLoading)
                 const Center(
                   child: Padding(
@@ -223,26 +258,6 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _pickAndParseLog,
-              icon: const Icon(Icons.search, color: Colors.black),
-              label: const Text(
-                'Browse Files',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00E5FF),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -262,218 +277,69 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
         : 'Unknown';
 
     String statusText = 'PAIRED';
-    Color statusColor = const Color(0xFF00E5FF);
     if (DeviceConnection.connected.value) {
       statusText = 'CONNECTED';
-      statusColor = const Color(0xFF00E676);
     } else if (DeviceConnection.connecting) {
       statusText = 'CONNECTING...';
-      statusColor = Colors.orangeAccent;
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF181C26), Color(0xFF1E2433)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF26324D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  statusText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-              if (DeviceConnection.connected.value &&
-                  infoState.batteryLevel > 0)
-                Row(
-                  children: [
-                    Icon(
-                      infoState.isCharging
-                          ? Icons.battery_charging_full
-                          : Icons.battery_std,
-                      color: statusColor,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${infoState.batteryLevel}%',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            modelName,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MiItems(
+          children: [
+            MiItem(
+              title: 'Connection Status',
+              subtitle: statusText,
+              icon: DeviceConnection.connected.value ? Icons.link : Icons.link_off,
             ),
-          ),
-
-          _buildInfoRow('MAC Address', SettingsBlob.watchMac),
-          const Divider(color: Color(0xFF26324D), height: 24),
-          _buildInfoRow('Serial Number', serial),
-          const Divider(color: Color(0xFF26324D), height: 24),
-          _buildInfoRow('Firmware Version', firmware),
-          const Divider(color: Color(0xFF26324D), height: 24),
-          _buildInfoRow('Auth Key (Hex)', SettingsBlob.authKeyHex),
-          const Divider(color: Color(0xFF26324D), height: 24),
-          _buildSyncIntervalSelector(context),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                await module.sync();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Manual sync triggered successfully!'),
-                    backgroundColor: Color(0xFF00E5FF),
-                  ),
-                );
+            if (DeviceConnection.connected.value && infoState.batteryLevel > 0)
+              MiItem(
+                title: 'Battery Level',
+                subtitle: '${infoState.batteryLevel}%${infoState.isCharging ? " (Charging)" : ""}',
+                icon: infoState.isCharging ? Icons.battery_charging_full : Icons.battery_std,
+              ),
+            MiItem(
+              title: 'Device Model',
+              subtitle: modelName,
+              icon: Icons.watch,
+            ),
+            MiItem(
+              title: 'MAC Address',
+              subtitle: SettingsBlob.watchMac,
+              icon: Icons.bluetooth,
+            ),
+            if (serial.isNotEmpty && serial != 'Unknown')
+              MiItem(
+                title: 'Serial Number',
+                subtitle: serial,
+                icon: Icons.info_outline,
+              ),
+            if (firmware.isNotEmpty && firmware != 'Unknown')
+              MiItem(
+                title: 'Firmware Version',
+                subtitle: firmware,
+                icon: Icons.system_update_tv,
+              ),
+            MiItem(
+              title: 'Auth Key (Hex)',
+              subtitle: SettingsBlob.authKeyHex,
+              icon: Icons.vpn_key,
+            ),
+            MiItem(
+              title: 'Sync Frequency',
+              subtitle: 'Background auto-sync interval',
+              icon: Icons.sync,
+              options: const {
+                0: 'Disabled (Manual Sync)',
+                5: 'Every 5 Minutes',
+                10: 'Every 10 Minutes',
+                15: 'Every 15 Minutes',
+                30: 'Every 30 Minutes',
+                60: 'Every Hour',
               },
-              icon: const Icon(Icons.sync, color: Colors.black),
-              label: const Text(
-                'Sync All Now',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00E5FF),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: _triggerUnpair,
-              icon: const Icon(Icons.link_off, color: Colors.redAccent),
-              label: const Text(
-                'Unpair Device',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.redAccent),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.grey,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 6),
-        SelectableText(
-          value,
-          style: const TextStyle(
-            fontSize: 15,
-            fontFamily: 'monospace',
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSyncIntervalSelector(BuildContext context) {
-    final currentVal = SettingsBlob.syncIntervalMinutes;
-    final options = {
-      0: 'Disabled (Manual Sync)',
-      5: 'Every 5 Minutes',
-      10: 'Every 10 Minutes',
-      15: 'Every 15 Minutes',
-      30: 'Every 30 Minutes',
-      60: 'Every Hour',
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'AUTO-SYNC FREQUENCY',
-          style: TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 1),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
-              value: options.containsKey(currentVal) ? currentVal : 15,
-              dropdownColor: const Color(0xFF141822),
-              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF)),
-              isExpanded: true,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-              items: options.entries.map((e) {
-                return DropdownMenuItem<int>(
-                  value: e.key,
-                  child: Text(e.value),
-                );
-              }).toList(),
-              onChanged: (val) async {
+              value: SettingsBlob.syncIntervalMinutes,
+              selected: (val) async {
                 if (val != null) {
                   final current = SettingsBlob.instance.value;
                   await SettingsBlob.instance.update(
@@ -482,13 +348,13 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                       watchMac: current.watchMac,
                       deviceId: current.deviceId,
                       deviceModel: current.deviceModel,
-                      syncIntervalMinutes: val,
+                      syncIntervalMinutes: val as int,
                     ),
                   );
                 }
               },
             ),
-          ),
+          ],
         ),
       ],
     );

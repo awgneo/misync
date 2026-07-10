@@ -7,6 +7,12 @@ import 'blobs/contact.dart';
 import 'blobs/dnd.dart';
 import '../screen.dart';
 import 'module.dart';
+import '../widgets/panel.dart';
+import '../widgets/item.dart';
+import '../widgets/items.dart';
+import '../widgets/button.dart';
+import '../widgets/tabs.dart';
+import '../widgets/modal.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -99,117 +105,104 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
     );
   }
 
+  void _showAddReplyDialog() async {
+    final reply = await showMiTextModal(
+      context: context,
+      title: 'Add Quick Reply',
+      labelText: 'Reply text (e.g., Yes, I will be late)',
+    );
+    if (reply != null && reply.trim().isNotEmpty) {
+      final updated = List<String>.from(RepliesBlob.list)..add(reply.trim());
+      _saveReplies(updated);
+    }
+  }
+
   @override
   Widget buildScreen(BuildContext context, bool connected) {
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0F1219),
-        appBar: const TabBar(
-          indicatorColor: Color(0xFF00E5FF),
-          labelColor: Color(0xFF00E5FF),
-          unselectedLabelColor: Colors.grey,
-          tabs: [
-            Tab(icon: Icon(Icons.contacts), text: 'Contact'),
-            Tab(icon: Icon(Icons.apps), text: 'Apps'),
-            Tab(icon: Icon(Icons.reply), text: 'Replies'),
-            Tab(icon: Icon(Icons.do_not_disturb), text: 'DND'),
-          ],
-        ),
-        body: TabBarView(
-          children: [
-            ListenableBuilder(
+    return MiTabs(
+      tabs: [
+        MiTab(
+          label: 'Contact',
+          child: MiPanel(
+            child: ListenableBuilder(
               listenable: ContactBlob.instance,
               builder: (context, _) => _buildContactTab(connected),
             ),
-            ListenableBuilder(
+          ),
+        ),
+        MiTab(
+          label: 'Apps',
+          child: MiPanel(
+            buttons: connected
+                ? MiButtons(
+                    children: [
+                      MiButton(
+                        label: 'Add App',
+                        icon: Icons.add,
+                        pressed: _pickApp,
+                      ),
+                    ],
+                  )
+                : null,
+            child: ListenableBuilder(
               listenable: AppsBlob.instance,
               builder: (context, _) => _buildAppsTab(connected),
             ),
-            ListenableBuilder(
+          ),
+        ),
+        MiTab(
+          label: 'Replies',
+          child: MiPanel(
+            buttons: connected
+                ? MiButtons(
+                    children: [
+                      MiButton(
+                        label: 'Add Reply',
+                        icon: Icons.add_comment,
+                        pressed: _showAddReplyDialog,
+                      ),
+                    ],
+                  )
+                : null,
+            child: ListenableBuilder(
               listenable: RepliesBlob.instance,
               builder: (context, _) => _buildQuickRepliesTab(connected),
             ),
-            ListenableBuilder(
+          ),
+        ),
+        MiTab(
+          label: 'DND',
+          child: MiPanel(
+            child: ListenableBuilder(
               listenable: DndBlob.instance,
               builder: (context, _) => _buildDndTab(connected),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
   Widget _buildContactTab(bool connected) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'CONTACT CONFIGURATION',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        // Contact switch
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.contact_phone_outlined,
-                color: Color(0xFF00E5FF),
-                size: 28,
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Calls & Messages Mirroring',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 15,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Mirror incoming phone calls and text messages to the watch',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: ContactBlob.enabled,
-                activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(
-                  0xFF00E5FF,
-                ).withValues(alpha: 0.3),
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
-                onChanged: (value) async {
-                  if (value) {
-                    await module.enableContact();
-                  } else {
-                    await module.disableContact();
-                  }
-                },
-              ),
-            ],
-          ),
+        MiItems(
+          children: [
+            MiItem(
+              title: 'Calls & Messages Mirroring',
+              subtitle: 'Mirror incoming phone calls and text messages to the watch',
+              icon: Icons.contact_phone_outlined,
+              enabled: ContactBlob.enabled,
+              toggled: (value) async {
+                if (value) {
+                  await module.enableContact();
+                } else {
+                  await module.disableContact();
+                }
+              },
+            ),
+          ],
         ),
       ],
     );
@@ -218,139 +211,67 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Widget _buildAppsTab(bool connected) {
     final filtersMap = AppsBlob.map;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // App picker button
-        const Text(
-          'APP FILTERS',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 10),
-        _isLoadingApps
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
-                ),
-              )
-            : ElevatedButton.icon(
-                onPressed: _pickApp,
-                icon: const Icon(Icons.add, color: Color(0xFF0F1219)),
-                label: const Text(
-                  'Add App to Filter',
-                  style: TextStyle(
-                    color: Color(0xFF0F1219),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00E5FF),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-        const SizedBox(height: 24),
-        const Text(
-          'REGISTERED APP FILTERS',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (filtersMap.isEmpty)
+        if (_isLoadingApps)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20.0),
+              child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
+            ),
+          )
+        else if (filtersMap.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 40),
             alignment: Alignment.center,
             child: const Text(
-              'No apps configured yet. Add apps above to filter notifications.',
+              'No apps configured yet. Add apps with the button below.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
           )
         else
-          Material(
-            color: const Color(0xFF141822),
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: Color(0xFF26324D)),
-            ),
-            child: Column(
-              children: filtersMap.entries.map((entry) {
-                final appPackage = entry.key;
-                final isEnabled = entry.value;
-                final appInfo = _installedApps[appPackage];
-                final displayName =
-                    appInfo?['appName'] as String? ??
-                    appPackage.split('.').last.toUpperCase();
-                final iconBytes = appInfo?['iconBytes'] as List<int>?;
+          MiItems(
+            children: filtersMap.entries.map((entry) {
+              final appPackage = entry.key;
+              final isEnabled = entry.value;
+              final appInfo = _installedApps[appPackage];
+              final displayName =
+                  appInfo?['appName'] as String? ??
+                  appPackage.split('.').last.toUpperCase();
+              final iconBytes = appInfo?['iconBytes'] as List<int>?;
 
-                return SwitchListTile(
-                  value: isEnabled,
-                  onChanged: (val) {
-                    _toggleAppFilter(appPackage, val);
-                  },
-                  title: Text(
-                    displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
+              return MiItem(
+                title: displayName,
+                subtitle: appPackage,
+                delete: () {
+                  AppsBlob.instance.removeApp(appPackage);
+                },
+                icon: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F1219),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  subtitle: Text(
-                    appPackage,
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                  ),
-                  activeThumbColor: const Color(0xFF00E5FF),
-                  secondary: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
+                  child: iconBytes != null
+                      ? Image.memory(
+                          Uint8List.fromList(iconBytes),
+                          fit: BoxFit.contain,
+                        )
+                      : const Icon(
+                          Icons.android,
+                          color: Colors.grey,
+                          size: 16,
                         ),
-                        onPressed: () {
-                          AppsBlob.instance.removeApp(appPackage);
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F1219),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: iconBytes != null
-                            ? Image.memory(
-                                Uint8List.fromList(iconBytes),
-                                fit: BoxFit.contain,
-                              )
-                            : const Icon(
-                                Icons.android,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+                ),
+                enabled: isEnabled,
+                toggled: (val) {
+                  _toggleAppFilter(appPackage, val);
+                },
+              );
+            }).toList(),
           ),
       ],
     );
@@ -359,124 +280,60 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Widget _buildQuickRepliesTab(bool connected) {
     final replies = RepliesBlob.list;
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _replyController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Add quick reply...',
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFF141822),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(
-                  Icons.add_circle,
-                  color: Color(0xFF00E5FF),
-                  size: 36,
-                ),
-                onPressed: () {
-                  final reply = _replyController.text.trim();
-                  if (reply.isNotEmpty) {
-                    final updated = List<String>.from(replies)..add(reply);
-                    _saveReplies(updated);
-                    _replyController.clear();
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: Material(
-              color: const Color(0xFF141822),
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Color(0xFF26324D)),
-              ),
-              child: ReorderableListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: replies.length,
-                onReorder: (oldIndex, newIndex) {
-                  if (newIndex > oldIndex) {
-                    newIndex -= 1;
-                  }
-                  final updated = List<String>.from(replies);
-                  final item = updated.removeAt(oldIndex);
-                  updated.insert(newIndex, item);
-                  _saveReplies(updated);
-                },
-                itemBuilder: (context, index) {
-                  final reply = replies[index];
-                  return Container(
-                    key: ValueKey('reply_${reply}_$index'),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: index < replies.length - 1
-                            ? const BorderSide(
-                                color: Color(0xFF26324D),
-                                width: 1,
-                              )
-                            : BorderSide.none,
-                      ),
-                    ),
-                    child: ListTile(
-                      leading: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
-                        ),
-                        onPressed: () {
-                          final updated = List<String>.from(replies)
-                            ..removeAt(index);
-                          _saveReplies(updated);
-                        },
-                      ),
-                      title: Text(
-                        reply,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      trailing: ReorderableDragStartListener(
-                        index: index,
-                        child: const Icon(
-                          Icons.drag_handle,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  );
-                },
+    if (replies.isEmpty) {
+      return Container(
+        height: 150,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF141822),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF26324D)),
+        ),
+        child: const Text(
+          'No quick replies configured yet.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF141822),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF26324D)),
+      ),
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: replies.length,
+        // ignore: deprecated_member_use
+        onReorder: (oldIndex, newIndex) {
+          if (newIndex > oldIndex) {
+            newIndex -= 1;
+          }
+          final updated = List<String>.from(replies);
+          final item = updated.removeAt(oldIndex);
+          updated.insert(newIndex, item);
+          _saveReplies(updated);
+        },
+        itemBuilder: (context, index) {
+          final reply = replies[index];
+          return MiItem(
+            key: ValueKey('reply_${reply}_$index'),
+            title: reply,
+            delete: () {
+              final updated = List<String>.from(replies)..removeAt(index);
+              _saveReplies(updated);
+            },
+            order: ReorderableDragStartListener(
+              index: index,
+              child: const Icon(
+                Icons.drag_handle,
+                color: Colors.grey,
               ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -484,45 +341,19 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Widget _buildDndTab(bool connected) {
     final dndEnabled = DndBlob.enabled;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141822),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF26324D)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Do Not Disturb (DND)',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Sync phone status with the band',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-              Switch(
-                value: dndEnabled,
-                onChanged: _toggleDnd,
-                activeThumbColor: const Color(0xFF00E5FF),
-              ),
-            ],
-          ),
+        MiItems(
+          children: [
+            MiItem(
+              title: 'Do Not Disturb (DND)',
+              subtitle: 'Sync phone status with the band',
+              icon: Icons.do_not_disturb,
+              enabled: dndEnabled,
+              toggled: _toggleDnd,
+            ),
+          ],
         ),
       ],
     );
