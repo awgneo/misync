@@ -87,10 +87,6 @@ import interconnect from '@system.interconnect'
 import vibrator from '@system.vibrator'
 
 export default {
-  public: {
-    sender: '',
-    text: ''
-  },
   private: {
     connect: null,
     replies: [],
@@ -116,24 +112,10 @@ export default {
   },
 
   onInit() {
-    if (this.sender) {
-      this.sender = decodeURIComponent(this.sender)
-    }
-    if (this.text) {
-      this.text = decodeURIComponent(this.text)
-    }
     this.updateKeyboardRows()
   },
 
-  onRefresh(query) {
-    if (query) {
-      if (query.sender) {
-        this.sender = decodeURIComponent(query.sender)
-      }
-      if (query.text) {
-        this.text = decodeURIComponent(query.text)
-      }
-    }
+  onRefresh() {
     this.inputText = '' // Clear input on refresh/new notification
     this.upperFlag = false
     this.numFlag = false
@@ -154,12 +136,6 @@ export default {
       this.connect.onmessage = (data) => {
         try {
           let payload = JSON.parse(data.data)
-          if (payload.sender) {
-            self.sender = payload.sender
-          }
-          if (payload.text) {
-            self.text = payload.text
-          }
           if (payload.response) {
             self.replies = payload.response
           }

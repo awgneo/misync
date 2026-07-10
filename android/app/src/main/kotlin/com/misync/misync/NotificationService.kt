@@ -78,8 +78,9 @@ class NotificationService : NotificationListenerService() {
 
         val id = sbn.id
         val key = sbn.key
+        val category = notification.category ?: ""
 
-        Log.d(TAG, "Notification received from: $packageName ($appName), title: $title, body: $body")
+        Log.d(TAG, "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category")
 
         val intent = Intent(ACTION_NOTIFICATION).apply {
             putExtra(EXTRA_PACKAGE, packageName)
@@ -88,6 +89,7 @@ class NotificationService : NotificationListenerService() {
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, key)
             putExtra(EXTRA_APP_NAME, appName)
+            putExtra("category", category)
             setPackage(this@NotificationService.packageName)
         }
         sendBroadcast(intent)
@@ -135,8 +137,38 @@ class NotificationService : NotificationListenerService() {
         return reply(sbn.key, replyText)
     }
 
+    fun declineCall(key: String): Boolean {
+        val activeNotifications = activeNotifications ?: return false
+        val sbn = activeNotifications.find { it.key == key } ?: return false
+        val actions = sbn.notification.actions ?: return false
+
+        val keywords = listOf("decline", "hang", "reject", "挂断", "拒", "拒绝")
+        for (action in actions) {
+            val title = action.title?.toString()?.lowercase() ?: continue
+            if (keywords.any { title.contains(it) }) {
+                try {
+                    action.actionIntent.send()
+                    Log.d(TAG, "Successfully triggered decline action: ${action.title} for key: $key")
+                    return true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error triggering decline action: ", e)
+                }
+            }
+        }
+        return false
+    }
+
+    fun declineCallById(id: Int): Boolean {
+        val activeNotifications = activeNotifications ?: return false
+        val sbn = activeNotifications.find { it.id == id } ?: return false
+        return declineCall(sbn.key)
+    }
+
     fun dismiss(key: String): Boolean {
         try {
+            if (declineCall(key)) {
+                return true
+            }
             cancelNotification(key)
             Log.d(TAG, "Notification dismissed successfully for key: $key")
             return true

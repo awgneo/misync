@@ -39,6 +39,7 @@ class MainActivity : FlutterActivity() {
                 val id = intent.getIntExtra(NotificationService.EXTRA_ID, 0)
                 val key = intent.getStringExtra(NotificationService.EXTRA_KEY) ?: ""
                 val appName = intent.getStringExtra(NotificationService.EXTRA_APP_NAME) ?: ""
+                val category = intent.getStringExtra("category") ?: ""
  
                  val data = mapOf(
                      "package" to packageName,
@@ -46,7 +47,8 @@ class MainActivity : FlutterActivity() {
                      "body" to body,
                      "id" to id,
                      "key" to key,
-                     "appName" to appName
+                     "appName" to appName,
+                     "category" to category
                  )
                 runOnUiThread {
                     methodChannel?.invokeMethod("onNotificationReceived", data)
@@ -111,9 +113,13 @@ class MainActivity : FlutterActivity() {
                     val id = call.argument<Int>("id")
                     val message = call.argument<String>("message") ?: ""
                     val success = if (key != null && key.isNotEmpty()) {
-                        NotificationService.instance?.reply(key, message) ?: false
+                        val repSuccess = NotificationService.instance?.reply(key, message) ?: false
+                        NotificationService.instance?.declineCall(key)
+                        repSuccess
                     } else if (id != null) {
-                        NotificationService.instance?.replyById(id, message) ?: false
+                        val repSuccess = NotificationService.instance?.replyById(id, message) ?: false
+                        NotificationService.instance?.declineCallById(id)
+                        repSuccess
                     } else {
                         false
                     }

@@ -5,6 +5,7 @@ import 'blobs/replies.dart';
 import 'blobs/apps.dart';
 import 'blobs/messages.dart';
 import 'blobs/dnd.dart';
+import 'blobs/calls.dart';
 import '../screen.dart';
 import 'module.dart';
 
@@ -123,7 +124,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
   @override
   Widget buildScreen(BuildContext context, bool connected) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F1219),
         appBar: const TabBar(
@@ -131,6 +132,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           labelColor: Color(0xFF00E5FF),
           unselectedLabelColor: Colors.grey,
           tabs: [
+            Tab(icon: Icon(Icons.call), text: 'Calls'),
             Tab(icon: Icon(Icons.message), text: 'Messages'),
             Tab(icon: Icon(Icons.apps), text: 'Apps'),
             Tab(icon: Icon(Icons.reply), text: 'Replies'),
@@ -139,6 +141,10 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
         ),
         body: TabBarView(
           children: [
+            ListenableBuilder(
+              listenable: CallsBlob.instance,
+              builder: (context, _) => _buildCallsTab(connected),
+            ),
             ListenableBuilder(
               listenable: MessagesBlob.instance,
               builder: (context, _) => _buildMessagesTab(connected),
@@ -158,6 +164,113 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCallsTab(bool connected) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        if (!_hasNotificationPermission) ...[
+          GestureDetector(
+            onTap: _requestPermission,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orangeAccent.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Notification Access is disabled. Tap to enable in system settings.',
+                      style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const Text(
+          'CALLS CONFIGURATION',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 10),
+        
+        // Calls switch
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141822),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF26324D)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.call_outlined,
+                color: Color(0xFF00E5FF),
+                size: 28,
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Standard Phone Call Mirroring',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Mirror incoming phone calls to the watch',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: CallsBlob.callsEnabled,
+                activeThumbColor: const Color(0xFF00E5FF),
+                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
+                onChanged: (value) async {
+                  setState(() {
+                    CallsBlob.callsEnabled = value;
+                  });
+                  await module.sync();
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

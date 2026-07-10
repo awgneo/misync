@@ -277,3 +277,26 @@ Retrieve local bonded devices and connection attributes:
 ```bash
 adb shell dumpsys bluetooth_manager
 ```
+
+---
+
+## 8. Telephony & Notification Control Patterns
+
+To keep permissions minimal and user setup simple, MiSync utilizes specialized patterns for handling telephony controls and bridging watch actions to the phone.
+
+### Permission-Free Call Rejection
+Standard Android API calls for rejecting/ending calls (e.g., `TelecomManager.endCall()`) require the system permission `ANSWER_PHONE_CALLS` which prompts the user with intrusive runtime permission dialogs. 
+
+To bypass this, MiSync scans the action buttons attached to the dialer's status bar notification itself.
+1. When a call notification is dismissed or replied to from the watch:
+2. The `NotificationService` scans the list of `Notification.Action` items on the active status bar notification.
+3. It performs a case-insensitive keyword match on the action titles (e.g., searching for `"decline"`, `"hang"`, `"reject"`, `"挂断"`, `"拒绝"`).
+4. If a matching action is found, it sends the action's pending intent directly: `action.actionIntent.send()`.
+5. This rejects the call immediately at the system level without requiring any telephony permissions.
+
+### Custom Intercepts & Watch Launcher Caching
+When a notification is received in `NotificationModule`, we check if it is a messaging app or a phone call.
+- Dialer and telecom packages (`com.google.android.dialer`, `com.android.phone`, `com.android.server.telecom`, etc.) are recognized as interactive notifications.
+- When an active call or chat notification arrives, we cache it in `ActionsModule.activeNotification`.
+- When the user swipes to dismiss or replies on the watch, the watch sends a wrist dismiss event back to the phone. Since the package is cached in `activeNotification` as an interactive type, the phone immediately triggers the watch Messages Quick Reply app to launch on the wrist.
+- Once the user types a quick reply or dismisses, the phone executes the programmatic decline, ensuring a seamless wrist-to-telephony integration.

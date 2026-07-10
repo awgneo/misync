@@ -15,6 +15,7 @@ import 'blobs/messages.dart';
 import 'blobs/apps.dart';
 import 'blobs/replies.dart';
 import 'blobs/dnd.dart';
+import 'blobs/calls.dart';
 import 'screen.dart';
 
 class NotificationModule implements TabModule {
@@ -55,6 +56,7 @@ class NotificationModule implements TabModule {
 
   void _handlePhoneNotification(Map<String, dynamic> data) async {
     final String package = data['package'] ?? '';
+    final String category = data['category'] ?? '';
 
     String? defaultSmsPkg;
     try {
@@ -64,9 +66,16 @@ class NotificationModule implements TabModule {
     } catch (_) {}
 
     final bool isSms = defaultSmsPkg != null && package == defaultSmsPkg;
-    final bool isAllowed = isSms
-        ? MessagesBlob.smsEnabled
-        : (AppsBlob.map[package] == true);
+    final bool isCall = category == 'call' ||
+        package.contains('dialer') ||
+        package.contains('telecom') ||
+        package.contains('phone');
+
+    final bool isAllowed = isCall
+        ? CallsBlob.callsEnabled
+        : (isSms
+            ? MessagesBlob.smsEnabled
+            : (AppsBlob.map[package] == true));
 
     if (!isAllowed) {
       return; // Filtered out
@@ -111,14 +120,16 @@ class NotificationModule implements TabModule {
             ..notification2 = (Notification2()..notification3 = notification3)),
     );
 
-    // If SMS mirroring/Quick replies is active, check if we should trigger the fullscreen watch Messages app
     final bool isChatApp =
         package.contains('whatsapp') ||
         package.contains('tele') ||
         package.contains('msgr') ||
         package.contains('message') ||
         package.contains('messaging') ||
-        package.contains('discord');
+        package.contains('discord') ||
+        package.contains('dialer') ||
+        package.contains('telecom') ||
+        package.contains('phone');
 
     if (MessagesBlob.quickRepliesEnabled && (isSms || isChatApp)) {
       // Store notification data in ActionsModule for wrist reply matching and launch streaming
@@ -195,7 +206,10 @@ class NotificationModule implements TabModule {
             activePkg.contains('message') ||
             activePkg.contains('messaging') ||
             activePkg.contains('sms') ||
-            activePkg.contains('discord');
+            activePkg.contains('discord') ||
+            activePkg.contains('dialer') ||
+            activePkg.contains('telecom') ||
+            activePkg.contains('phone');
 
         if (isChatApp) {
           Logger.info(
@@ -203,9 +217,8 @@ class NotificationModule implements TabModule {
             'Wrist dismiss received for chat app ($activePkg): launching watch app immediately...',
           );
           try {
-            // Launch the watch Messages app with URI query parameters
-            final uri =
-                'hap://app/com.misync.messages?sender=${Uri.encodeComponent(activeTitle)}&text=${Uri.encodeComponent(activeBody)}';
+            // Launch the watch Messages app directly
+            final uri = 'hap://app/com.misync.messages';
             await AppsModule.instance.launch(companionAppId, uri: uri);
           } catch (e) {
             Logger.error('notifications', 'failed to launch on dismiss: $e');
