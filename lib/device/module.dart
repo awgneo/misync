@@ -140,6 +140,7 @@ class DeviceModule extends TabModule {
 
   @override
   Future<void> start() async {
+    DeviceConnection.logger = logger;
     _checkPermissions();
     PlatformModule.instance.register(_handleMethodCall);
     DeviceConnection.instance.addListener(_onConnectionChanged);

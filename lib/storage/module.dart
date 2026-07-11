@@ -2,8 +2,15 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../module.dart';
+import '../debug/logger.dart';
 
 class StorageModule extends ChangeNotifier implements Module {
+  @override
+  String get name => 'storage';
+
+  @override
+  late final Logger logger = Logger(name);
+
   static final StorageModule _instance = StorageModule._();
   static StorageModule get instance => _instance;
   StorageModule._();

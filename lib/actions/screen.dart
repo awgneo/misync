@@ -18,14 +18,14 @@ class ActionsScreen extends StatefulWidget {
 
 class _ActionsScreenState extends ScreenState<ActionsScreen> {
   @override
-  Module get module => ActionsModule.instance;
+  ActionsModule get module => ActionsModule.instance;
 
   void _testTriggerAction(Action action) {
     Logger.info(
       'actions',
       'local trigger: Running action "${action.name}" with intent target ${action.intent}',
     );
-    ActionsModule.instance.triggerAction(action);
+    module.runPhoneAction(action);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Triggered "${action.name}" successfully!'),
@@ -62,8 +62,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
   }
 
   void _deleteAction(String name) {
-    final updated = Map<String, Action>.from(ActionsBlob.map)
-      ..remove(name);
+    final updated = Map<String, Action>.from(ActionsBlob.map)..remove(name);
     ActionsBlob.instance.update(updated);
   }
 
@@ -117,7 +116,11 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                       order: connected
                           ? ElevatedButton.icon(
                               onPressed: () => _testTriggerAction(action),
-                              icon: const Icon(Icons.play_arrow, size: 14, color: Colors.black),
+                              icon: const Icon(
+                                Icons.play_arrow,
+                                size: 14,
+                                color: Colors.black,
+                              ),
                               label: const Text(
                                 'Test',
                                 style: TextStyle(
@@ -128,7 +131,10 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF00E5FF),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),

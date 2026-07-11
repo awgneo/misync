@@ -24,20 +24,15 @@ class ActionsModule extends TabModule {
 
   @override
   Future<void> start() async {
-    DeviceConnection.listen(_handleCommand);
+    DeviceConnection.listen(_receiveWatchCommand);
   }
 
   @override
   Future<void> sync() async {}
 
-  Future<void> _handleCommand(Command cmd) async {
-    if (cmd.type == CmdType.thirdPartyApp.value) {
-      await _handleWatchCommand(cmd);
-    }
-  }
-
-  Future<void> _handleWatchCommand(Command cmd) async {
-    if (cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value) {
+  Future<void> _receiveWatchCommand(Command cmd) async {
+    if (cmd.type == CmdType.thirdPartyApp.value &&
+        cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value) {
       await _handleWatchMessage(cmd);
     }
   }
@@ -52,7 +47,10 @@ class ActionsModule extends TabModule {
         final data = jsonDecode(text) as Map<String, dynamic>;
         await _handleWatchAction(data);
       } catch (e) {
-        Logger.error('actions', 'Failed to decode or parse watch message content: $e');
+        Logger.error(
+          'actions',
+          'Failed to decode or parse watch message content: $e',
+        );
       }
     }
   }
@@ -63,7 +61,7 @@ class ActionsModule extends TabModule {
     if (actionName != null && actionName.isNotEmpty) {
       final action = ActionsBlob.map[actionName];
       if (action != null) {
-        _triggerAction(action);
+        runPhoneAction(action);
       } else {
         Logger.info('actions', 'No action configured for name: $actionName');
       }
@@ -72,11 +70,7 @@ class ActionsModule extends TabModule {
     }
   }
 
-  void triggerAction(Action action) {
-    _triggerAction(action);
-  }
-
-  void _triggerAction(Action action) async {
+  void runPhoneAction(Action action) async {
     final name = action.name;
     final intent = action.intent;
     final package = action.package;

@@ -22,6 +22,7 @@ class Protocol {
   final Uint8List authKey;
   final String deviceId;
   final String deviceModel;
+  final Logger logger;
 
   ProtocolState state = ProtocolState.disconnected;
   int _sppSeq = 0;
@@ -39,6 +40,7 @@ class Protocol {
     required String authKeyHex,
     required this.deviceId,
     required this.deviceModel,
+    required this.logger,
   }) : authKey = Uint8List.fromList(hex.decode(authKeyHex));
 
   void reset() {
@@ -211,8 +213,7 @@ class Protocol {
 
       return Command.fromBuffer(plaintext);
     } catch (e, stackTrace) {
-      Logger.error(
-        'protocol',
+      logger.error(
         'decryptAndParseCommand failed: $e\n$stackTrace',
       );
       rethrow;
@@ -237,7 +238,7 @@ class Protocol {
         );
 
         if (hex.encode(expectedHmac) != hex.encode(watchNonceObj.hmac)) {
-          Logger.error('device', 'spp: HMAC mismatch');
+          logger.error('spp: HMAC mismatch');
           state = ProtocolState.authFailed;
           return null;
         }
@@ -324,7 +325,7 @@ class Protocol {
         );
 
         if (hex.encode(expectedHmac) != hex.encode(deviceConfirmHmac)) {
-          Logger.error('device', 'spp: secondary HMAC mismatch');
+          logger.error('spp: secondary HMAC mismatch');
           state = ProtocolState.authFailed;
           return null;
         }

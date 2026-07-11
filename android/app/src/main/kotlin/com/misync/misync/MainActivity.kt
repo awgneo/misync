@@ -52,7 +52,7 @@ class MainActivity : FlutterActivity() {
                      "phoneNumber" to phoneNumber
                  )
                 runOnUiThread {
-                    methodChannel?.invokeMethod("onNotificationReceived", data)
+                    methodChannel?.invokeMethod("notificationReceived", data)
                 }
             } else if (intent?.action == NotificationService.ACTION_NOTIFICATION_REMOVED) {
                 val packageName = intent.getStringExtra(NotificationService.EXTRA_PACKAGE) ?: ""
@@ -67,7 +67,7 @@ class MainActivity : FlutterActivity() {
                     "category" to category
                 )
                 runOnUiThread {
-                    methodChannel?.invokeMethod("onNotificationRemoved", data)
+                    methodChannel?.invokeMethod("notificationRemoved", data)
                 }
             }
         }
@@ -78,6 +78,25 @@ class MainActivity : FlutterActivity() {
             if (intent?.action == android.app.AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED) {
                 sendNextAlarmUpdate()
             }
+        }
+    }
+
+    private val dndReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) {
+                sendDndUpdate()
+            }
+        }
+    }
+
+    private fun sendDndUpdate() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val filter = notificationManager.currentInterruptionFilter
+        val isDnd = filter == android.app.NotificationManager.INTERRUPTION_FILTER_NONE ||
+                    filter == android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+                    filter == android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS
+        runOnUiThread {
+            methodChannel?.invokeMethod("dndChanged", isDnd)
         }
     }
 
@@ -109,12 +128,14 @@ class MainActivity : FlutterActivity() {
                 "checkPermissions" -> {
                     val permissions = call.argument<List<String>>("permissions") ?: emptyList()
                     val missing = mutableListOf<String>()
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                     for (perm in permissions) {
                         when (perm) {
                             "notification" -> if (!isNotificationServiceEnabled()) missing.add("notification")
-                            "sms" -> if (checkSelfPermission(android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) missing.add("sms")
-                            "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) missing.add("contacts")
-                            "companion" -> if (!isDeviceAssociated()) missing.add("companion")
+                              "sms" -> if (checkSelfPermission(android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) missing.add("sms")
+                              "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) missing.add("contacts")
+                              "companion" -> if (!isDeviceAssociated()) missing.add("companion")
+                              "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) missing.add("dnd")
                         }
                     }
                     result.success(missing)
@@ -122,6 +143,7 @@ class MainActivity : FlutterActivity() {
                 "requestPermissions" -> {
                     val permissions = call.argument<List<String>>("permissions") ?: emptyList()
                     val runtimePerms = mutableListOf<String>()
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                     for (perm in permissions) {
                         when (perm) {
                             "notification" -> if (!isNotificationServiceEnabled()) {
@@ -136,12 +158,38 @@ class MainActivity : FlutterActivity() {
                             "companion" -> if (!isDeviceAssociated()) {
                                 associateDevice()
                             }
+                            "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) {
+                                startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                            }
                         }
                     }
                     if (runtimePerms.isNotEmpty()) {
                         requestPermissions(runtimePerms.toTypedArray(), 102)
                     }
                     result.success(true)
+                }
+                "getDnd" -> {
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    val filter = notificationManager.currentInterruptionFilter
+                    val isDnd = filter == android.app.NotificationManager.INTERRUPTION_FILTER_NONE ||
+                                filter == android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+                                filter == android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS
+                    result.success(isDnd)
+                }
+                "setDnd" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    if (notificationManager.isNotificationPolicyAccessGranted) {
+                        val filter = if (enabled) {
+                            android.app.NotificationManager.INTERRUPTION_FILTER_NONE
+                        } else {
+                            android.app.NotificationManager.INTERRUPTION_FILTER_ALL
+                        }
+                        notificationManager.setInterruptionFilter(filter)
+                        result.success(true)
+                    } else {
+                        result.success(false)
+                    }
                 }
                 "checkCompanionAssociation" -> {
                     result.success(isDeviceAssociated())
@@ -370,6 +418,14 @@ class MainActivity : FlutterActivity() {
         } else {
             registerReceiver(alarmReceiver, alarmFilter)
         }
+
+        // Register receiver for DND changes
+        val dndFilter = IntentFilter(android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(dndReceiver, dndFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(dndReceiver, dndFilter)
+        }
     }
 
     override fun onDestroy() {
@@ -379,6 +435,9 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {}
         try {
             unregisterReceiver(alarmReceiver)
+        } catch (e: Exception) {}
+        try {
+            unregisterReceiver(dndReceiver)
         } catch (e: Exception) {}
     }
 

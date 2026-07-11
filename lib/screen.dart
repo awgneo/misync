@@ -18,7 +18,7 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
       WidgetsBinding.instance.addObserver(this);
       checkPermissions();
     }
-    triggerSync();
+    refresh();
   }
 
   @override
@@ -49,9 +49,11 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   }
 
   Widget _buildBannerWidget(List<String> missing) {
-    final names = missing.map((p) {
-      return p[0].toUpperCase() + p.substring(1);
-    }).join(', ');
+    final names = missing
+        .map((p) {
+          return p[0].toUpperCase() + p.substring(1);
+        })
+        .join(', ');
 
     return GestureDetector(
       onTap: () async {
@@ -64,9 +66,7 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
         decoration: BoxDecoration(
           color: Colors.orangeAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.orangeAccent.withValues(alpha: 0.3),
-          ),
+          border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -88,7 +88,7 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
     );
   }
 
-  Future<void> triggerSync() async {
+  Future<void> refresh() async {
     if (!DeviceConnection.connected.value) return;
 
     try {
@@ -108,7 +108,6 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
       valueListenable: DeviceConnection.connected,
       builder: (context, connected, _) {
         final child = buildScreen(context, connected);
-
         final missing = module.permissions
             .where((p) => _missingPermissions.contains(p))
             .toList();
@@ -128,7 +127,7 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
 
         if (!connected) return contentWithBanner;
         return RefreshIndicator(
-          onRefresh: triggerSync,
+          onRefresh: refresh,
           color: const Color(0xFF00E5FF),
           backgroundColor: const Color(0xFF141822),
           notificationPredicate: (ScrollNotification notification) {

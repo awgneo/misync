@@ -24,8 +24,10 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   late final TextEditingController _replyController;
   late final TextEditingController _appController;
-  Map<String, Map<String, dynamic>> _installedApps = {};
-  bool _isLoadingApps = false;
+
+  final ValueNotifier<Map<String, Map<String, dynamic>>> _installedApps =
+      ValueNotifier({});
+  final ValueNotifier<bool> _loadingInstalledApps = ValueNotifier(false);
 
   @override
   NotificationModule get module => NotificationModule.instance;
@@ -35,32 +37,41 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
     super.initState();
     _replyController = TextEditingController();
     _appController = TextEditingController();
-    _loadInstalledApps();
   }
 
-  Future<void> _loadInstalledApps() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingApps = true;
-    });
+  @override
+  void dispose() {
+    _replyController.dispose();
+    _appController.dispose();
+    _installedApps.dispose();
+    _loadingInstalledApps.dispose();
+    super.dispose();
+  }
+
+  @override
+  Future<void> refresh() async {
+    // Trigger standard DND/alarm sync
+    super.refresh();
+    // Trigger async background load of installed apps
+    _refreshInstalledApps();
+  }
+
+  Future<void> _refreshInstalledApps() async {
+    _loadingInstalledApps.value = true;
     try {
-      final apps = await module.loadInstalledApps();
-      if (!mounted) return;
-      setState(() {
-        _installedApps = apps;
-      });
+      final apps = await module.getInstalledApps();
+      _installedApps.value = apps;
     } catch (e) {
-      Logger.error('notifications', 'Failed to load installed apps: $e');
+      Logger.error(
+        'notifications',
+        'Failed to load installed apps in background: $e',
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingApps = false;
-        });
-      }
+      _loadingInstalledApps.value = false;
     }
   }
 
-  void _pickApp() {
+  void _addApp() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -69,51 +80,27 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return _AppPickerSheet(
-          installedApps: _installedApps.values.toList(),
+        return _AppPicker(
+          installedAppsNotifier: _installedApps,
+          isLoadingNotifier: _loadingInstalledApps,
           registeredFilters: AppsBlob.map.keys.toList(),
           onAppSelected: (packageName) {
-            AppsBlob.instance.addApp(packageName);
+            module.addApp(packageName);
           },
         );
       },
     );
   }
 
-  @override
-  void dispose() {
-    _replyController.dispose();
-    _appController.dispose();
-    super.dispose();
-  }
-
-  void _saveReplies(List<String> repliesList) async {
-    await RepliesBlob.instance.update(repliesList);
-    await module.sync();
-  }
-
-  void _toggleDnd(bool enabled) async {
-    DndBlob.enabled = enabled;
-    await module.sync();
-  }
-
-  void _toggleAppFilter(String package, bool value) {
-    AppsBlob.instance[package] = value;
-    Logger.info(
-      'notifications',
-      'notification filter updated for $package: $value',
-    );
-  }
-
-  void _showAddReplyDialog() async {
+  void _addReply() async {
     final reply = await showMiTextModal(
       context: context,
       title: 'Add Quick Reply',
       labelText: 'Reply text (e.g., Yes, I will be late)',
     );
     if (reply != null && reply.trim().isNotEmpty) {
-      final updated = List<String>.from(RepliesBlob.list)..add(reply.trim());
-      _saveReplies(updated);
+      final replies = List<String>.from(RepliesBlob.list)..add(reply.trim());
+      module.saveReplies(replies);
     }
   }
 
@@ -139,7 +126,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
                       MiButton(
                         label: 'Add App',
                         icon: Icons.add,
-                        pressed: _pickApp,
+                        pressed: _addApp,
                       ),
                     ],
                   )
@@ -159,14 +146,14 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
                       MiButton(
                         label: 'Add Reply',
                         icon: Icons.add_comment,
-                        pressed: _showAddReplyDialog,
+                        pressed: _addReply,
                       ),
                     ],
                   )
                 : null,
             child: ListenableBuilder(
               listenable: RepliesBlob.instance,
-              builder: (context, _) => _buildQuickRepliesTab(connected),
+              builder: (context, _) => _buildRepliesTab(connected),
             ),
           ),
         ),
@@ -191,16 +178,11 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           children: [
             MiItem(
               title: 'Calls & Messages Mirroring',
-              subtitle: 'Mirror incoming phone calls and text messages to the watch',
+              subtitle:
+                  'Mirror incoming phone calls and text messages to the watch',
               icon: Icons.contact_phone_outlined,
               enabled: ContactBlob.enabled,
-              toggled: (value) async {
-                if (value) {
-                  await module.enableContact();
-                } else {
-                  await module.disableContact();
-                }
-              },
+              toggled: module.saveContactEnabled,
             ),
           ],
         ),
@@ -211,18 +193,11 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Widget _buildAppsTab(bool connected) {
     final filtersMap = AppsBlob.map;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_isLoadingApps)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 20.0),
-              child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
-            ),
-          )
-        else if (filtersMap.isEmpty)
-          Container(
+    return ValueListenableBuilder<Map<String, Map<String, dynamic>>>(
+      valueListenable: _installedApps,
+      builder: (context, installedApps, _) {
+        if (filtersMap.isEmpty) {
+          return Container(
             padding: const EdgeInsets.symmetric(vertical: 40),
             alignment: Alignment.center,
             child: const Text(
@@ -230,54 +205,51 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
-          )
-        else
-          MiItems(
-            children: filtersMap.entries.map((entry) {
-              final appPackage = entry.key;
-              final isEnabled = entry.value;
-              final appInfo = _installedApps[appPackage];
-              final displayName =
-                  appInfo?['appName'] as String? ??
-                  appPackage.split('.').last.toUpperCase();
-              final iconBytes = appInfo?['iconBytes'] as List<int>?;
+          );
+        }
 
-              return MiItem(
-                title: displayName,
-                subtitle: appPackage,
-                delete: () {
-                  AppsBlob.instance.removeApp(appPackage);
-                },
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F1219),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: iconBytes != null
-                      ? Image.memory(
-                          Uint8List.fromList(iconBytes),
-                          fit: BoxFit.contain,
-                        )
-                      : const Icon(
-                          Icons.android,
-                          color: Colors.grey,
-                          size: 16,
-                        ),
+        return MiItems(
+          children: filtersMap.entries.map((entry) {
+            final package = entry.key;
+            final isEnabled = entry.value;
+            final appInfo = installedApps[package];
+            final displayName =
+                appInfo?['appName'] as String? ??
+                package.split('.').last.toUpperCase();
+            final iconBytes = appInfo?['iconBytes'] as List<int>?;
+
+            return MiItem(
+              title: displayName,
+              subtitle: package,
+              delete: () {
+                module.removeApp(package);
+              },
+              icon: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F1219),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                enabled: isEnabled,
-                toggled: (val) {
-                  _toggleAppFilter(appPackage, val);
-                },
-              );
-            }).toList(),
-          ),
-      ],
+                child: iconBytes != null
+                    ? Image.memory(
+                        Uint8List.fromList(iconBytes),
+                        fit: BoxFit.contain,
+                      )
+                    : const Icon(Icons.android, color: Colors.grey, size: 16),
+              ),
+              enabled: isEnabled,
+              toggled: (enabled) {
+                module.saveAppEnabled(package, enabled);
+              },
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
-  Widget _buildQuickRepliesTab(bool connected) {
+  Widget _buildRepliesTab(bool connected) {
     final replies = RepliesBlob.list;
 
     if (replies.isEmpty) {
@@ -314,7 +286,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           final updated = List<String>.from(replies);
           final item = updated.removeAt(oldIndex);
           updated.insert(newIndex, item);
-          _saveReplies(updated);
+          module.saveReplies(updated);
         },
         itemBuilder: (context, index) {
           final reply = replies[index];
@@ -323,14 +295,11 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
             title: reply,
             delete: () {
               final updated = List<String>.from(replies)..removeAt(index);
-              _saveReplies(updated);
+              module.saveReplies(updated);
             },
             order: ReorderableDragStartListener(
               index: index,
-              child: const Icon(
-                Icons.drag_handle,
-                color: Colors.grey,
-              ),
+              child: const Icon(Icons.drag_handle, color: Colors.grey),
             ),
           );
         },
@@ -351,7 +320,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               subtitle: 'Sync phone status with the band',
               icon: Icons.do_not_disturb,
               enabled: dndEnabled,
-              toggled: _toggleDnd,
+              toggled: module.saveDndEnabled,
             ),
           ],
         ),
@@ -360,22 +329,24 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   }
 }
 
-class _AppPickerSheet extends StatefulWidget {
-  final List<Map<String, dynamic>> installedApps;
+class _AppPicker extends StatefulWidget {
+  final ValueNotifier<Map<String, Map<String, dynamic>>> installedAppsNotifier;
+  final ValueNotifier<bool> isLoadingNotifier;
   final List<String> registeredFilters;
   final ValueChanged<String> onAppSelected;
 
-  const _AppPickerSheet({
-    required this.installedApps,
+  const _AppPicker({
+    required this.installedAppsNotifier,
+    required this.isLoadingNotifier,
     required this.registeredFilters,
     required this.onAppSelected,
   });
 
   @override
-  State<_AppPickerSheet> createState() => _AppPickerSheetState();
+  State<_AppPicker> createState() => _AppPickerState();
 }
 
-class _AppPickerSheetState extends State<_AppPickerSheet> {
+class _AppPickerState extends State<_AppPicker> {
   late final TextEditingController _searchController;
   String _searchQuery = '';
 
@@ -393,176 +364,202 @@ class _AppPickerSheetState extends State<_AppPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.installedApps.where((app) {
-      final name = (app['appName'] as String? ?? '').toLowerCase();
-      final pkg = (app['packageName'] as String? ?? '').toLowerCase();
-      final query = _searchQuery.toLowerCase();
-      return name.contains(query) || pkg.contains(query);
-    }).toList();
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        widget.installedAppsNotifier,
+        widget.isLoadingNotifier,
+      ]),
+      builder: (context, _) {
+        final isLoading = widget.isLoadingNotifier.value;
+        final apps = widget.installedAppsNotifier.value.values.toList();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        final filtered = apps.where((app) {
+          final name = (app['appName'] as String? ?? '').toLowerCase();
+          final pkg = (app['packageName'] as String? ?? '').toLowerCase();
+          final query = _searchQuery.toLowerCase();
+          return name.contains(query) || pkg.contains(query);
+        }).toList();
+
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          padding: EdgeInsets.only(
+            top: 20,
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Select App',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Select App',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (isLoading)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
+                  ),
+                )
+              else ...[
+                TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Search apps...',
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF26324D)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF26324D)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF141822),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val;
+                    });
+                  },
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _searchController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Search apps...',
-              hintStyle: const TextStyle(color: Colors.grey),
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF26324D)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF26324D)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-              ),
-              filled: true,
-              fillColor: const Color(0xFF141822),
-            ),
-            onChanged: (val) {
-              setState(() {
-                _searchQuery = val;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'No apps found matching search query.',
-                            style: TextStyle(color: Colors.grey),
-                            textAlign: TextAlign.center,
+                const SizedBox(height: 16),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20.0,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'No apps found matching search query.',
+                                  style: TextStyle(color: Colors.grey),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (_searchQuery.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      widget.onAppSelected(_searchQuery.trim());
+                                      Navigator.pop(context);
+                                    },
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Color(0xFF0F1219),
+                                    ),
+                                    label: Text(
+                                      'Register manually: ${_searchQuery.trim()}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF0F1219),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF00E5FF),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                          if (_searchQuery.trim().isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                widget.onAppSelected(_searchQuery.trim());
-                                Navigator.pop(context);
-                              },
-                              icon: const Icon(
-                                Icons.add_circle_outline,
-                                color: Color(0xFF0F1219),
+                        )
+                      : ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final app = filtered[index];
+                            final packageName = app['packageName'] as String;
+                            final appName = app['appName'] as String;
+                            final iconBytes = app['iconBytes'] as List<int>?;
+                            final isAdded = widget.registeredFilters.contains(
+                              packageName,
+                            );
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 4,
                               ),
-                              label: Text(
-                                'Register manually: ${_searchQuery.trim()}',
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF141822),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: iconBytes != null
+                                    ? Image.memory(
+                                        Uint8List.fromList(iconBytes),
+                                        fit: BoxFit.contain,
+                                      )
+                                    : const Icon(
+                                        Icons.android,
+                                        color: Colors.grey,
+                                      ),
+                              ),
+                              title: Text(
+                                appName,
                                 style: const TextStyle(
-                                  color: Color(0xFF0F1219),
+                                  color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00E5FF),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                              subtitle: Text(
+                                packageName,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
                                 ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final app = filtered[index];
-                      final packageName = app['packageName'] as String;
-                      final appName = app['appName'] as String;
-                      final iconBytes = app['iconBytes'] as List<int>?;
-                      final isAdded = widget.registeredFilters.contains(
-                        packageName,
-                      );
-
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF141822),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: iconBytes != null
-                              ? Image.memory(
-                                  Uint8List.fromList(iconBytes),
-                                  fit: BoxFit.contain,
-                                )
-                              : const Icon(Icons.android, color: Colors.grey),
+                              trailing: isAdded
+                                  ? const Icon(
+                                      Icons.check_circle,
+                                      color: Color(0xFF00E5FF),
+                                    )
+                                  : const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.grey,
+                                    ),
+                              onTap: isAdded
+                                  ? null
+                                  : () {
+                                      widget.onAppSelected(packageName);
+                                      Navigator.pop(context);
+                                    },
+                            );
+                          },
                         ),
-                        title: Text(
-                          appName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          packageName,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                        trailing: isAdded
-                            ? const Icon(
-                                Icons.check_circle,
-                                color: Color(0xFF00E5FF),
-                              )
-                            : const Icon(
-                                Icons.add_circle_outline,
-                                color: Colors.grey,
-                              ),
-                        onTap: isAdded
-                            ? null
-                            : () {
-                                widget.onAppSelected(packageName);
-                                Navigator.pop(context);
-                              },
-                      );
-                    },
-                  ),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

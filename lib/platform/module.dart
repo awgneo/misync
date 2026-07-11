@@ -2,6 +2,9 @@ import 'package:flutter/services.dart';
 import '../module.dart';
 
 class PlatformModule extends Module {
+  @override
+  String get name => 'platform';
+
   static final PlatformModule _instance = PlatformModule._();
   static PlatformModule get instance => _instance;
   PlatformModule._();
