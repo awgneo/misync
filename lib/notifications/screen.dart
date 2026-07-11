@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart' hide Notification;
 import 'dart:typed_data';
-import '../debug/logger.dart';
 import 'blobs/replies.dart';
 import 'blobs/apps.dart';
 import 'blobs/contact.dart';
@@ -181,7 +180,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               title: 'Calls & Messages Mirroring',
               subtitle:
                   'Mirror incoming phone calls and text messages to the watch',
-              icon: Icons.contact_phone_outlined,
+              primaryIcon: Icons.contact_phone_outlined,
               enabled: ContactBlob.enabled,
               toggled: module.saveContactEnabled,
             ),
@@ -225,7 +224,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               delete: () {
                 module.removeApp(package);
               },
-              icon: Container(
+              primaryIcon: Container(
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
@@ -319,7 +318,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
             MiItem(
               title: 'Do Not Disturb (DND)',
               subtitle: 'Sync phone status with the band',
-              icon: Icons.do_not_disturb,
+              primaryIcon: Icons.do_not_disturb,
               enabled: dndEnabled,
               toggled: module.saveDndEnabled,
             ),

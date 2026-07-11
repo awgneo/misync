@@ -58,7 +58,7 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
               MiItem(
                 title: 'Wipe All Storage',
                 subtitle: 'Resets all active configurations',
-                icon: Icons.delete_forever,
+                primaryIcon: Icons.delete_forever,
                 delete: _clearAll,
               ),
             ],
@@ -85,7 +85,7 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
                   return MiItem(
                     title: '$displayName Configurations',
                     subtitle: 'Stored settings for $m',
-                    icon: Icons.storage,
+                    primaryIcon: Icons.storage,
                     delete: () => _delete(m),
                   );
                 }).toList(),

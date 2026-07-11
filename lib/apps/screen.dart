@@ -149,12 +149,16 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
           children: apps.map((entry) {
             final package = entry.key;
             final app = entry.value;
-            final displayName = app.name.isNotEmpty ? app.name : _getAppName(package);
+            final displayName = app.name.isNotEmpty
+                ? app.name
+                : _getAppName(package);
 
             return MiItem(
               title: displayName,
               subtitle: package,
-              icon: app.external ? Icons.apps : Icons.settings_applications,
+              primaryIcon: app.external
+                  ? Icons.apps
+                  : Icons.settings_applications,
               delete: app.external ? () => _module.uninstall(package) : null,
               enabled: app.external ? null : app.enabled,
               toggled: app.external

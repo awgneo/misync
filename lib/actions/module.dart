@@ -4,7 +4,6 @@ import '../module.dart';
 import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../device/proto/constants.dart';
-import '../debug/logger.dart';
 import '../platform/module.dart';
 import 'blobs/actions.dart';
 import 'screen.dart';
@@ -47,8 +46,7 @@ class ActionsModule extends TabModule {
         final data = jsonDecode(text) as Map<String, dynamic>;
         await _handleWatchAction(data);
       } catch (e) {
-        logger.error('Failed to decode or parse watch message content: $e',
-        );
+        logger.error('Failed to decode or parse watch message content: $e');
       }
     }
   }
@@ -72,7 +70,8 @@ class ActionsModule extends TabModule {
     final name = action.name;
     final intent = action.intent;
     final package = action.package;
-    logger.info('Triggering intent action: $name (intent=$intent, package=$package)',
+    logger.info(
+      'Triggering intent action: $name (intent=$intent, package=$package)',
     );
 
     final Map<String, String> extras = {};

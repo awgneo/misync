@@ -8,7 +8,6 @@ import 'proto/xiaomi.pb.dart';
 import 'blobs/device.dart';
 import '../module.dart';
 import '../platform/module.dart';
-import '../debug/logger.dart';
 import 'connection.dart';
 import 'screen.dart';
 import 'pairing/extractor.dart';

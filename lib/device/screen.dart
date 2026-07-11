@@ -194,7 +194,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
             MiItem(
               title: 'Connection Status',
               subtitle: statusText,
-              icon: DeviceConnection.connected.value
+              primaryIcon: DeviceConnection.connected.value
                   ? Icons.link
                   : Icons.link_off,
             ),
@@ -203,41 +203,41 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                 title: 'Battery Level',
                 subtitle:
                     '${infoState.batteryLevel}%${infoState.isCharging ? " (Charging)" : ""}',
-                icon: infoState.isCharging
+                primaryIcon: infoState.isCharging
                     ? Icons.battery_charging_full
                     : Icons.battery_std,
               ),
             MiItem(
               title: 'Device Model',
               subtitle: modelName,
-              icon: Icons.watch,
+              primaryIcon: Icons.watch,
             ),
             MiItem(
               title: 'MAC Address',
               subtitle: SettingsBlob.watchMac,
-              icon: Icons.bluetooth,
+              primaryIcon: Icons.bluetooth,
             ),
             if (serial.isNotEmpty && serial != 'Unknown')
               MiItem(
                 title: 'Serial Number',
                 subtitle: serial,
-                icon: Icons.info_outline,
+                primaryIcon: Icons.info_outline,
               ),
             if (firmware.isNotEmpty && firmware != 'Unknown')
               MiItem(
                 title: 'Firmware Version',
                 subtitle: firmware,
-                icon: Icons.system_update_tv,
+                primaryIcon: Icons.system_update_tv,
               ),
             MiItem(
               title: 'Auth Key (Hex)',
               subtitle: SettingsBlob.authKeyHex,
-              icon: Icons.vpn_key,
+              primaryIcon: Icons.vpn_key,
             ),
             MiItem(
               title: 'Sync Frequency',
               subtitle: 'Background auto-sync interval',
-              icon: Icons.sync,
+              primaryIcon: Icons.sync,
               options: const {
                 0: 'Disabled (Manual Sync)',
                 5: 'Every 5 Minutes',

@@ -92,7 +92,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
               MiItem(
                 title: 'Google Health Connect',
                 subtitle: _syncStatus,
-                icon: _isSyncing ? Icons.sync : Icons.favorite_border,
+                primaryIcon: _isSyncing ? Icons.sync : Icons.favorite_border,
               ),
             ],
           ),
@@ -104,22 +104,22 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
               const MiItem(
                 title: 'Heart Rate: 72 bpm',
                 subtitle: 'Resting: 64 bpm',
-                icon: Icons.favorite,
+                primaryIcon: Icons.favorite,
               ),
               const MiItem(
                 title: 'SpO2: 99%',
                 subtitle: 'All-day sync: ON',
-                icon: Icons.bloodtype,
+                primaryIcon: Icons.bloodtype,
               ),
               const MiItem(
                 title: 'Sleep: 7h 45m',
                 subtitle: 'Deep sleep: 2h 10m',
-                icon: Icons.nightlight_round,
+                primaryIcon: Icons.nightlight_round,
               ),
               const MiItem(
                 title: 'Workouts: 420 kcal',
                 subtitle: '1 active session',
-                icon: Icons.directions_run,
+                primaryIcon: Icons.directions_run,
               ),
             ],
           ),

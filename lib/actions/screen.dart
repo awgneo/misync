@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart' hide Action;
-import '../debug/logger.dart';
 import 'blobs/actions.dart';
 import '../screen.dart';
 import 'module.dart';
@@ -104,7 +103,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                     return MiItem(
                       title: action.name,
                       subtitle: action.intent,
-                      icon: Icons.flash_on,
+                      primaryIcon: Icons.flash_on,
                       delete: connected ? () => _deleteAction(nameKey) : null,
                       order: connected
                           ? ElevatedButton.icon(

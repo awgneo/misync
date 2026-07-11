@@ -60,7 +60,7 @@ class NotificationModule extends TabModule {
       _handlePhoneNotificationRemoved(data);
     } else if (call.method == 'dndChanged') {
       final bool dnd = call.arguments as bool;
-      _handlePhoneDndChange(dnd);
+      _handlePhoneDndChanged(dnd);
     }
   }
 
@@ -184,7 +184,7 @@ class NotificationModule extends TabModule {
     );
   }
 
-  void _handlePhoneDndChange(bool dnd) {
+  void _handlePhoneDndChanged(bool dnd) {
     logger.info('phone DND state updated', {'enabled': dnd});
     _setWatchDnd(dnd);
   }

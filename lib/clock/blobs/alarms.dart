@@ -9,8 +9,12 @@ class Alarm {
     required this.minute,
   });
 
-  String get timeString =>
-      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  String get timeString {
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final displayMin = minute.toString().padLeft(2, '0');
+    return '$displayHour:$displayMin $period';
+  }
 
   factory Alarm.fromMap(Map<String, dynamic> map) {
     return Alarm(
@@ -30,25 +34,57 @@ class Alarm {
 class WatchAlarm extends Alarm {
   final int id;      // Watch Alarm ID (e.g. 1 to 9)
   final bool enabled;
+  final int repeatMode;
+  final int repeatFlags;
+  final int smart;   // 1: Smart Wake, 2: Normal
 
   const WatchAlarm({
     required this.id,
     required super.hour,
     required super.minute,
     required this.enabled,
+    this.repeatMode = 0,
+    this.repeatFlags = 0,
+    this.smart = 2,
   });
+
+  String get repeatString {
+    if (repeatMode == 0) return 'Once';
+    if (repeatMode == 1) return 'Daily';
+    if (repeatMode == 5) {
+      if (repeatFlags == 31) return 'Weekdays';
+      if (repeatFlags == 96) return 'Weekends';
+      if (repeatFlags == 127) return 'Daily';
+      final days = <String>[];
+      if (repeatFlags & 1 != 0) days.add('Mon');
+      if (repeatFlags & 2 != 0) days.add('Tue');
+      if (repeatFlags & 4 != 0) days.add('Wed');
+      if (repeatFlags & 8 != 0) days.add('Thu');
+      if (repeatFlags & 16 != 0) days.add('Fri');
+      if (repeatFlags & 32 != 0) days.add('Sat');
+      if (repeatFlags & 64 != 0) days.add('Sun');
+      return days.isEmpty ? 'Once' : days.join(', ');
+    }
+    return 'Once';
+  }
 
   WatchAlarm copyWith({
     int? id,
     int? hour,
     int? minute,
     bool? enabled,
+    int? repeatMode,
+    int? repeatFlags,
+    int? smart,
   }) {
     return WatchAlarm(
       id: id ?? this.id,
       hour: hour ?? this.hour,
       minute: minute ?? this.minute,
       enabled: enabled ?? this.enabled,
+      repeatMode: repeatMode ?? this.repeatMode,
+      repeatFlags: repeatFlags ?? this.repeatFlags,
+      smart: smart ?? this.smart,
     );
   }
 }
@@ -98,6 +134,9 @@ class AlarmsBlob extends Blob<List<WatchAlarm>> {
         hour: map['hour'] as int,
         minute: map['minute'] as int,
         enabled: map['enabled'] as bool,
+        repeatMode: map['repeatMode'] as int? ?? 0,
+        repeatFlags: map['repeatFlags'] as int? ?? 0,
+        smart: map['smart'] as int? ?? 2,
       );
     }).toList();
   }
@@ -109,6 +148,9 @@ class AlarmsBlob extends Blob<List<WatchAlarm>> {
       'hour': a.hour,
       'minute': a.minute,
       'enabled': a.enabled,
+      'repeatMode': a.repeatMode,
+      'repeatFlags': a.repeatFlags,
+      'smart': a.smart,
     }).toList();
   }
 }

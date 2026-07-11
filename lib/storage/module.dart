@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../module.dart';
-import '../debug/logger.dart';
 import 'screen.dart';
 
 class StorageModule extends TabModule with ChangeNotifier {

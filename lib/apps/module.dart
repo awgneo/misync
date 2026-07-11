@@ -12,7 +12,6 @@ import '../device/module.dart';
 import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
-import '../debug/logger.dart';
 import '../platform/module.dart';
 import '../crc32.dart';
 import 'blobs/apps.dart';
@@ -81,8 +80,7 @@ class AppsModule extends TabModule {
     try {
       // 1. Send icon request (type 7, subtype 15) to watch to request size and format
       final packageProto = pb.NotificationIconPackage()..package = package;
-      logger.info('Sending iconRequest (type 7, subtype 15) to watch...',
-      );
+      logger.info('Sending iconRequest (type 7, subtype 15) to watch...');
       final iconRequestResponse = await DeviceConnection.send(
         type: CmdType.notification,
         subtype: NotificationSubtype.iconRequest, // 15
@@ -95,7 +93,8 @@ class AppsModule extends TabModule {
       if (iconRequestResponse == null ||
           !iconRequestResponse.hasNotification() ||
           !iconRequestResponse.notification.hasNotificationIconRequest()) {
-        logger.error('Watch did not respond to iconRequest or format was invalid',
+        logger.error(
+          'Watch did not respond to iconRequest or format was invalid',
         );
         return;
       }
@@ -103,8 +102,7 @@ class AppsModule extends TabModule {
       final iconReq = iconRequestResponse.notification.notificationIconRequest;
       final int pixelFormat = iconReq.pixelFormat;
       final int size = iconReq.size;
-      logger.info('Watch responded: format=$pixelFormat, size=$size pixels',
-      );
+      logger.info('Watch responded: format=$pixelFormat, size=$size pixels');
 
       // 2. Fetch the app icon raw ARGB bytes from Android
       final Uint8List? rawBytes = await PlatformModule.instance
@@ -114,8 +112,7 @@ class AppsModule extends TabModule {
           });
 
       if (rawBytes == null || rawBytes.isEmpty) {
-        logger.error('Failed to retrieve icon bytes from Android for $package',
-        );
+        logger.error('Failed to retrieve icon bytes from Android for $package');
         return;
       }
 
@@ -164,7 +161,8 @@ class AppsModule extends TabModule {
 
       // 4. Send the icon via Data Upload channel (type 22, subtype 0)
       final md5Sum = md5.convert(formattedBytes).bytes;
-      logger.info('Initiating icon upload stream (size=${formattedBytes.length} bytes)...',
+      logger.info(
+        'Initiating icon upload stream (size=${formattedBytes.length} bytes)...',
       );
       final uploadResponse = await DeviceConnection.send(
         type: CmdType.dataUpload,
@@ -262,7 +260,8 @@ class AppsModule extends TabModule {
       }
       logger.info('Loaded internal apps: $internalApps');
     } catch (e) {
-      logger.error('Failed to load internal apps from manifest: $e. Falling back to hardcoded.',
+      logger.error(
+        'Failed to load internal apps from manifest: $e. Falling back to hardcoded.',
       );
       internalApps.clear();
       internalApps.add('com.misync.messages');
@@ -293,8 +292,7 @@ class AppsModule extends TabModule {
           response.hasThirdPartyApp() &&
           response.thirdPartyApp.hasRpkList()) {
         final list = response.thirdPartyApp.rpkList.rpkInfo;
-        logger.info('Received ${list.length} installed apps from watch.',
-        );
+        logger.info('Received ${list.length} installed apps from watch.');
 
         // Update AppsBlob registry based on the watch list
         final updatedRegistry = Map<String, App>.from(AppsBlob.instance.value);
@@ -364,7 +362,8 @@ class AppsModule extends TabModule {
     final installed = AppsBlob.instance.value[package];
     if (installed != null && installed.fingerprint.isNotEmpty) {
       appInfo.fingerprint = installed.fingerprint;
-      logger.info('Found fingerprint for $package: ${hex.encode(installed.fingerprint)}',
+      logger.info(
+        'Found fingerprint for $package: ${hex.encode(installed.fingerprint)}',
       );
     }
 
@@ -404,7 +403,8 @@ class AppsModule extends TabModule {
       // Check if it is already installed with this exact hash
       final lastInstalledHash = AppsBlob.getHash(package);
       if (lastInstalledHash == localFileShaHex) {
-        logger.info('Internal app $package is already up to date ($localFileShaHex). Skipping installation.',
+        logger.info(
+          'Internal app $package is already up to date ($localFileShaHex). Skipping installation.',
         );
         return true;
       }
@@ -452,7 +452,8 @@ class AppsModule extends TabModule {
     // 2. Perform the uninstallation from the watch
     final app = AppsBlob.instance.value[package];
     if (app != null && (app.hash.isNotEmpty || app.fingerprint.isNotEmpty)) {
-      logger.info('Internal app $package is disabled. Uninstalling from watch...',
+      logger.info(
+        'Internal app $package is disabled. Uninstalling from watch...',
       );
       await uninstall(package);
     }
@@ -485,7 +486,8 @@ class AppsModule extends TabModule {
         throw StateError('Package identifier is missing');
       }
 
-      logger.info('Installing external app: $appName ($package), version: $versionCode',
+      logger.info(
+        'Installing external app: $appName ($package), version: $versionCode',
       );
 
       final success = await _uploadRpk(package, versionCode, bytes);
@@ -518,7 +520,8 @@ class AppsModule extends TabModule {
 
     try {
       // 1. Send CMD_RPK_INSTALL (type 20, subtype 1)
-      logger.info('Sending RPK install start command for $package ($versionCode)',
+      logger.info(
+        'Sending RPK install start command for $package ($versionCode)',
       );
       final installResponse = await DeviceConnection.send(
         type: CmdType.thirdPartyApp,
@@ -533,7 +536,8 @@ class AppsModule extends TabModule {
       );
 
       if (installResponse == null || installResponse.status != 0) {
-        logger.error('RPK install request rejected status: ${installResponse?.status}',
+        logger.error(
+          'RPK install request rejected status: ${installResponse?.status}',
         );
         return false;
       }
@@ -611,8 +615,7 @@ class AppsModule extends TabModule {
         await DeviceConnection.sendDataChunk(chunkToSend.takeBytes());
       }
 
-      logger.info('Sideload finalized. Waiting for device unpacking...',
-      );
+      logger.info('Sideload finalized. Waiting for device unpacking...');
       await Future.delayed(const Duration(seconds: 3));
 
       // After install succeeds, run sync to refresh the list from the watch
@@ -647,7 +650,8 @@ class AppsModule extends TabModule {
       ..appInfo = appInfo
       ..status = isConnected ? 1 : 2;
 
-    logger.info('Proactively sending app status for $package: ${isConnected ? "connected" : "disconnected"}',
+    logger.info(
+      'Proactively sending app status for $package: ${isConnected ? "connected" : "disconnected"}',
     );
 
     await DeviceConnection.send(

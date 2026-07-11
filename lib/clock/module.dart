@@ -191,6 +191,9 @@ class ClockModule extends TabModule {
           hour: alarm.alarmDetails.time.hour,
           minute: alarm.alarmDetails.time.minute,
           enabled: alarm.alarmDetails.enabled,
+          repeatMode: alarm.alarmDetails.repeatMode,
+          repeatFlags: alarm.alarmDetails.repeatFlags,
+          smart: alarm.alarmDetails.smart,
         ),
       );
     }
@@ -202,7 +205,13 @@ class ClockModule extends TabModule {
     logger.info('alarms sync complete');
   }
 
-  Future<void> createAlarm(int hour, int minute) async {
+  Future<void> createAlarm(
+    int hour,
+    int minute, {
+    int repeatMode = 0,
+    int repeatFlags = 0,
+    int smart = 2,
+  }) async {
     if (!DeviceConnection.connected.value) return;
 
     final alarms = AlarmsBlob.list;
@@ -212,8 +221,9 @@ class ClockModule extends TabModule {
       ..time = (pb.HourMinute()
         ..hour = hour
         ..minute = minute)
-      ..smart = 2
-      ..repeatMode = 0;
+      ..smart = smart
+      ..repeatMode = repeatMode
+      ..repeatFlags = repeatFlags;
 
     final result = await DeviceConnection.send(
       type: CmdType.schedule,
@@ -228,23 +238,32 @@ class ClockModule extends TabModule {
         hour: hour,
         minute: minute,
         enabled: true,
+        repeatMode: repeatMode,
+        repeatFlags: repeatFlags,
+        smart: smart,
       );
     }
   }
 
-  Future<void> setAlarmEnabled(int id, bool enabled) async {
+  Future<void> editAlarm(
+    int id,
+    int hour,
+    int minute, {
+    required bool enabled,
+    int repeatMode = 0,
+    int repeatFlags = 0,
+    int smart = 2,
+  }) async {
     if (!DeviceConnection.connected.value) return;
-
-    final alarm = AlarmsBlob.instance[id];
-    if (alarm == null) return;
 
     final details = pb.AlarmDetails()
       ..enabled = enabled
       ..time = (pb.HourMinute()
-        ..hour = alarm.hour
-        ..minute = alarm.minute)
-      ..smart = 2
-      ..repeatMode = 0;
+        ..hour = hour
+        ..minute = minute)
+      ..smart = smart
+      ..repeatMode = repeatMode
+      ..repeatFlags = repeatFlags;
 
     final result = await DeviceConnection.send(
       type: CmdType.schedule,
@@ -257,8 +276,30 @@ class ClockModule extends TabModule {
     );
 
     if (result != null) {
-      AlarmsBlob.instance[id] = alarm.copyWith(enabled: enabled);
+      AlarmsBlob.instance[id] = WatchAlarm(
+        id: id,
+        hour: hour,
+        minute: minute,
+        enabled: enabled,
+        repeatMode: repeatMode,
+        repeatFlags: repeatFlags,
+        smart: smart,
+      );
     }
+  }
+
+  Future<void> setAlarmEnabled(int id, bool enabled) async {
+    final alarm = AlarmsBlob.instance[id];
+    if (alarm == null) return;
+    await editAlarm(
+      id,
+      alarm.hour,
+      alarm.minute,
+      enabled: enabled,
+      repeatMode: alarm.repeatMode,
+      repeatFlags: alarm.repeatFlags,
+      smart: alarm.smart,
+    );
   }
 
   Future<void> deleteAlarm(int id) async {

@@ -4,26 +4,30 @@ class MiItem extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? delete;
-  final dynamic icon;
+  final dynamic primaryIcon;
+  final dynamic secondaryIcon;
   final bool? enabled;
   final ValueChanged<bool>? toggled;
   final Widget? order;
   final Map<dynamic, String>? options;
   final dynamic value;
   final ValueChanged<dynamic>? selected;
+  final VoidCallback? clicked;
 
   const MiItem({
     super.key,
     required this.title,
     this.subtitle,
     this.delete,
-    this.icon,
+    this.primaryIcon,
+    this.secondaryIcon,
     this.enabled,
     this.toggled,
     this.order,
     this.options,
     this.value,
     this.selected,
+    this.clicked,
   });
 
   @override
@@ -47,36 +51,47 @@ class MiItem extends StatelessWidget {
             ),
             const SizedBox(width: 6),
           ],
-          if (icon != null) ...[
-            if (icon is IconData)
-              Icon(icon as IconData, color: const Color(0xFF00E5FF), size: 22)
-            else if (icon is Widget)
-              icon as Widget,
+          if (primaryIcon != null) ...[
+            if (primaryIcon is IconData)
+              Icon(primaryIcon as IconData, color: const Color(0xFF00E5FF), size: 22)
+            else if (primaryIcon is Widget)
+              primaryIcon as Widget,
             const SizedBox(width: 12),
           ],
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+            child: GestureDetector(
+              onTap: clicked,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    subtitle!,
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
+          if (secondaryIcon != null) ...[
+            const SizedBox(width: 8),
+            if (secondaryIcon is IconData)
+              Icon(secondaryIcon as IconData, color: const Color(0xFF00E5FF), size: 22)
+            else if (secondaryIcon is Widget)
+              secondaryIcon as Widget,
+          ],
           if (options != null) ...[
             const SizedBox(width: 8),
             DropdownButtonHideUnderline(
