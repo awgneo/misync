@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
+import '../crc32.dart';
 import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter/services.dart';
 import 'blobs/settings.dart';
@@ -292,6 +295,86 @@ class DeviceModule extends TabModule {
   Future<void> _syncModules() async {
     for (final module in _modules) {
       await module.sync();
+    }
+  }
+
+  Future<bool> uploadData({
+    required int type,
+    required Uint8List bytes,
+  }) async {
+    if (!DeviceConnection.connected.value) return false;
+
+    try {
+      final md5Sum = md5.convert(bytes).bytes;
+
+      // 1. Send upload start request (type 22, subtype 0)
+      final uploadResponse = await DeviceConnection.send(
+        type: CmdType.dataUpload,
+        subtype: DataUploadSubtype.uploadStart,
+        builder: (cmd) => cmd.dataUpload = (DataUpload()
+          ..dataUploadRequest = (DataUploadRequest()
+            ..type = type
+            ..md5sum = md5Sum
+            ..size = bytes.length)),
+        expectResponse: true,
+      );
+
+      if (uploadResponse == null ||
+          !uploadResponse.hasDataUpload() ||
+          !uploadResponse.dataUpload.hasDataUploadAck()) {
+        logger.error('Data upload start request rejected for type $type');
+        return false;
+      }
+
+      final ack = uploadResponse.dataUpload.dataUploadAck;
+      final int chunkSize = ack.hasChunkSize() ? ack.chunkSize : 2048;
+      final int resumePosition = ack.hasResumePosition() ? ack.resumePosition : 0;
+
+      // 2. Construct payload bytes and headers
+      final builder = BytesBuilder()
+        ..addByte(0)
+        ..addByte(type)
+        ..add(md5Sum);
+
+      final sizeBytes = ByteData(4)..setUint32(0, bytes.length, Endian.little);
+      builder.add(sizeBytes.buffer.asUint8List());
+      builder.add(bytes.sublist(resumePosition));
+
+      final payload = builder.takeBytes();
+      final crc = Crc32.calculate(payload);
+      final crcBytes = ByteData(4)..setUint32(0, crc, Endian.little);
+      final finalBytes = (BytesBuilder()
+            ..add(payload)
+            ..add(crcBytes.buffer.asUint8List()))
+          .takeBytes();
+
+      // 3. Stream chunks over SPP
+      final int partSize = chunkSize - 4;
+      final int totalParts = (finalBytes.length / partSize).ceil();
+      logger.info('Streaming type $type data in $totalParts parts...');
+
+      for (int i = 0; i < totalParts; i++) {
+        final currentPart = i + 1;
+        final int startIndex = i * partSize;
+        final int endIndex = (currentPart * partSize > finalBytes.length)
+            ? finalBytes.length
+            : currentPart * partSize;
+
+        final chunkPayload = finalBytes.sublist(startIndex, endIndex);
+        final chunkToSend = BytesBuilder();
+
+        final headerBytes = ByteData(4)
+          ..setUint16(0, totalParts, Endian.little)
+          ..setUint16(2, currentPart, Endian.little);
+        chunkToSend.add(headerBytes.buffer.asUint8List());
+        chunkToSend.add(chunkPayload);
+
+        await DeviceConnection.sendDataChunk(chunkToSend.takeBytes());
+      }
+      return true;
+    } catch (e) {
+      logger.error('Error during data upload of type $type: $e');
+      return false;
     }
   }
 }

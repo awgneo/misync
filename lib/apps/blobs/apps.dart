@@ -3,47 +3,53 @@ import '../../storage/blob.dart';
 class App {
   final bool enabled;
   final String hash;
-  final String name;
+  final String package;
   final bool external;
   final List<int> fingerprint;
 
   const App({
     required this.enabled,
     required this.hash,
-    required this.name,
+    required this.package,
     required this.external,
     this.fingerprint = const [],
   });
+
+  String get name {
+    final lastSegment = package.split('.').last;
+    if (lastSegment.isEmpty) return package;
+    return '${lastSegment[0].toUpperCase()}${lastSegment.substring(1)}';
+  }
 
   factory App.fromJson(Map<String, dynamic> json) {
     return App(
       enabled: json['enabled'] as bool? ?? true,
       hash: json['hash'] as String? ?? '',
-      name: json['name'] as String? ?? '',
+      package: json['package'] as String? ?? '',
       external: json['external'] as bool? ?? false,
       fingerprint: List<int>.from(json['fingerprint'] ?? []),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'hash': hash,
-        'name': name,
-        'external': external,
-        'fingerprint': fingerprint,
-      };
+    'enabled': enabled,
+    'hash': hash,
+    'package': package,
+    'external': external,
+    'fingerprint': fingerprint,
+  };
 
   App copyWith({
     bool? enabled,
     String? hash,
-    String? name,
+    String? package,
     bool? external,
     List<int>? fingerprint,
   }) {
     return App(
       enabled: enabled ?? this.enabled,
       hash: hash ?? this.hash,
-      name: name ?? this.name,
+      package: package ?? this.package,
       external: external ?? this.external,
       fingerprint: fingerprint ?? this.fingerprint,
     );
@@ -55,27 +61,28 @@ class AppsBlob extends Blob<Map<String, App>> {
   static AppsBlob get instance => _instance;
 
   AppsBlob._()
-      : super(
-          module: 'apps',
-          name: 'installed_hashes',
-          defaultValue: const {
-            'com.misync.messages': App(
-              enabled: true,
-              hash: '',
-              name: 'Messages',
-              external: false,
-            ),
-          },
-        );
+    : super(
+        module: 'apps',
+        name: 'installed_hashes',
+        defaultValue: const {
+          'com.misync.messages': App(
+            enabled: true,
+            hash: '',
+            package: 'com.misync.messages',
+            external: false,
+          ),
+        },
+      );
 
-  static bool isEnabled(String package) {
+  static bool getEnabled(String package) {
     return instance.value[package]?.enabled ?? true;
   }
 
   static void setEnabled(String package, bool enabled) {
     final updated = Map<String, App>.from(instance.value);
-    final current = updated[package] ??
-        const App(enabled: true, hash: '', name: '', external: false);
+    final current =
+        updated[package] ??
+        App(enabled: true, hash: '', package: package, external: false);
     updated[package] = current.copyWith(enabled: enabled);
     instance.update(updated);
   }
@@ -86,8 +93,9 @@ class AppsBlob extends Blob<Map<String, App>> {
 
   static void setHash(String package, String hash) {
     final updated = Map<String, App>.from(instance.value);
-    final current = updated[package] ??
-        const App(enabled: true, hash: '', name: '', external: false);
+    final current =
+        updated[package] ??
+        App(enabled: true, hash: '', package: package, external: false);
     updated[package] = current.copyWith(hash: hash);
     instance.update(updated);
   }
@@ -117,10 +125,16 @@ class AppsBlob extends Blob<Map<String, App>> {
   @override
   Map<String, App> parse(dynamic json) {
     if (json is! Map) return const {};
-    final parsed = json.map((key, val) => MapEntry(
+    final parsed = json.map(
+      (key, val) {
+        final map = Map<String, dynamic>.from(val ?? {});
+        map['package'] ??= key as String;
+        return MapEntry(
           key as String,
-          App.fromJson(Map<String, dynamic>.from(val ?? {})),
-        ));
+          App.fromJson(map),
+        );
+      },
+    );
     final sortedEntries = parsed.entries.toList()
       ..sort((a, b) {
         if (a.value.external != b.value.external) {

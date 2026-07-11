@@ -267,12 +267,16 @@ class MainActivity : FlutterActivity() {
                 "launchAction" -> {
                     val intentAction = call.argument<String>("intent") ?: ""
                     val packageName = call.argument<String>("package")
+                    val uriString = call.argument<String>("uri")
                     val extras = call.argument<Map<String, String>>("extras")
-                    Log.d(TAG, "launchAction: intent=$intentAction, package=$packageName, extras=$extras")
+                    Log.d(TAG, "launchAction: intent=$intentAction, package=$packageName, uri=$uriString, extras=$extras")
                     try {
                         val intent = Intent(intentAction)
                         if (packageName != null && packageName.isNotEmpty()) {
                             intent.setPackage(packageName)
+                        }
+                        if (uriString != null && uriString.isNotEmpty()) {
+                            intent.data = android.net.Uri.parse(uriString)
                         }
                         extras?.forEach { (key, value) ->
                             intent.putExtra(key, value)
@@ -335,7 +339,7 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                 }
-                "getInstalledApps" -> {
+                "getApps" -> {
                     Thread {
                         try {
                             val pm = packageManager

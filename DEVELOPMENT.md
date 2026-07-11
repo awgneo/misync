@@ -10,9 +10,10 @@ MiSync is built as a highly decoupled companion application using Flutter. The a
 
 ```mermaid
 graph TD
-    UI[UI Screens: clock/screen.dart] -->|Listens & Triggers| Blob[Blobs: AlarmsBlob]
+    UI[UI Screens: clock/screen.dart] -->|Calls API Methods| Module[Modules: ClockModule]
+    UI -->|Listens to updates| Blob[Blobs: AlarmsBlob]
+    Module -->|Mutates state inside| Blob
     Blob -->|Persists via| Storage[StorageModule]
-    Module[Modules: ClockModule] -->|Queries & Updates| Blob
     Module -->|Registers Tasks| DeviceModule[DeviceModule]
     Module -->|Sends Commands| DeviceConnection[DeviceConnection]
     DeviceConnection -->|Serializes/Encrypts| Protocol[Protocol]
@@ -21,12 +22,16 @@ graph TD
 
 ### Core Architecture Components
 
-1.  **`lib/main.dart` (Bootstrapper)**: Defines the global list of `modules`. Bootstraps and awaits the asynchronous sequential lifecycles of all modules in a loop.
+1.  **`lib/main.dart` (Bootstrapper)**: Defines the global list of `modules`. Bootstraps and awaits the sequential asynchronous lifecycles of all modules in a loop.
 2.  **Modules (`lib/<feature>/module.dart`)**: The logical engine of a feature.
     * Implement the **`Module`** interface (for background/framework services like `StorageModule`, `PlatformModule`).
     * Implement the **`TabModule`** interface (for user-facing features that render in navigation tabs). They override properties: `String get name` (lowercase, e.g., `'device'`, `'clock'`), `IconData get icon`, and `Widget get screen`.
+    * **Best Practice**: All data mutation operations (e.g. `addAction`, `deleteAction`, `editAlarm`, `removeApp`) should be defined as methods on the `Module` class. Screen classes should call these methods rather than mutating blobs directly in the view layer.
 3.  **Blobs (`lib/<feature>/blobs/<name>.dart`)**: Reactive state holders extending `Blob<T>`. They automatically read/write JSON values to the persistent key-value store (`StorageModule`) and notify UI screens upon updates.
-4.  **Screens (`lib/<feature>/screen.dart`)**: Independent presentation layer extending `ScreenState<T>`. Screens **never** interact directly with the Bluetooth connection or write directly to the database. They modify the corresponding `Blob`, which then triggers a write and schedules a sync.
+4.  **Screens (`lib/<feature>/screen.dart`)**: Independent presentation layer extending `ScreenState<T>`. 
+    * Screens **never** interact directly with the Bluetooth connection or write directly to the database. They delegate updates to the `Module`.
+    * All screen states extend `ScreenState<T>` and override `Widget buildScreen(BuildContext context, bool connected)`. The base class automatically wraps the tree in a `ValueListenableBuilder` listening to `DeviceConnection.connected`.
+    * Interactive controls (switches, text fields, adding/editing/deleting elements) **must be disabled** when `connected` is false.
 5.  **`DeviceConnection` (`lib/device/connection.dart`)**: The unified Bluetooth SPP connection and protocol manager. Exposes `DeviceConnection.listen((cmd) => ...)` and `DeviceConnection.send(...)` to other modules.
 
 ---
@@ -106,7 +111,112 @@ To map out command types, payload definitions, and fields without guessing, util
 
 ---
 
-## 6. How to Implement a New Module (Walkthrough)
+## 6. Shared & DRY Platform UI Components
+
+To maintain consistency and rich styling across screens, utilize these shared types and widgets located in the `lib/widgets/` directory:
+
+### 1. `App` Model (`lib/platform/app.dart`)
+Represents an installed system application with type safety:
+```dart
+class App {
+  final String package;
+  final String name;
+  final Uint8List? icon;
+
+  const App({required this.package, required this.name, this.icon});
+}
+```
+
+### 2. `MiPanel` (`lib/widgets/panel.dart`)
+The root scrolling container for tab screens. Handles consistent padding, margins, and floating action button stack placement:
+```dart
+MiPanel(
+  buttons: connected ? MiButtons(children: [...]) : null,
+  child: Column(children: [...]),
+)
+```
+
+### 3. `MiButton` & `MiButtons` (`lib/widgets/button.dart`)
+Floating Action Button controller. Renders a single FAB if only one child is supplied, or compiles a premium slide-up mini FAB list menu when there are two or more children:
+```dart
+MiButtons(
+  children: [
+    MiButton(
+      label: 'Add Action',
+      icon: Icons.add,
+      pressed: _addAction,
+    ),
+  ],
+)
+```
+
+### 4. `MiItems` (`lib/widgets/items.dart`)
+A dark, rounded-corner container (`#141822`) used to group multiple items inside a sleek card block. It automatically draws consistent divider lines (`#26324D`) between adjacent child items.
+
+### 5. `MiItem` (`lib/widgets/item.dart`)
+A highly configurable, standard row widget matching the premium look of the application. It supports:
+*   **Wipe/Delete Action**: Exposes a left-side red trash icon (`delete`).
+*   **Custom Labels**: `title` and `subtitle` values.
+*   **Interactive Toggles**: Built-in `Switch` configuration (`enabled`, `toggled`).
+*   **Interactive Selection**: Nested dropdown configurations (`options`, `value`, `selected`).
+*   **Custom Action button**: Replaces/appends right side elements (`order`, `secondaryIcon`).
+*   **Click Handler**: Tapping the title/subtitle row triggers a callback (`clicked`).
+
+```dart
+MiItem(
+  title: 'Smart Wake',
+  subtitle: 'Wakes you up during light sleep',
+  enabled: _smartWake,
+  toggled: (val) => setState(() => _smartWake = val),
+)
+```
+
+### 6. `showMiModal` (`lib/widgets/modal.dart`)
+Exposes premium, round-cornered confirmation overlays. Can be parameterized to gather text input or act as confirmation dialogues:
+```dart
+// 1. Text Input Dialog
+final String? input = await showMiModal<String>(
+  context: context,
+  title: 'Canned Reply',
+  label: 'Text (e.g. Yes, on my way!)',
+);
+
+// 2. Simple Action Confirm
+final bool? confirm = await showMiModal<bool>(
+  context: context,
+  title: 'Delete Item?',
+  body: 'This action is irreversible.',
+);
+```
+
+### 7. `MiTabs` & `MiTab` (`lib/widgets/tabs.dart`)
+Scrollable tab controller for nesting view panels:
+```dart
+MiTabs(
+  tabs: [
+    MiTab(label: 'Apps', child: _buildAppsView()),
+    MiTab(label: 'Quick Replies', child: _buildRepliesView()),
+  ],
+)
+```
+
+### 8. `MiPicker` Bottom Sheet (`lib/widgets/picker.dart`)
+A DRY bottom drawer listing all system applications, with built-in alphabetical sorting and real-time search-filtering:
+```dart
+showModalBottomSheet(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: Colors.transparent,
+  builder: (context) => MiPicker(
+    registeredFilters: activeFiltersList,
+    onAppSelected: (packageName) => module.addFilter(packageName),
+  ),
+);
+```
+
+---
+
+## 7. How to Implement a New Module (Walkthrough)
 
 If you are developing a new feature (e.g., **DND Synchronization**), follow these structured steps:
 
@@ -177,19 +287,23 @@ class DndModule implements TabModule {
     await syncDndToWatch();
   }
 
+  void updateDnd(bool enabled) {
+    DndBlob.instance.update({'enabled': enabled});
+    syncDndToWatch();
+  }
+
   Future<void> syncDndToWatch() async {
-    // Build your protobuf command and send
+    final enabled = DndBlob.instance.value['enabled'] ?? false;
     await DeviceConnection.send(
       type: CmdType.system,
       subtype: SystemSubtype.dnd,
       builder: (cmd) => cmd.system = (System()
-        ..dndStatus = (DoNotDisturb()..status = 1)),
+        ..dndStatus = (DoNotDisturb()..status = enabled ? 1 : 2)),
     );
   }
 
   void _handleWatchDndUpdate(Command cmd) {
-    // Parse watch DND state and write to Blob so UI gets notified
-    DndBlob.instance.update({'enabled': true});
+    DndBlob.instance.update({'enabled': cmd.system.dndStatus.status == 1});
   }
 }
 ```
@@ -212,7 +326,7 @@ final List<Module> modules = [
 ```
 
 ### Step 5: Build the Screen UI
-Create `lib/dnd/screen.dart` and bind elements directly to the Blob:
+Create `lib/dnd/screen.dart` and bind elements using `buildScreen`:
 ```dart
 import 'package:flutter/material.dart';
 import '../screen.dart';
@@ -231,7 +345,7 @@ class _DndScreenState extends ScreenState<DndScreen> {
   Module get module => DndModule.instance;
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, bool connected) {
     return ListenableBuilder(
       listenable: DndBlob.instance,
       builder: (context, _) {
@@ -239,10 +353,9 @@ class _DndScreenState extends ScreenState<DndScreen> {
         return SwitchListTile(
           title: const Text("Do Not Disturb"),
           value: dndEnabled,
-          onChanged: (val) {
-            DndBlob.instance.update({'enabled': val});
-            triggerSync();
-          },
+          onChanged: connected 
+              ? (val) => DndModule.instance.updateDnd(val) 
+              : null, // Grayed out when watch is disconnected
         );
       },
     );
@@ -252,7 +365,7 @@ class _DndScreenState extends ScreenState<DndScreen> {
 
 ---
 
-## 7. Debugging Workflows & Commands
+## 8. Debugging Workflows & Commands
 
 Use these commands to trace protocols, dumpsys states, and logs:
 
@@ -280,7 +393,7 @@ adb shell dumpsys bluetooth_manager
 
 ---
 
-## 8. Telephony & Notification Control Patterns
+## 9. Telephony & Notification Control Patterns
 
 To keep permissions minimal and user setup simple, MiSync utilizes specialized patterns for handling telephony controls and bridging watch actions to the phone.
 

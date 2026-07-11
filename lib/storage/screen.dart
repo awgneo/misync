@@ -56,9 +56,8 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
           MiItems(
             children: [
               MiItem(
-                title: 'Wipe All Storage',
+                title: 'All Storage',
                 subtitle: 'Resets all active configurations',
-                primaryIcon: Icons.delete_forever,
                 delete: _clearAll,
               ),
             ],
@@ -83,9 +82,8 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
                 children: modules.map((m) {
                   final displayName = m[0].toUpperCase() + m.substring(1);
                   return MiItem(
-                    title: '$displayName Configurations',
+                    title: '$displayName Storage',
                     subtitle: 'Stored settings for $m',
-                    primaryIcon: Icons.storage,
                     delete: () => _delete(m),
                   );
                 }).toList(),

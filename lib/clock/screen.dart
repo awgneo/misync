@@ -105,16 +105,15 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                   return MiItems(
                     children: [
                       MiItem(
-                        title: 'Phone System Alarm Slot',
+                        title: 'Next Phone Alarm',
                         subtitle: 'Next scheduled: $phoneNextAlarmString',
                         primaryIcon: Icons.alarm_on,
                         enabled: phoneNextAlarm != null,
                         toggled: null, // Read-only mirror of phone state
                         clicked: () {
-                          PlatformModule.instance.invokeMethod(
-                            'launchAction',
-                            {'intent': 'android.intent.action.SHOW_ALARMS'},
-                          );
+                          PlatformModule.instance.invokeMethod('launchAction', {
+                            'intent': 'android.intent.action.SHOW_ALARMS',
+                          });
                         },
                       ),
                     ],
@@ -172,7 +171,8 @@ class _AlarmSetupSheet extends StatefulWidget {
 
 class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
   TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
-  int _repeatOption = 0; // 0: Once, 1: Daily, 2: Weekdays, 3: Weekends, 4: Custom
+  int _repeatOption =
+      0; // 0: Once, 1: Daily, 2: Weekdays, 3: Weekends, 4: Custom
   int _customFlags = 0; // Bitmask for custom days
   bool _smartWake = false;
 
@@ -239,12 +239,21 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
     }
 
     final period = _selectedTime.hour >= 12 ? 'PM' : 'AM';
-    final displayHour = _selectedTime.hour == 0 ? 12 : (_selectedTime.hour > 12 ? _selectedTime.hour - 12 : _selectedTime.hour);
+    final displayHour = _selectedTime.hour == 0
+        ? 12
+        : (_selectedTime.hour > 12
+              ? _selectedTime.hour - 12
+              : _selectedTime.hour);
     final displayMin = _selectedTime.minute.toString().padLeft(2, '0');
     final formattedTime = '$displayHour:$displayMin $period';
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFF0F111A),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -303,7 +312,11 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
           const SizedBox(height: 24),
           const Text(
             'Repeat Mode',
-            style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<int>(
@@ -322,11 +335,35 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
               ),
             ),
             items: const [
-              DropdownMenuItem(value: 0, child: Text('Once', style: TextStyle(color: Colors.white))),
-              DropdownMenuItem(value: 1, child: Text('Daily', style: TextStyle(color: Colors.white))),
-              DropdownMenuItem(value: 2, child: Text('Weekdays (Mon - Fri)', style: TextStyle(color: Colors.white))),
-              DropdownMenuItem(value: 3, child: Text('Weekends (Sat - Sun)', style: TextStyle(color: Colors.white))),
-              DropdownMenuItem(value: 4, child: Text('Custom Days...', style: TextStyle(color: Colors.white))),
+              DropdownMenuItem(
+                value: 0,
+                child: Text('Once', style: TextStyle(color: Colors.white)),
+              ),
+              DropdownMenuItem(
+                value: 1,
+                child: Text('Daily', style: TextStyle(color: Colors.white)),
+              ),
+              DropdownMenuItem(
+                value: 2,
+                child: Text(
+                  'Weekdays (Mon - Fri)',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 3,
+                child: Text(
+                  'Weekends (Sat - Sun)',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 4,
+                child: Text(
+                  'Custom Days...',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ],
             onChanged: (val) {
               if (val != null) {
@@ -373,10 +410,7 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
                   SizedBox(height: 4),
                   Text(
                     'Wakes you up during light sleep',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
               ),
@@ -388,7 +422,9 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
                   });
                 },
                 activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                activeTrackColor: const Color(
+                  0xFF00E5FF,
+                ).withValues(alpha: 0.3),
                 inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
               ),
@@ -408,7 +444,10 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
                     ),
                   ),
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -432,7 +471,11 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
                   },
                   child: const Text(
                     'Save',
-                    style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),

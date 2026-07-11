@@ -8,6 +8,8 @@ import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
 
+import '../widgets/modal.dart';
+
 class AppsScreen extends StatefulWidget {
   const AppsScreen({super.key});
 
@@ -21,39 +23,21 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
   @override
   Module get module => _module;
 
-  String _getAppName(String package) {
-    final lastSegment = package.split('.').last;
-    if (lastSegment.isEmpty) return package;
-    return '${lastSegment[0].toUpperCase()}${lastSegment.substring(1)}';
-  }
+  Future<void> _installApp() async {
+    final result = await FilePicker.pickFiles(type: FileType.any);
+    if (result == null || result.files.isEmpty) return;
 
-  Future<void> _install() async {
-    try {
-      final result = await FilePicker.pickFiles(type: FileType.any);
-      if (result == null || result.files.isEmpty) return;
+    final path = result.files.first.path;
+    if (path == null) throw StateError('Picked file path is null');
 
-      final path = result.files.first.path;
-      if (path == null) throw StateError('Picked file path is null');
-
-      final success = await _module.install(path);
+    final success = await _module.install(path);
+    if (!success) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'Successfully sideloaded app!'
-                : 'Failed to sideload app.',
-          ),
-          backgroundColor: success ? const Color(0xFF00E5FF) : Colors.redAccent,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error selecting/installing file: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
+      await showMiModal<bool>(
+        context: context,
+        title: 'Sideload Failed',
+        body: 'Failed to sideload the app.',
+        confirm: 'OK',
       );
     }
   }
@@ -65,64 +49,14 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
           ? MiButtons(
               children: [
                 MiButton(
-                  label: 'Install Custom RPK',
+                  label: 'Install App',
                   icon: Icons.add,
-                  pressed: _install,
+                  pressed: _installApp,
                 ),
               ],
             )
           : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!connected)
-            _buildStatusCard(
-              title: 'Disconnected',
-              subtitle: 'Connect to the watch to manage applications.',
-              icon: Icons.link_off,
-              color: Colors.orangeAccent,
-            )
-          else
-            _buildAppList(connected),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141822),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF26324D)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 48, color: color),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+      child: _buildAppList(connected),
     );
   }
 
@@ -149,9 +83,7 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
           children: apps.map((entry) {
             final package = entry.key;
             final app = entry.value;
-            final displayName = app.name.isNotEmpty
-                ? app.name
-                : _getAppName(package);
+            final displayName = app.name;
 
             return MiItem(
               title: displayName,
@@ -163,11 +95,11 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
               enabled: app.external ? null : app.enabled,
               toggled: app.external
                   ? null
-                  : (val) {
-                      if (val) {
-                        _module.enable(package);
+                  : (enabled) {
+                      if (enabled) {
+                        _module.enableApp(package);
                       } else {
-                        _module.disable(package);
+                        _module.disableApp(package);
                       }
                     },
             );

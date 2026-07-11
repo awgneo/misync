@@ -31,62 +31,86 @@ class ActionsModule extends TabModule {
 
   Future<void> _receiveWatchCommand(Command cmd) async {
     if (cmd.type == CmdType.thirdPartyApp.value &&
-        cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value) {
+        cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value &&
+        cmd.hasThirdPartyApp() &&
+        cmd.thirdPartyApp.hasMessage()) {
       await _handleWatchMessage(cmd);
     }
   }
 
   Future<void> _handleWatchMessage(Command cmd) async {
-    if (cmd.hasThirdPartyApp() && cmd.thirdPartyApp.hasMessage()) {
-      final msg = cmd.thirdPartyApp.message;
-      try {
-        final String text = utf8.decode(msg.content);
-        logger.info('Received message from watch app: $text');
-
-        final data = jsonDecode(text) as Map<String, dynamic>;
-        await _handleWatchAction(data);
-      } catch (e) {
-        logger.error('Failed to decode or parse watch message content: $e');
-      }
-    }
+    final message = cmd.thirdPartyApp.message;
+    final String text = utf8.decode(message.content);
+    logger.info('received message from watch app: $text');
+    final data = jsonDecode(text) as Map<String, dynamic>;
+    await _handleWatchAction(data);
   }
 
   Future<void> _handleWatchAction(Map<String, dynamic> data) async {
-    // 1. Check if the watch sends an action name: e.g. { "action": "Mute Phone" }
+    // Check if the watch sends an action name: e.g. { "action": "Mute Phone" }
     final actionName = data['action']?.toString().trim();
-    if (actionName != null && actionName.isNotEmpty) {
-      final action = ActionsBlob.map[actionName];
-      if (action != null) {
-        runPhoneAction(action);
-      } else {
-        logger.info('No action configured for name: $actionName');
-      }
-    } else {
+    if (actionName == null || actionName.isEmpty) {
       logger.info('Invalid action payload received: $data');
+      return;
+    }
+
+    final action = ActionsBlob.map[actionName];
+    if (action != null) {
+      runAction(action);
+    } else {
+      logger.info('No action configured for name: $actionName');
     }
   }
 
-  void runPhoneAction(Action action) async {
+  void runAction(Action action) async {
     final name = action.name;
     final intent = action.intent;
     final package = action.package;
     logger.info(
-      'Triggering intent action: $name (intent=$intent, package=$package)',
+      'Triggering intent action: $name (intent=$intent, package=$package, uri=${action.uri})',
     );
 
     final Map<String, String> extras = {};
     if (intent == 'net.dinglisch.android.taskerm.ACTION_TASK') {
       extras['task_name'] = name;
     }
-
-    try {
-      final bool? success = await PlatformModule.instance.invokeMethod<bool>(
-        'launchAction',
-        {'intent': intent, 'package': package, 'extras': extras},
-      );
-      logger.info('Action trigger result: $success');
-    } catch (e) {
-      logger.error('Failed to invoke launchAction: $e');
+    if (action.extras != null) {
+      extras.addAll(action.extras!);
     }
+
+    final bool? success = await PlatformModule.instance.invokeMethod<bool>(
+      'launchAction',
+      {
+        'intent': intent,
+        'package': package,
+        'uri': action.uri,
+        'extras': extras,
+      },
+    );
+
+    logger.info('Action trigger result: $success');
+  }
+
+  void addAction(Action action) {
+    final updated = Map<String, Action>.from(ActionsBlob.map)
+      ..[action.name] = action;
+    ActionsBlob.instance.update(updated);
+    logger.info('Added action: ${action.name}');
+  }
+
+  void editAction(String oldName, Action action) {
+    final updated = Map<String, Action>.from(ActionsBlob.map);
+    if (oldName != action.name) {
+      updated.remove(oldName);
+    }
+    updated[action.name] = action;
+    ActionsBlob.instance.update(updated);
+    logger.info('Edited action: $oldName -> ${action.name}');
+  }
+
+  void deleteAction(String name) {
+    final updated = Map<String, Action>.from(ActionsBlob.map)..remove(name);
+    ActionsBlob.instance.update(updated);
+    logger.info('Deleted action: $name');
   }
 }

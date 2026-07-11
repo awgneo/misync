@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart' hide Notification;
-import 'dart:typed_data';
+import 'package:misync/platform/module.dart';
 import 'blobs/replies.dart';
 import 'blobs/apps.dart';
 import 'blobs/contact.dart';
@@ -11,7 +11,9 @@ import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
 import '../widgets/tabs.dart';
+import '../widgets/picker.dart';
 import '../widgets/modal.dart';
+import '../platform/app.dart' as phone;
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -24,8 +26,9 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   late final TextEditingController _replyController;
   late final TextEditingController _appController;
 
-  final ValueNotifier<Map<String, Map<String, dynamic>>> _installedApps =
-      ValueNotifier({});
+  final ValueNotifier<Map<String, phone.App>> _installedApps = ValueNotifier(
+    {},
+  );
   final ValueNotifier<bool> _loadingInstalledApps = ValueNotifier(false);
 
   @override
@@ -58,7 +61,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Future<void> _refreshInstalledApps() async {
     _loadingInstalledApps.value = true;
     try {
-      final apps = await module.getInstalledApps();
+      final apps = await PlatformModule.instance.getApps();
       if (!mounted) return;
       _installedApps.value = apps;
     } catch (e) {
@@ -74,14 +77,9 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF0F1219),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return _AppPicker(
-          installedAppsNotifier: _installedApps,
-          isLoadingNotifier: _loadingInstalledApps,
+        return MiPicker(
           registeredFilters: AppsBlob.map.keys.toList(),
           onAppSelected: (packageName) {
             module.addApp(packageName);
@@ -193,7 +191,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Widget _buildAppsTab(bool connected) {
     final filtersMap = AppsBlob.map;
 
-    return ValueListenableBuilder<Map<String, Map<String, dynamic>>>(
+    return ValueListenableBuilder<Map<String, phone.App>>(
       valueListenable: _installedApps,
       builder: (context, installedApps, _) {
         if (filtersMap.isEmpty) {
@@ -214,9 +212,8 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
             final isEnabled = entry.value;
             final appInfo = installedApps[package];
             final displayName =
-                appInfo?['appName'] as String? ??
-                package.split('.').last.toUpperCase();
-            final iconBytes = appInfo?['iconBytes'] as List<int>?;
+                appInfo?.name ?? package.split('.').last.toUpperCase();
+            final iconBytes = appInfo?.icon;
 
             return MiItem(
               title: displayName,
@@ -232,10 +229,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: iconBytes != null
-                    ? Image.memory(
-                        Uint8List.fromList(iconBytes),
-                        fit: BoxFit.contain,
-                      )
+                    ? Image.memory(iconBytes, fit: BoxFit.contain)
                     : const Icon(Icons.android, color: Colors.grey, size: 16),
               ),
               enabled: isEnabled,
@@ -325,241 +319,6 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _AppPicker extends StatefulWidget {
-  final ValueNotifier<Map<String, Map<String, dynamic>>> installedAppsNotifier;
-  final ValueNotifier<bool> isLoadingNotifier;
-  final List<String> registeredFilters;
-  final ValueChanged<String> onAppSelected;
-
-  const _AppPicker({
-    required this.installedAppsNotifier,
-    required this.isLoadingNotifier,
-    required this.registeredFilters,
-    required this.onAppSelected,
-  });
-
-  @override
-  State<_AppPicker> createState() => _AppPickerState();
-}
-
-class _AppPickerState extends State<_AppPicker> {
-  late final TextEditingController _searchController;
-  String _searchQuery = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        widget.installedAppsNotifier,
-        widget.isLoadingNotifier,
-      ]),
-      builder: (context, _) {
-        final isLoading = widget.isLoadingNotifier.value;
-        final apps = widget.installedAppsNotifier.value.values.toList();
-
-        final filtered = apps.where((app) {
-          final name = (app['appName'] as String? ?? '').toLowerCase();
-          final pkg = (app['packageName'] as String? ?? '').toLowerCase();
-          final query = _searchQuery.toLowerCase();
-          return name.contains(query) || pkg.contains(query);
-        }).toList();
-
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          padding: EdgeInsets.only(
-            top: 20,
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Select App',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (isLoading)
-                const Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
-                  ),
-                )
-              else ...[
-                TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Search apps...',
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFF141822),
-                  ),
-                  onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: filtered.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20.0,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'No apps found matching search query.',
-                                  style: TextStyle(color: Colors.grey),
-                                  textAlign: TextAlign.center,
-                                ),
-                                if (_searchQuery.trim().isNotEmpty) ...[
-                                  const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      widget.onAppSelected(_searchQuery.trim());
-                                      Navigator.pop(context);
-                                    },
-                                    icon: const Icon(
-                                      Icons.add_circle_outline,
-                                      color: Color(0xFF0F1219),
-                                    ),
-                                    label: Text(
-                                      'Register manually: ${_searchQuery.trim()}',
-                                      style: const TextStyle(
-                                        color: Color(0xFF0F1219),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF00E5FF),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final app = filtered[index];
-                            final packageName = app['packageName'] as String;
-                            final appName = app['appName'] as String;
-                            final iconBytes = app['iconBytes'] as List<int>?;
-                            final isAdded = widget.registeredFilters.contains(
-                              packageName,
-                            );
-
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF141822),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: iconBytes != null
-                                    ? Image.memory(
-                                        Uint8List.fromList(iconBytes),
-                                        fit: BoxFit.contain,
-                                      )
-                                    : const Icon(
-                                        Icons.android,
-                                        color: Colors.grey,
-                                      ),
-                              ),
-                              title: Text(
-                                appName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                packageName,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              trailing: isAdded
-                                  ? const Icon(
-                                      Icons.check_circle,
-                                      color: Color(0xFF00E5FF),
-                                    )
-                                  : const Icon(
-                                      Icons.add_circle_outline,
-                                      color: Colors.grey,
-                                    ),
-                              onTap: isAdded
-                                  ? null
-                                  : () {
-                                      widget.onAppSelected(packageName);
-                                      Navigator.pop(context);
-                                    },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
     );
   }
 }

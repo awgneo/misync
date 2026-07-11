@@ -4,18 +4,27 @@ class Action {
   final String name;
   final String intent;
   final String package;
+  final String? uri;
+  final Map<String, String>? extras;
 
   Action({
     required this.name,
     required this.intent,
     required this.package,
+    this.uri,
+    this.extras,
   });
 
   factory Action.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic>? rawExtras = json['extras'] as Map<String, dynamic>?;
+    final Map<String, String>? extrasMap = rawExtras?.map((k, v) => MapEntry(k, v.toString()));
+
     return Action(
       name: json['name'] as String? ?? '',
       intent: json['intent'] as String? ?? '',
       package: json['package'] as String? ?? '',
+      uri: json['uri'] as String?,
+      extras: extrasMap,
     );
   }
 
@@ -23,6 +32,8 @@ class Action {
     'name': name,
     'intent': intent,
     'package': package,
+    if (uri != null) 'uri': uri,
+    if (extras != null) 'extras': extras,
   };
 }
 

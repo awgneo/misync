@@ -10,6 +10,7 @@ import '../device/proto/constants.dart';
 import 'dart:async';
 import '../apps/module.dart';
 import '../apps/blobs/apps.dart' as app_registry;
+import '../platform/app.dart';
 import 'blobs/contact.dart';
 import 'blobs/apps.dart';
 import 'blobs/replies.dart';
@@ -299,7 +300,7 @@ class NotificationModule extends TabModule {
       });
 
       if (launch) {
-        AppsModule.instance.launch(messagesPackage);
+        AppsModule.instance.launchApp(messagesPackage);
       }
 
       return;
@@ -349,7 +350,7 @@ class NotificationModule extends TabModule {
           {'package': package, 'key': key},
         );
 
-        AppsModule.instance.launch(messagesPackage);
+        AppsModule.instance.launchApp(messagesPackage);
       } else {
         logger.info(
           'watch swiped non-chat notification (dismissing on phone)',
@@ -507,26 +508,14 @@ class NotificationModule extends TabModule {
 
   Future<void> _syncContact() async {
     if (ContactBlob.enabled) {
-      await AppsModule.instance.enable(messagesPackage);
+      await AppsModule.instance.enableApp(messagesPackage);
     } else {
-      await AppsModule.instance.disable(messagesPackage);
+      await AppsModule.instance.disableApp(messagesPackage);
     }
   }
 
-  Future<Map<String, Map<String, dynamic>>> getInstalledApps() async {
-    final List<dynamic>? apps = await PlatformModule.instance
-        .invokeMethod<List<dynamic>>('getInstalledApps');
-    if (apps != null) {
-      final Map<String, Map<String, dynamic>> map = {};
-      for (final app in apps) {
-        final appMap = Map<String, dynamic>.from(app);
-        final pkg = appMap['packageName'] as String;
-        map[pkg] = appMap;
-      }
-      return map;
-    }
-
-    return const {};
+  Future<Map<String, App>> getApps() async {
+    return PlatformModule.instance.getApps();
   }
 
   Future<void> saveContactEnabled(bool enabled) async {

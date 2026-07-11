@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import '../module.dart';
+import 'app.dart';
 
 class PlatformModule extends Module {
   @override
@@ -47,6 +48,20 @@ class PlatformModule extends Module {
     try {
       await invokeMethod('requestPermissions', {'permissions': permissions});
     } catch (_) {}
+  }
+
+  Future<Map<String, App>> getApps() async {
+    final List<dynamic>? appsList = await invokeMethod<List<dynamic>>('getApps');
+    if (appsList != null) {
+      final Map<String, App> map = {};
+      for (final item in appsList) {
+        final appMap = Map<String, dynamic>.from(item as Map);
+        final app = App.fromJson(appMap);
+        map[app.package] = app;
+      }
+      return map;
+    }
+    return const {};
   }
 
   @override
