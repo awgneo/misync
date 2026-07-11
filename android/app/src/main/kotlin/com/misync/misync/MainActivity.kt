@@ -136,6 +136,7 @@ class MainActivity : FlutterActivity() {
                               "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) missing.add("contacts")
                               "companion" -> if (!getDeviceAssociated()) missing.add("companion")
                               "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) missing.add("dnd")
+                              "calendar" -> if (checkSelfPermission(android.Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) missing.add("calendar")
                         }
                     }
                     result.success(missing)
@@ -160,6 +161,9 @@ class MainActivity : FlutterActivity() {
                             }
                             "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) {
                                 startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                            }
+                            "calendar" -> if (checkSelfPermission(android.Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+                                runtimePerms.add(android.Manifest.permission.READ_CALENDAR)
                             }
                         }
                     }
@@ -375,6 +379,134 @@ class MainActivity : FlutterActivity() {
                         }
                     }.start()
                 }
+                "getCalendars" -> {
+                    Thread {
+                        try {
+                            val uri = android.provider.CalendarContract.Calendars.CONTENT_URI
+                            val projection = arrayOf(
+                                android.provider.CalendarContract.Calendars._ID,
+                                android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                                android.provider.CalendarContract.Calendars.ACCOUNT_NAME,
+                                android.provider.CalendarContract.Calendars.CALENDAR_COLOR
+                            )
+                            val cursor = contentResolver.query(uri, projection, null, null, null)
+                            val list = mutableListOf<Map<String, Any>>()
+                            cursor?.use { c ->
+                                val idIndex = c.getColumnIndex(android.provider.CalendarContract.Calendars._ID)
+                                val nameIndex = c.getColumnIndex(android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+                                val accountIndex = c.getColumnIndex(android.provider.CalendarContract.Calendars.ACCOUNT_NAME)
+                                val colorIndex = c.getColumnIndex(android.provider.CalendarContract.Calendars.CALENDAR_COLOR)
+                                while (c.moveToNext()) {
+                                    val id = c.getLong(idIndex).toString()
+                                    val name = c.getString(nameIndex) ?: ""
+                                    val account = c.getString(accountIndex) ?: ""
+                                    val color = c.getInt(colorIndex)
+                                    list.add(mapOf(
+                                        "id" to id,
+                                        "name" to name,
+                                        "account" to account,
+                                        "color" to color
+                                    ))
+                                }
+                            }
+                            runOnUiThread {
+                                result.success(list)
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                result.error("ERROR", e.message, null)
+                            }
+                        }
+                    }.start()
+                }
+                "getUpcomingEvents" -> {
+                    val calendarIds = call.argument<List<String>>("calendarIds") ?: emptyList()
+                    Thread {
+                        try {
+                            if (calendarIds.isEmpty()) {
+                                runOnUiThread { result.success(emptyList<Map<String, Any>>()) }
+                                return@Thread
+                            }
+
+                            val begin = System.currentTimeMillis()
+                            val end = begin + 7L * 24L * 60L * 60L * 1000L
+
+                            val builder = android.provider.CalendarContract.Instances.CONTENT_URI.buildUpon()
+                            android.content.ContentUris.appendId(builder, begin)
+                            android.content.ContentUris.appendId(builder, end)
+                            val uri = builder.build()
+
+                            val projection = arrayOf(
+                                android.provider.CalendarContract.Instances.TITLE,
+                                android.provider.CalendarContract.Instances.DESCRIPTION,
+                                android.provider.CalendarContract.Instances.EVENT_LOCATION,
+                                android.provider.CalendarContract.Instances.BEGIN,
+                                android.provider.CalendarContract.Instances.END,
+                                android.provider.CalendarContract.Instances.ALL_DAY,
+                                android.provider.CalendarContract.Instances.EVENT_ID
+                            )
+
+                            val selection = StringBuilder()
+                            val selectionArgs = mutableListOf<String>()
+                            selection.append(android.provider.CalendarContract.Instances.CALENDAR_ID + " IN (")
+                            for (i in calendarIds.indices) {
+                                if (i > 0) selection.append(",")
+                                selection.append("?")
+                                selectionArgs.add(calendarIds[i])
+                            }
+                            selection.append(")")
+
+                            val cursor = contentResolver.query(
+                                uri,
+                                projection,
+                                selection.toString(),
+                                selectionArgs.toTypedArray(),
+                                android.provider.CalendarContract.Instances.BEGIN + " ASC"
+                            )
+
+                            val eventList = mutableListOf<Map<String, Any>>()
+                            cursor?.use { c ->
+                                val titleIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.TITLE)
+                                val descIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.DESCRIPTION)
+                                val locIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.EVENT_LOCATION)
+                                val beginIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.BEGIN)
+                                val endIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.END)
+                                val allDayIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.ALL_DAY)
+                                val eventIdIdx = c.getColumnIndex(android.provider.CalendarContract.Instances.EVENT_ID)
+
+                                var count = 0
+                                while (c.moveToNext() && count < 500) {
+                                    val title = c.getString(titleIdx) ?: ""
+                                    val description = c.getString(descIdx) ?: ""
+                                    val location = c.getString(locIdx) ?: ""
+                                    val startMs = c.getLong(beginIdx)
+                                    val endMs = c.getLong(endIdx)
+                                    val allDay = c.getInt(allDayIdx) == 1
+                                    val eventId = c.getLong(eventIdIdx)
+                                    val notifyMinutes = getReminderMinutes(eventId)
+
+                                    eventList.add(mapOf(
+                                        "title" to title,
+                                        "description" to description,
+                                        "location" to location,
+                                        "start" to startMs,
+                                        "end" to endMs,
+                                        "allDay" to allDay,
+                                        "notifyMinutesBefore" to notifyMinutes
+                                    ))
+                                    count++
+                                }
+                            }
+                            runOnUiThread {
+                                result.success(eventList)
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                result.error("ERROR", e.message, null)
+                            }
+                        }
+                    }.start()
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -551,6 +683,25 @@ class MainActivity : FlutterActivity() {
             // Notify Flutter that association is done
             methodChannel?.invokeMethod("deviceAssociated", true)
         }
+    }
+
+    private fun getReminderMinutes(eventId: Long): Int {
+        val uri = android.provider.CalendarContract.Reminders.CONTENT_URI
+        val projection = arrayOf(android.provider.CalendarContract.Reminders.MINUTES)
+        val selection = "${android.provider.CalendarContract.Reminders.EVENT_ID} = ?"
+        val selectionArgs = arrayOf(eventId.toString())
+        var minutes = 0
+        try {
+            val cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
+            cursor?.use { c ->
+                if (c.moveToFirst()) {
+                    minutes = c.getInt(c.getColumnIndexOrThrow(android.provider.CalendarContract.Reminders.MINUTES))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to query reminder minutes for event $eventId", e)
+        }
+        return minutes
     }
 
     private fun drawableToByteArray(drawable: Drawable): ByteArray? {

@@ -32,6 +32,10 @@ graph TD
     * Screens **never** interact directly with the Bluetooth connection or write directly to the database. They delegate updates to the `Module`.
     * All screen states extend `ScreenState<T>` and override `Widget buildScreen(BuildContext context, bool connected)`. The base class automatically wraps the tree in a `ValueListenableBuilder` listening to `DeviceConnection.connected`.
     * Interactive controls (switches, text fields, adding/editing/deleting elements) **must be disabled** when `connected` is false.
+    * **Specific Subclass Getter**: To call features on the module, screens should type-specialize the `module` getter override returning the concrete implementation class (e.g., `ClockModule get module => ClockModule.instance;`) instead of returning the abstract `Module` base class.
+    * **Piggyback on refresh()**: Do **not** override `initState()` manually in a screen state to trigger initial logic or query native endpoints. Instead, override `refresh()` (and remember to await `super.refresh()`), which the base class `ScreenState` automatically invokes at initialization and connection changes.
+    * **Reactive Lists**: Use `ListenableBuilder` tied directly to the module's `Blob` instance to automatically redraw views on modification and support instant, side-effect-free updates.
+    * **Manifest Permissions Requirement**: If you add any custom permission (such as `calendar`) inside `module.permissions`, you must explicitly register it inside `android/app/src/main/AndroidManifest.xml` (e.g., `<uses-permission android:name="android.permission.READ_CALENDAR" />`), otherwise the permission dialog popup will fail silently.
 5.  **`DeviceConnection` (`lib/device/connection.dart`)**: The unified Bluetooth SPP connection and protocol manager. Exposes `DeviceConnection.listen((cmd) => ...)` and `DeviceConnection.send(...)` to other modules.
 
 ---
@@ -342,7 +346,7 @@ class DndScreen extends StatefulWidget {
 
 class _DndScreenState extends ScreenState<DndScreen> {
   @override
-  Module get module => DndModule.instance;
+  DndModule get module => DndModule.instance;
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {
@@ -354,7 +358,7 @@ class _DndScreenState extends ScreenState<DndScreen> {
           title: const Text("Do Not Disturb"),
           value: dndEnabled,
           onChanged: connected 
-              ? (val) => DndModule.instance.updateDnd(val) 
+              ? (val) => module.updateDnd(val) 
               : null, // Grayed out when watch is disconnected
         );
       },

@@ -6,6 +6,7 @@ enum CmdType implements ValuedEnum {
   system(2),
   notification(7),
   health(8),
+  calendar(12),
   schedule(17),
   thirdPartyApp(20),
   dataUpload(22);
@@ -49,6 +50,14 @@ enum HealthSubtype implements ValuedEnum {
   @override
   final int value;
   const HealthSubtype(this.value);
+}
+
+enum CalendarSubtype implements ValuedEnum {
+  setCalendar(1);
+
+  @override
+  final int value;
+  const CalendarSubtype(this.value);
 }
 
 enum ScheduleSubtype implements ValuedEnum {
