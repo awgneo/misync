@@ -1,29 +1,37 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../module.dart';
 import '../debug/logger.dart';
+import 'screen.dart';
 
-class StorageModule extends ChangeNotifier implements Module {
+class StorageModule extends TabModule with ChangeNotifier {
   @override
   String get name => 'storage';
 
   @override
-  late final Logger logger = Logger(name);
+  IconData get icon => Icons.storage;
+
+  @override
+  Widget get screen => const StorageScreen();
 
   static final StorageModule _instance = StorageModule._();
   static StorageModule get instance => _instance;
   StorageModule._();
 
-  late final SharedPreferences _prefs;
+  late final SharedPreferences _preferences;
   final Map<String, dynamic> _cache = {};
 
   @override
   Future<void> start() async {
-    _prefs = await SharedPreferences.getInstance();
-    for (final key in _prefs.getKeys()) {
+    _preferences = await SharedPreferences.getInstance();
+    _startCache();
+  }
+
+  void _startCache() {
+    for (final key in _preferences.getKeys()) {
       if (key.startsWith('blob.')) {
-        final data = _prefs.getString(key);
+        final data = _preferences.getString(key);
         if (data != null) {
           try {
             final cleanKey = key.replaceFirst('blob.', '');
@@ -40,10 +48,21 @@ class StorageModule extends ChangeNotifier implements Module {
   @override
   List<String> get permissions => const [];
 
-  Future<void> save(String module, String name, dynamic jsonValue) async {
+  List<String> get modules {
+    final modules = <String>{};
+    for (final key in _cache.keys) {
+      final parts = key.split('.');
+      if (parts.isNotEmpty) {
+        modules.add(parts.first);
+      }
+    }
+    return modules.toList()..sort();
+  }
+
+  Future<void> save(String module, String name, dynamic json) async {
     final cacheKey = '$module.$name';
-    _cache[cacheKey] = jsonValue;
-    await _prefs.setString('blob.$cacheKey', jsonEncode(jsonValue));
+    _cache[cacheKey] = json;
+    await _preferences.setString('blob.$cacheKey', jsonEncode(json));
     notifyListeners();
   }
 
@@ -67,7 +86,7 @@ class StorageModule extends ChangeNotifier implements Module {
     if (name != null) {
       final cacheKey = '$module.$name';
       _cache.remove(cacheKey);
-      await _prefs.remove('blob.$cacheKey');
+      await _preferences.remove('blob.$cacheKey');
     } else {
       final prefix = '$module.';
       final keysToRemove = _cache.keys
@@ -75,17 +94,17 @@ class StorageModule extends ChangeNotifier implements Module {
           .toList();
       for (final k in keysToRemove) {
         _cache.remove(k);
-        await _prefs.remove('blob.$k');
+        await _preferences.remove('blob.$k');
       }
     }
     notifyListeners();
   }
 
   Future<void> clearAll() async {
-    final keys = _prefs.getKeys();
+    final keys = _preferences.getKeys();
     for (final key in keys) {
       if (key.startsWith('blob.')) {
-        await _prefs.remove(key);
+        await _preferences.remove(key);
       }
     }
     _cache.clear();

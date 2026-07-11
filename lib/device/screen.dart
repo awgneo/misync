@@ -1,13 +1,12 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'pairing/extractor.dart';
 import 'connection.dart';
 import 'module.dart';
 import 'blobs/settings.dart';
 import 'blobs/device.dart';
 import '../screen.dart';
 import '../widgets/panel.dart';
+import '../widgets/modal.dart';
 import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
@@ -23,86 +22,45 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
   @override
   DeviceModule get module => DeviceModule.instance;
 
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  Future<void> _pickAndParseLog() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+  Future<void> _extractDeviceCredentials() async {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip', 'log', 'txt'],
-        withData: true,
       );
 
-      if (result == null || result.files.isEmpty) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (result == null ||
+          result.files.isEmpty ||
+          result.files.first.path == null) {
         return;
       }
 
       final file = result.files.first;
-      final bytes = file.bytes;
-
-      if (bytes == null) {
-        setState(() {
-          _errorMessage = 'Could not read file bytes.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final creds = Extractor.extractFromBytes(
-        Uint8List.fromList(bytes),
+      final success = await module.extractDeviceCredentials(
+        file.path!,
         file.name,
       );
 
-      if (creds == null) {
-        setState(() {
-          _errorMessage =
-              'Failed to extract pairing credentials. Make sure the file is a valid Mi Fitness diagnostics log containing "encryptKey" and MAC address.';
-          _isLoading = false;
-        });
+      if (!success) {
+        if (!mounted) return;
+        await showMiModal<bool>(
+          context: context,
+          title: 'Pairing Failed',
+          body:
+              'Failed to extract pairing credentials. Make sure the file is a valid Mi Fitness diagnostics log containing "encryptKey" and MAC address.',
+          confirm: 'OK',
+        );
         return;
       }
-
-      await SettingsBlob.instance.update(
-        Settings(
-          authKeyHex: creds.authKey,
-          watchMac: creds.macAddress,
-          deviceId: creds.deviceId,
-          deviceModel: creds.model,
-          syncIntervalMinutes: SettingsBlob.syncIntervalMinutes,
-        ),
-      );
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Device paired successfully!'),
-          backgroundColor: Color(0xFF00E5FF),
-        ),
-      );
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error parsing file: $e';
-        _isLoading = false;
-      });
+      if (!mounted) return;
+      await showMiModal<bool>(
+        context: context,
+        title: 'Error Parsing File',
+        body: 'An error occurred while parsing the file:\n$e',
+        confirm: 'OK',
+      );
     }
-  }
-
-  Future<void> _triggerUnpair() async {
-    await SettingsBlob.instance.update(SettingsBlob.instance.defaultValue);
-    await DeviceConnection.disconnect();
   }
 
   @override
@@ -118,15 +76,13 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
       ]),
       builder: (context, _) {
         final MiButtons? panelActions;
-        if (_isLoading) {
-          panelActions = null;
-        } else if (!isPaired) {
+        if (!isPaired) {
           panelActions = MiButtons(
             children: [
               MiButton(
                 label: 'Browse Files',
                 icon: Icons.search,
-                pressed: _pickAndParseLog,
+                pressed: _extractDeviceCredentials,
               ),
             ],
           );
@@ -148,12 +104,6 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                 },
                 color: const Color(0xFF00E5FF),
               ),
-              MiButton(
-                label: 'Unpair Device',
-                icon: Icons.link_off,
-                pressed: _triggerUnpair,
-                color: Colors.redAccent,
-              ),
             ],
           );
         }
@@ -163,54 +113,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(color: Color(0xFF00E5FF)),
-                        SizedBox(height: 16),
-                        Text(
-                          'Analyzing diagnostic logs...',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (!isPaired)
-                _buildUnpairedView()
-              else
-                _buildPairedView(),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.redAccent.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.redAccent),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              if (!isPaired) _buildUnpairedView() else _buildPairedView(),
             ],
           ),
         );
@@ -220,7 +123,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
 
   Widget _buildUnpairedView() {
     return GestureDetector(
-      onTap: _pickAndParseLog,
+      onTap: _extractDeviceCredentials,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
@@ -291,13 +194,18 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
             MiItem(
               title: 'Connection Status',
               subtitle: statusText,
-              icon: DeviceConnection.connected.value ? Icons.link : Icons.link_off,
+              icon: DeviceConnection.connected.value
+                  ? Icons.link
+                  : Icons.link_off,
             ),
             if (DeviceConnection.connected.value && infoState.batteryLevel > 0)
               MiItem(
                 title: 'Battery Level',
-                subtitle: '${infoState.batteryLevel}%${infoState.isCharging ? " (Charging)" : ""}',
-                icon: infoState.isCharging ? Icons.battery_charging_full : Icons.battery_std,
+                subtitle:
+                    '${infoState.batteryLevel}%${infoState.isCharging ? " (Charging)" : ""}',
+                icon: infoState.isCharging
+                    ? Icons.battery_charging_full
+                    : Icons.battery_std,
               ),
             MiItem(
               title: 'Device Model',

@@ -60,14 +60,14 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
     _loadingInstalledApps.value = true;
     try {
       final apps = await module.getInstalledApps();
+      if (!mounted) return;
       _installedApps.value = apps;
     } catch (e) {
-      Logger.error(
-        'notifications',
-        'Failed to load installed apps in background: $e',
-      );
+      module.logger.error('failed to load installed apps in background: $e');
     } finally {
-      _loadingInstalledApps.value = false;
+      if (mounted) {
+        _loadingInstalledApps.value = false;
+      }
     }
   }
 
@@ -93,10 +93,11 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   }
 
   void _addReply() async {
-    final reply = await showMiTextModal(
+    final reply = await showMiModal<String>(
       context: context,
       title: 'Add Quick Reply',
-      labelText: 'Reply text (e.g., Yes, I will be late)',
+      label: 'Reply text (e.g., Yes, I will be late)',
+      confirm: 'Add',
     );
     if (reply != null && reply.trim().isNotEmpty) {
       final replies = List<String>.from(RepliesBlob.list)..add(reply.trim());

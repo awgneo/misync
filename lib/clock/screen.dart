@@ -19,109 +19,92 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
   ClockModule get module => ClockModule.instance;
 
   Future<void> _createAlarm() async {
-    final customAlarms = AlarmsBlob.list;
-    if (customAlarms.length >= 9) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maximum watch alarm slots (Slots 2-10) reached.'),
-        ),
-      );
-      return;
-    }
-
     final time = await showTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 8, minute: 0),
     );
     if (time != null) {
-      ClockModule.instance.createAlarm(time.hour, time.minute);
+      module.createAlarm(time.hour, time.minute);
     }
   }
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {
-    return ValueListenableBuilder<Map<String, int>?>(
-      valueListenable: ClockModule.nextSystemAlarm,
-      builder: (context, systemAlarm, _) {
-        final String sysTimeStr = systemAlarm != null
-            ? '${systemAlarm['hour'].toString().padLeft(2, '0')}:${systemAlarm['minute'].toString().padLeft(2, '0')}'
-            : 'None Scheduled';
+    return ListenableBuilder(
+      listenable: AlarmsBlob.instance,
+      builder: (context, _) {
+        final customAlarms = AlarmsBlob.list;
+        final bool canAdd = customAlarms.length < 9;
 
-        return ListenableBuilder(
-          listenable: AlarmsBlob.instance,
-          builder: (context, _) {
-            final customAlarms = AlarmsBlob.list;
+        return MiPanel(
+          buttons: connected
+              ? MiButtons(
+                  children: [
+                    MiButton(
+                      label: 'Add Alarm',
+                      icon: Icons.add_alarm,
+                      pressed: canAdd ? _createAlarm : () {},
+                      color: canAdd ? null : Colors.grey,
+                    ),
+                  ],
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ValueListenableBuilder<Alarm?>(
+                valueListenable: ClockModule.phoneNextAlarm,
+                builder: (context, phoneNextAlarm, _) {
+                  final String phoneNextAlarmString = phoneNextAlarm != null
+                      ? phoneNextAlarm.timeString
+                      : 'None Scheduled';
 
-            return MiPanel(
-              buttons: connected
-                  ? MiButtons(
-                      children: [
-                        MiButton(
-                          label: 'Add Alarm',
-                          icon: Icons.add_alarm,
-                          pressed: _createAlarm,
-                        ),
-                      ],
-                    )
-                  : null,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  MiItems(
+                  return MiItems(
                     children: [
                       MiItem(
                         title: 'Phone System Alarm Slot',
-                        subtitle: 'Next scheduled: $sysTimeStr',
+                        subtitle: 'Next scheduled: $phoneNextAlarmString',
                         icon: Icons.alarm_on,
-                        enabled: systemAlarm != null,
+                        enabled: phoneNextAlarm != null,
                         toggled: null, // Read-only mirror of phone state
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  if (customAlarms.isEmpty)
-                    Container(
-                      height: 150,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF141822),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF26324D)),
-                      ),
-                      child: const Text(
-                        'No custom alarms on watch yet.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  else
-                    MiItems(
-                      children: customAlarms.map((alarm) {
-                        final hour = alarm.hour;
-                        final min = alarm.minute;
-                        final enabled = alarm.enabled;
-                        final timeStr =
-                            '${hour.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
-
-                        return MiItem(
-                          title: timeStr,
-                          subtitle: 'Watch Alarm ${alarm.id}',
-                          delete: () => module.deleteAlarm(alarm.id),
-                          enabled: enabled,
-                          toggled: connected
-                              ? (val) {
-                                  ClockModule.instance.toggleAlarm(
-                                    alarm.id,
-                                    val,
-                                  );
-                                }
-                              : null,
-                        );
-                      }).toList(),
-                    ),
-                ],
+                  );
+                },
               ),
-            );
-          },
+              const SizedBox(height: 24),
+              if (customAlarms.isEmpty)
+                Container(
+                  height: 150,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141822),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF26324D)),
+                  ),
+                  child: const Text(
+                    'No custom alarms on watch yet.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              else
+                MiItems(
+                  children: customAlarms.map((alarm) {
+                    return MiItem(
+                      title: alarm.timeString,
+                      subtitle: 'Watch Alarm ${alarm.id}',
+                      delete: () => module.deleteAlarm(alarm.id),
+                      enabled: alarm.enabled,
+                      toggled: connected
+                          ? (enabled) {
+                              module.setAlarmEnabled(alarm.id, enabled);
+                            }
+                          : null,
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
         );
       },
     );

@@ -42,14 +42,12 @@ class ActionsModule extends TabModule {
       final msg = cmd.thirdPartyApp.message;
       try {
         final String text = utf8.decode(msg.content);
-        Logger.info('actions', 'Received message from watch app: $text');
+        logger.info('Received message from watch app: $text');
 
         final data = jsonDecode(text) as Map<String, dynamic>;
         await _handleWatchAction(data);
       } catch (e) {
-        Logger.error(
-          'actions',
-          'Failed to decode or parse watch message content: $e',
+        logger.error('Failed to decode or parse watch message content: $e',
         );
       }
     }
@@ -63,10 +61,10 @@ class ActionsModule extends TabModule {
       if (action != null) {
         runPhoneAction(action);
       } else {
-        Logger.info('actions', 'No action configured for name: $actionName');
+        logger.info('No action configured for name: $actionName');
       }
     } else {
-      Logger.info('actions', 'Invalid action payload received: $data');
+      logger.info('Invalid action payload received: $data');
     }
   }
 
@@ -74,9 +72,7 @@ class ActionsModule extends TabModule {
     final name = action.name;
     final intent = action.intent;
     final package = action.package;
-    Logger.info(
-      'actions',
-      'Triggering intent action: $name (intent=$intent, package=$package)',
+    logger.info('Triggering intent action: $name (intent=$intent, package=$package)',
     );
 
     final Map<String, String> extras = {};
@@ -89,9 +85,9 @@ class ActionsModule extends TabModule {
         'launchAction',
         {'intent': intent, 'package': package, 'extras': extras},
       );
-      Logger.info('actions', 'Action trigger result: $success');
+      logger.info('Action trigger result: $success');
     } catch (e) {
-      Logger.error('actions', 'Failed to invoke launchAction: $e');
+      logger.error('Failed to invoke launchAction: $e');
     }
   }
 }

@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
-Future<String?> showMiTextModal({
+Future<T?> showMiModal<T>({
   required BuildContext context,
   required String title,
-  required String labelText,
-  String? initialText,
+  String? label,
+  String? text,
+  String? body,
+  String confirm = 'Confirm',
+  String cancel = 'Cancel',
 }) {
-  final controller = TextEditingController(text: initialText);
-  return showDialog<String>(
+  final isTextInput = label != null;
+  final controller = isTextInput ? TextEditingController(text: text) : null;
+
+  return showDialog<T>(
     context: context,
     builder: (context) {
       return AlertDialog(
@@ -23,31 +28,50 @@ Future<String?> showMiTextModal({
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: labelText,
-            labelStyle: const TextStyle(color: Colors.grey),
-            enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF26324D)),
-            ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF00E5FF)),
-            ),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (body != null)
+              Text(
+                body,
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            if (body != null && isTextInput) const SizedBox(height: 16),
+            if (isTextInput)
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: label,
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF26324D)),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF00E5FF)),
+                  ),
+                ),
+              ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(context, null),
+            child: Text(cancel, style: const TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text(
-              'Add',
-              style: TextStyle(
+            onPressed: () {
+              if (isTextInput) {
+                Navigator.pop(context, controller!.text.trim() as T);
+              } else {
+                Navigator.pop(context, true as T);
+              }
+            },
+            child: Text(
+              confirm,
+              style: const TextStyle(
                 color: Color(0xFF00E5FF),
                 fontWeight: FontWeight.bold,
               ),

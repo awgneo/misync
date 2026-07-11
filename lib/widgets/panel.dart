@@ -5,11 +5,7 @@ class MiPanel extends StatelessWidget {
   final Widget child;
   final MiButtons? buttons;
 
-  const MiPanel({
-    super.key,
-    required this.child,
-    this.buttons,
-  });
+  const MiPanel({super.key, required this.child, this.buttons});
 
   @override
   Widget build(BuildContext context) {
@@ -22,16 +18,17 @@ class MiPanel extends StatelessWidget {
           Positioned.fill(
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(24, 24, 24, buttons != null ? 100 : 24),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                buttons != null ? 100 : 24,
+              ),
               child: child,
             ),
           ),
           if (buttons != null)
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: buttons!,
-            ),
+            Positioned(right: 16, bottom: 16, child: buttons!),
         ],
       ),
     );

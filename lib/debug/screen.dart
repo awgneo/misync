@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'logger.dart';
-import '../storage/module.dart';
 
 class DebugScreen extends StatefulWidget {
   const DebugScreen({super.key});
@@ -75,30 +74,13 @@ class _DebugScreenState extends State<DebugScreen> {
                   letterSpacing: 1,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton.icon(
-                    onPressed: () async {
-                      await StorageModule.instance.clearAll();
-                      Logger.info('storage', 'persistent storage wiped successfully, all active configurations reset reactively');
-                    },
-                    icon: const Icon(Icons.refresh, size: 16, color: Colors.orangeAccent),
-                    label: const Text(
-                      'Reset',
-                      style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () => _logger.clear(),
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFF00E5FF)),
-                    label: const Text(
-                      'Clear',
-                      style: TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+              TextButton.icon(
+                onPressed: () => _logger.clear(),
+                icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFF00E5FF)),
+                label: const Text(
+                  'Clear',
+                  style: TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),

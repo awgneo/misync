@@ -38,7 +38,11 @@ class MiItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               child: const Padding(
                 padding: EdgeInsets.all(6),
-                child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                child: Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -67,10 +71,7 @@ class MiItem extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                 ],
               ],
@@ -82,7 +83,10 @@ class MiItem extends StatelessWidget {
               child: DropdownButton<dynamic>(
                 value: value,
                 dropdownColor: const Color(0xFF141822),
-                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF)),
+                icon: const Icon(
+                  Icons.arrow_drop_down,
+                  color: Color(0xFF00E5FF),
+                ),
                 style: const TextStyle(
                   color: Color(0xFF00E5FF),
                   fontSize: 14,
@@ -109,10 +113,7 @@ class MiItem extends StatelessWidget {
               inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
             ),
           ],
-          if (order != null) ...[
-            const SizedBox(width: 8),
-            order!,
-          ],
+          if (order != null) ...[const SizedBox(width: 8), order!],
         ],
       ),
     );

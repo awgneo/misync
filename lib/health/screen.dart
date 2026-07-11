@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart';
-import '../debug/logger.dart';
 import '../screen.dart';
 import 'module.dart';
 import '../widgets/panel.dart';
@@ -45,7 +44,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
       return;
     }
 
-    Logger.info('health', 'requesting today activity logs');
+    module.logger.info('requesting today activity logs');
 
     if (DeviceConnection.connected.value) {
       final syncReq = ActivitySyncRequestToday()..unknown1 = 1;
@@ -57,7 +56,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
         ..health = (Health()..activitySyncRequestToday = syncReq);
 
       await DeviceConnection.send(cmd: cmd);
-      Logger.info('health', 'sent ActivitySyncRequestToday command');
+      module.logger.info('sent ActivitySyncRequestToday command');
     }
 
     setState(() {
@@ -65,8 +64,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
       _syncStatus =
           'Synced successfully just now. Google Health Connect updated.';
     });
-    Logger.info(
-      'health',
+    module.logger.info(
       'google Health Connect updated with today\'s sleep and workout metrics',
     );
   }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../module.dart';
 import '../device/module.dart';
-import '../debug/logger.dart';
 import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
@@ -24,13 +23,44 @@ class ClockModule extends TabModule {
   static ClockModule get instance => _instance;
   ClockModule._();
 
-  // Reactive state holding the next system alarm details (hour, minute)
-  static final nextSystemAlarm = ValueNotifier<Map<String, int>?>(null);
+  static final phoneNextAlarm = ValueNotifier<Alarm?>(null);
 
   @override
   Future<void> start() async {
+    _startNextAlarm();
     DeviceModule.instance.register(this);
-    PlatformModule.instance.register(_handleMethodCall);
+    PlatformModule.instance.register(_receivePhoneMethod);
+  }
+
+  Future<dynamic> _receivePhoneMethod(MethodCall call) async {
+    if (call.method == 'nextAlarmChanged') {
+      _handlePhoneNextAlarmChanged(call);
+    }
+  }
+
+  void _startNextAlarm() async {
+    final arguments = await PlatformModule.instance.invokeMethod(
+      'getNextAlarm',
+    );
+
+    _setNextAlarm(arguments);
+  }
+
+  void _setNextAlarm(dynamic arguments) {
+    if (arguments != null) {
+      final data = Map<String, dynamic>.from(arguments);
+      final alarm = Alarm.fromMap(data);
+      phoneNextAlarm.value = Alarm.fromMap(data);
+      logger.info('phone next alarm updated to ${alarm.hour}:${alarm.minute}');
+    } else {
+      phoneNextAlarm.value = null;
+      logger.info('phone next alarm cleared');
+    }
+  }
+
+  void _handlePhoneNextAlarmChanged(MethodCall call) async {
+    _setNextAlarm(call.arguments);
+    await _syncAlarms();
   }
 
   @override
@@ -41,11 +71,10 @@ class ClockModule extends TabModule {
   }
 
   Future<void> _syncTime() async {
+    if (!DeviceConnection.connected.value) return;
+
     final now = DateTime.now();
-    Logger.info(
-      'clock',
-      'syncing time, date, and timezone offset: ${now.timeZoneName}',
-    );
+    logger.info('syncing time, date, and timezone offset: ${now.timeZoneName}');
 
     await DeviceConnection.send(
       type: CmdType.system,
@@ -68,190 +97,116 @@ class ClockModule extends TabModule {
   }
 
   Future<void> _syncAlarms() async {
-    Logger.info(
-      'clock',
-      'syncing alarms: system alarm push + custom alarms pull',
-    );
+    if (!DeviceConnection.connected.value) return;
 
-    // 1. Fetch next system alarm from phone
-    Map<String, int>? sysAlarm;
-    try {
-      final res = await PlatformModule.instance.invokeMethod('getNextAlarm');
-      if (res != null) {
-        final data = Map<String, dynamic>.from(res);
-        final hour = data['hour'] as int;
-        final minute = data['minute'] as int;
-        sysAlarm = {'hour': hour, 'minute': minute};
-        nextSystemAlarm.value = sysAlarm;
-      } else {
-        nextSystemAlarm.value = null;
-      }
-    } catch (e) {
-      Logger.error('clock', 'error fetching next system alarm before sync: $e');
-    }
-
-    // 2. Query current watch alarms (CMD_ALARMS_GET)
-    Logger.info('clock', 'querying current watch alarms (CMD_ALARMS_GET)');
+    // Get the current phone alarm, if any
+    final phoneFirstAlarm = phoneNextAlarm.value;
+    // Get alarms from the watch
     final response = await DeviceConnection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.getAlarms,
       expectResponse: true,
     );
+
     if (response == null || !response.schedule.hasAlarms()) {
-      Logger.error('clock', 'failed to pull alarms from watch');
+      logger.error('failed to pull alarms from watch');
       return;
     }
 
-    final alarms = response.schedule.alarms;
-    final Set<int> existingWatchAlarmIds = alarms.alarm
-        .map((a) => a.id)
-        .toSet();
+    final watchAlarms = Map<int, pb.Alarm>.fromEntries(
+      response.schedule.alarms.alarm.map((a) => MapEntry(a.id, a)),
+    );
 
-    // 3. System Alarm (Slot 1 / Watch ID 0) Push
-    final existsOnWatch = existingWatchAlarmIds.contains(0);
-    final desiredSysAlarm = pb.AlarmDetails()
-      ..enabled = sysAlarm != null
+    final updatedWatchFirstAlarm = pb.AlarmDetails()
+      ..enabled = phoneFirstAlarm != null
       ..time = (pb.HourMinute()
-        ..hour = sysAlarm?['hour'] ?? 0
-        ..minute = sysAlarm?['minute'] ?? 0)
-      ..smart =
-          2 // ALARM_NORMAL
+        ..hour = phoneFirstAlarm?.hour ?? 0
+        ..minute = phoneFirstAlarm?.minute ?? 0)
+      ..smart = 2
       ..repeatMode = 0;
 
-    if (sysAlarm == null) {
-      if (existsOnWatch) {
-        final wSysAlarm = alarms.alarm.cast<pb.Alarm?>().firstWhere(
-          (a) => a?.id == 0,
-          orElse: () => null,
+    final watchFirstAlarm = watchAlarms[0];
+
+    // Sync the first alarm (phone next alarm)
+    if (phoneFirstAlarm == null) {
+      if (watchFirstAlarm != null) {
+        // No phone next alarm, yes watch first alarm
+        await DeviceConnection.send(
+          type: CmdType.schedule,
+          subtype: ScheduleSubtype.editAlarm,
+          expectResponse: true,
+          builder: (cmd) =>
+              cmd.schedule = (pb.Schedule()
+                ..editAlarm = (pb.Alarm()
+                  ..id = 0
+                  ..alarmDetails = updatedWatchFirstAlarm)),
         );
-        if (wSysAlarm?.alarmDetails.enabled == true) {
-          Logger.info(
-            'clock',
-            'disabling watch system alarm ID=1 (Watch ID 0)',
-          );
-          await DeviceConnection.send(
-            type: CmdType.schedule,
-            subtype: ScheduleSubtype.editAlarm,
-            expectResponse: true,
-            builder: (cmd) =>
-                cmd.schedule = (pb.Schedule()
-                  ..editAlarm = (pb.Alarm()
-                    ..id = 0
-                    ..alarmDetails = desiredSysAlarm)),
-          );
-        }
       } else {
-        Logger.info(
-          'clock',
-          'creating disabled watch system alarm ID=1 (Watch ID 0)',
-        );
+        // No phone next alarm, no watch first alarm
         await DeviceConnection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.createAlarm,
           expectResponse: true,
           builder: (cmd) =>
-              cmd.schedule = (pb.Schedule()..createAlarm = desiredSysAlarm),
+              cmd.schedule = (pb.Schedule()
+                ..createAlarm = updatedWatchFirstAlarm),
         );
       }
     } else {
-      if (existsOnWatch) {
-        final wSysAlarm = alarms.alarm.cast<pb.Alarm?>().firstWhere(
-          (a) => a?.id == 0,
-          orElse: () => null,
+      if (watchFirstAlarm != null) {
+        // Yes phone next alarm, yes watch first alarm
+        await DeviceConnection.send(
+          type: CmdType.schedule,
+          subtype: ScheduleSubtype.editAlarm,
+          expectResponse: true,
+          builder: (cmd) =>
+              cmd.schedule = (pb.Schedule()
+                ..editAlarm = (pb.Alarm()
+                  ..id = 0
+                  ..alarmDetails = updatedWatchFirstAlarm)),
         );
-        final wEnabled = wSysAlarm?.alarmDetails.enabled ?? false;
-        final wHour = wSysAlarm?.alarmDetails.time.hour ?? 0;
-        final wMinute = wSysAlarm?.alarmDetails.time.minute ?? 0;
-
-        if (wEnabled != true ||
-            wHour != sysAlarm['hour'] ||
-            wMinute != sysAlarm['minute']) {
-          Logger.info(
-            'clock',
-            'editing watch system alarm ID=1 (Watch ID 0) to ${sysAlarm['hour']}:${sysAlarm['minute']}',
-          );
-          await DeviceConnection.send(
-            type: CmdType.schedule,
-            subtype: ScheduleSubtype.editAlarm,
-            expectResponse: true,
-            builder: (cmd) =>
-                cmd.schedule = (pb.Schedule()
-                  ..editAlarm = (pb.Alarm()
-                    ..id = 0
-                    ..alarmDetails = desiredSysAlarm)),
-          );
-        }
       } else {
-        Logger.info(
-          'clock',
-          'creating watch system alarm ID=1 (Watch ID 0) at ${sysAlarm['hour']}:${sysAlarm['minute']}',
-        );
+        // Yes phone next alarm, no watch first alarm
         await DeviceConnection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.createAlarm,
           expectResponse: true,
           builder: (cmd) =>
-              cmd.schedule = (pb.Schedule()..createAlarm = desiredSysAlarm),
+              cmd.schedule = (pb.Schedule()
+                ..createAlarm = updatedWatchFirstAlarm),
         );
       }
     }
 
-    // 4. Custom Alarms (Slots 2-10 / Watch IDs 1-9) Pull
-    final watchAlarms = <Alarm>[];
-    for (var alarm in alarms.alarm) {
-      if (alarm.id >= 1) {
-        final localId = alarm.id + 1;
-        watchAlarms.add(
-          Alarm(
-            id: localId,
-            hour: alarm.alarmDetails.time.hour,
-            minute: alarm.alarmDetails.time.minute,
-            enabled: alarm.alarmDetails.enabled,
-          ),
-        );
-      }
+    // Sync the custom watch alarms with the blob
+    final updatedWatchAlarms = <WatchAlarm>[];
+    for (var entry in watchAlarms.entries) {
+      final id = entry.key;
+      if (id < 1) continue;
+
+      final alarm = entry.value;
+      updatedWatchAlarms.add(
+        WatchAlarm(
+          id: id,
+          hour: alarm.alarmDetails.time.hour,
+          minute: alarm.alarmDetails.time.minute,
+          enabled: alarm.alarmDetails.enabled,
+        ),
+      );
     }
 
-    // Sort contiguously by localId
-    watchAlarms.sort((a, b) => a.id.compareTo(b.id));
-
+    // Sort the updated watch alarms by id
+    updatedWatchAlarms.sort((a, b) => a.id.compareTo(b.id));
     // Overwrite phone alarms with the custom alarms from watch
-    await AlarmsBlob.instance.update(watchAlarms);
-    Logger.info(
-      'clock',
-      'Sync: Overwrote phone alarms list with watch custom alarms',
-    );
-  }
-
-  Future<dynamic> _handleMethodCall(MethodCall call) async {
-    if (call.method == 'onNextAlarmChanged') {
-      if (call.arguments != null) {
-        final data = Map<String, dynamic>.from(call.arguments);
-        final hour = data['hour'] as int;
-        final minute = data['minute'] as int;
-        nextSystemAlarm.value = {'hour': hour, 'minute': minute};
-        Logger.info(
-          'clock',
-          'phone next alarm changed to $hour:$minute, mirroring to watch',
-        );
-      } else {
-        nextSystemAlarm.value = null;
-        Logger.info(
-          'clock',
-          'phone next alarm cleared, disabling watch slot 1',
-        );
-      }
-      if (!DeviceConnection.connected.value) return;
-      await _syncAlarms();
-    }
+    await AlarmsBlob.instance.update(updatedWatchAlarms);
+    logger.info('alarms sync complete');
   }
 
   Future<void> createAlarm(int hour, int minute) async {
     if (!DeviceConnection.connected.value) return;
 
-    final list = AlarmsBlob.list;
-    final localId = list.length + 2; // Slot 2-10
-
+    final alarms = AlarmsBlob.list;
+    final id = alarms.length + 1;
     final details = pb.AlarmDetails()
       ..enabled = true
       ..time = (pb.HourMinute()
@@ -260,16 +215,16 @@ class ClockModule extends TabModule {
       ..smart = 2
       ..repeatMode = 0;
 
-    final res = await DeviceConnection.send(
+    final result = await DeviceConnection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.createAlarm,
       expectResponse: true,
       builder: (cmd) => cmd.schedule = (pb.Schedule()..createAlarm = details),
     );
 
-    if (res != null) {
-      AlarmsBlob.instance[localId] = Alarm(
-        id: localId,
+    if (result != null) {
+      AlarmsBlob.instance[id] = WatchAlarm(
+        id: id,
         hour: hour,
         minute: minute,
         enabled: true,
@@ -277,12 +232,11 @@ class ClockModule extends TabModule {
     }
   }
 
-  Future<void> toggleAlarm(int localId, bool enabled) async {
+  Future<void> setAlarmEnabled(int id, bool enabled) async {
     if (!DeviceConnection.connected.value) return;
 
-    final alarm = AlarmsBlob.instance[localId];
+    final alarm = AlarmsBlob.instance[id];
     if (alarm == null) return;
-    final watchId = localId - 1;
 
     final details = pb.AlarmDetails()
       ..enabled = enabled
@@ -292,44 +246,45 @@ class ClockModule extends TabModule {
       ..smart = 2
       ..repeatMode = 0;
 
-    final res = await DeviceConnection.send(
+    final result = await DeviceConnection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.editAlarm,
       expectResponse: true,
       builder: (cmd) => cmd.schedule = (pb.Schedule()
         ..editAlarm = (pb.Alarm()
-          ..id = watchId
+          ..id = id
           ..alarmDetails = details)),
     );
 
-    if (res != null) {
-      AlarmsBlob.instance[localId] = alarm.copyWith(enabled: enabled);
+    if (result != null) {
+      AlarmsBlob.instance[id] = alarm.copyWith(enabled: enabled);
     }
   }
 
-  Future<void> deleteAlarm(int localId) async {
+  Future<void> deleteAlarm(int id) async {
     if (!DeviceConnection.connected.value) return;
 
-    final watchId = localId - 1;
-    final res = await DeviceConnection.send(
+    final result = await DeviceConnection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.deleteAlarm,
       expectResponse: true,
       builder: (cmd) =>
           cmd.schedule = (pb.Schedule()
-            ..deleteAlarm = (pb.AlarmDelete()..id.add(watchId))),
+            ..deleteAlarm = (pb.AlarmDelete()..id.add(id))),
     );
 
-    if (res != null) {
-      final list = AlarmsBlob.list;
-      final updated = List<Alarm>.from(list)
-        ..removeWhere((item) => item.id == localId);
+    if (result != null) {
+      final alarms = AlarmsBlob.list;
+      final updatedAlarms = List<WatchAlarm>.from(alarms)
+        ..removeWhere((item) => item.id == id);
 
       // Re-index remaining custom alarms contiguously
-      for (int i = 0; i < updated.length; i++) {
-        updated[i] = updated[i].copyWith(id: i + 2);
+      for (int i = 0; i < updatedAlarms.length; i++) {
+        updatedAlarms[i] = updatedAlarms[i].copyWith(id: i + 1);
       }
-      await AlarmsBlob.instance.update(updated);
+
+      // Update the blob with the updated alarms
+      await AlarmsBlob.instance.update(updatedAlarms);
     }
   }
 }

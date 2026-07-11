@@ -64,7 +64,7 @@ class AppsModule extends TabModule {
     }
 
     if (hasQuery) {
-      Logger.info('apps', 'Watch queried app status for: $package');
+      logger.info('Watch queried app status for: $package');
       await sendAppStatus(package, true, fingerprint: fingerprint);
     }
   }
@@ -76,14 +76,12 @@ class AppsModule extends TabModule {
     }
     final query = cmd.notification.notificationIconQuery;
     final package = query.package;
-    Logger.info('apps', 'Watch requested app icon for package: $package');
+    logger.info('Watch requested app icon for package: $package');
 
     try {
       // 1. Send icon request (type 7, subtype 15) to watch to request size and format
       final packageProto = pb.NotificationIconPackage()..package = package;
-      Logger.info(
-        'apps',
-        'Sending iconRequest (type 7, subtype 15) to watch...',
+      logger.info('Sending iconRequest (type 7, subtype 15) to watch...',
       );
       final iconRequestResponse = await DeviceConnection.send(
         type: CmdType.notification,
@@ -97,9 +95,7 @@ class AppsModule extends TabModule {
       if (iconRequestResponse == null ||
           !iconRequestResponse.hasNotification() ||
           !iconRequestResponse.notification.hasNotificationIconRequest()) {
-        Logger.error(
-          'apps',
-          'Watch did not respond to iconRequest or format was invalid',
+        logger.error('Watch did not respond to iconRequest or format was invalid',
         );
         return;
       }
@@ -107,9 +103,7 @@ class AppsModule extends TabModule {
       final iconReq = iconRequestResponse.notification.notificationIconRequest;
       final int pixelFormat = iconReq.pixelFormat;
       final int size = iconReq.size;
-      Logger.info(
-        'apps',
-        'Watch responded: format=$pixelFormat, size=$size pixels',
+      logger.info('Watch responded: format=$pixelFormat, size=$size pixels',
       );
 
       // 2. Fetch the app icon raw ARGB bytes from Android
@@ -120,9 +114,7 @@ class AppsModule extends TabModule {
           });
 
       if (rawBytes == null || rawBytes.isEmpty) {
-        Logger.error(
-          'apps',
-          'Failed to retrieve icon bytes from Android for $package',
+        logger.error('Failed to retrieve icon bytes from Android for $package',
         );
         return;
       }
@@ -172,9 +164,7 @@ class AppsModule extends TabModule {
 
       // 4. Send the icon via Data Upload channel (type 22, subtype 0)
       final md5Sum = md5.convert(formattedBytes).bytes;
-      Logger.info(
-        'apps',
-        'Initiating icon upload stream (size=${formattedBytes.length} bytes)...',
+      logger.info('Initiating icon upload stream (size=${formattedBytes.length} bytes)...',
       );
       final uploadResponse = await DeviceConnection.send(
         type: CmdType.dataUpload,
@@ -192,7 +182,7 @@ class AppsModule extends TabModule {
       if (uploadResponse == null ||
           !uploadResponse.hasDataUpload() ||
           !uploadResponse.dataUpload.hasDataUploadAck()) {
-        Logger.error('apps', 'Icon upload request rejected by watch');
+        logger.error('Icon upload request rejected by watch');
         return;
       }
 
@@ -226,7 +216,7 @@ class AppsModule extends TabModule {
       // 6. Stream chunks
       final int partSize = chunkSize - 4;
       final int totalParts = (finalBytes.length / partSize).ceil();
-      Logger.info('apps', 'Streaming icon in $totalParts parts...');
+      logger.info('Streaming icon in $totalParts parts...');
 
       for (int i = 0; i < totalParts; i++) {
         final currentPart = i + 1;
@@ -246,9 +236,9 @@ class AppsModule extends TabModule {
 
         await DeviceConnection.sendDataChunk(chunkToSend.takeBytes());
       }
-      Logger.info('apps', 'Icon upload completed successfully for $package!');
+      logger.info('Icon upload completed successfully for $package!');
     } catch (e, stack) {
-      Logger.error('apps', 'Error uploading icon: $e\n$stack');
+      logger.error('Error uploading icon: $e\n$stack');
     }
   }
 
@@ -270,11 +260,9 @@ class AppsModule extends TabModule {
       if (internalApps.isEmpty) {
         internalApps.add('com.misync.messages');
       }
-      Logger.info('apps', 'Loaded internal apps: $internalApps');
+      logger.info('Loaded internal apps: $internalApps');
     } catch (e) {
-      Logger.error(
-        'apps',
-        'Failed to load internal apps from manifest: $e. Falling back to hardcoded.',
+      logger.error('Failed to load internal apps from manifest: $e. Falling back to hardcoded.',
       );
       internalApps.clear();
       internalApps.add('com.misync.messages');
@@ -288,14 +276,14 @@ class AppsModule extends TabModule {
       await _syncInternalApps();
       await _syncInstalledApps();
     } catch (e) {
-      Logger.error('apps', 'Error during apps module sync: $e');
+      logger.error('Error during apps module sync: $e');
     }
   }
 
   Future<List<pb.RpkInfoList>> _syncInstalledApps() async {
     if (!DeviceConnection.connected.value) return const [];
     try {
-      Logger.info('apps', 'Querying installed RPK list from watch...');
+      logger.info('Querying installed RPK list from watch...');
       final response = await DeviceConnection.send(
         type: CmdType.thirdPartyApp,
         subtype: ThirdPartyAppSubtype.rpkList,
@@ -305,9 +293,7 @@ class AppsModule extends TabModule {
           response.hasThirdPartyApp() &&
           response.thirdPartyApp.hasRpkList()) {
         final list = response.thirdPartyApp.rpkList.rpkInfo;
-        Logger.info(
-          'apps',
-          'Received ${list.length} installed apps from watch.',
+        logger.info('Received ${list.length} installed apps from watch.',
         );
 
         // Update AppsBlob registry based on the watch list
@@ -355,7 +341,7 @@ class AppsModule extends TabModule {
         return list;
       }
     } catch (e) {
-      Logger.error('apps', 'failed to fetch installed apps: $e');
+      logger.error('failed to fetch installed apps: $e');
     }
     return const [];
   }
@@ -372,15 +358,13 @@ class AppsModule extends TabModule {
   }
 
   Future<void> launch(String package, {String? uri}) async {
-    Logger.info('apps', 'Launching watch app: $package');
+    logger.info('Launching watch app: $package');
 
     final appInfo = pb.ThirdPartyAppInfo()..packageName = package;
     final installed = AppsBlob.instance.value[package];
     if (installed != null && installed.fingerprint.isNotEmpty) {
       appInfo.fingerprint = installed.fingerprint;
-      Logger.info(
-        'apps',
-        'Found fingerprint for $package: ${hex.encode(installed.fingerprint)}',
+      logger.info('Found fingerprint for $package: ${hex.encode(installed.fingerprint)}',
       );
     }
 
@@ -401,7 +385,7 @@ class AppsModule extends TabModule {
     if (!DeviceConnection.connected.value) return false;
 
     if (!internalApps.contains(package)) {
-      Logger.error('apps', 'App $package is not an internal app.');
+      logger.error('App $package is not an internal app.');
       return false;
     }
 
@@ -420,15 +404,13 @@ class AppsModule extends TabModule {
       // Check if it is already installed with this exact hash
       final lastInstalledHash = AppsBlob.getHash(package);
       if (lastInstalledHash == localFileShaHex) {
-        Logger.info(
-          'apps',
-          'Internal app $package is already up to date ($localFileShaHex). Skipping installation.',
+        logger.info('Internal app $package is already up to date ($localFileShaHex). Skipping installation.',
         );
         return true;
       }
 
       final success = await _uploadRpk(package, 1, assetBytes);
-      Logger.info('apps', 'Installation of $package result: $success');
+      logger.info('Installation of $package result: $success');
       if (success) {
         final current = AppsBlob.instance.value[package];
         final defaultName = package.split('.').last;
@@ -456,7 +438,7 @@ class AppsModule extends TabModule {
       }
       return success;
     } catch (e) {
-      Logger.error('apps', 'Error enabling $package: $e');
+      logger.error('Error enabling $package: $e');
       return false;
     }
   }
@@ -470,9 +452,7 @@ class AppsModule extends TabModule {
     // 2. Perform the uninstallation from the watch
     final app = AppsBlob.instance.value[package];
     if (app != null && (app.hash.isNotEmpty || app.fingerprint.isNotEmpty)) {
-      Logger.info(
-        'apps',
-        'Internal app $package is disabled. Uninstalling from watch...',
+      logger.info('Internal app $package is disabled. Uninstalling from watch...',
       );
       await uninstall(package);
     }
@@ -505,9 +485,7 @@ class AppsModule extends TabModule {
         throw StateError('Package identifier is missing');
       }
 
-      Logger.info(
-        'apps',
-        'Installing external app: $appName ($package), version: $versionCode',
+      logger.info('Installing external app: $appName ($package), version: $versionCode',
       );
 
       final success = await _uploadRpk(package, versionCode, bytes);
@@ -524,7 +502,7 @@ class AppsModule extends TabModule {
       }
       return success;
     } catch (e) {
-      Logger.error('apps', 'Failed to install external RPK: $e');
+      logger.error('Failed to install external RPK: $e');
       return false;
     }
   }
@@ -540,9 +518,7 @@ class AppsModule extends TabModule {
 
     try {
       // 1. Send CMD_RPK_INSTALL (type 20, subtype 1)
-      Logger.info(
-        'apps',
-        'Sending RPK install start command for $package ($versionCode)',
+      logger.info('Sending RPK install start command for $package ($versionCode)',
       );
       final installResponse = await DeviceConnection.send(
         type: CmdType.thirdPartyApp,
@@ -557,9 +533,7 @@ class AppsModule extends TabModule {
       );
 
       if (installResponse == null || installResponse.status != 0) {
-        Logger.error(
-          'apps',
-          'RPK install request rejected status: ${installResponse?.status}',
+        logger.error('RPK install request rejected status: ${installResponse?.status}',
         );
         return false;
       }
@@ -582,7 +556,7 @@ class AppsModule extends TabModule {
       if (uploadResponse == null ||
           !uploadResponse.hasDataUpload() ||
           !uploadResponse.dataUpload.hasDataUploadAck()) {
-        Logger.error('apps', 'RPK upload request rejected by watch');
+        logger.error('RPK upload request rejected by watch');
         return false;
       }
 
@@ -616,7 +590,7 @@ class AppsModule extends TabModule {
       // 4. Stream chunks over SPP
       final int partSize = chunkSize - 4;
       final int totalParts = (finalBytes.length / partSize).ceil();
-      Logger.info('apps', 'Streaming RPK in $totalParts parts...');
+      logger.info('Streaming RPK in $totalParts parts...');
 
       for (int i = 0; i < totalParts; i++) {
         final currentPart = i + 1;
@@ -637,9 +611,7 @@ class AppsModule extends TabModule {
         await DeviceConnection.sendDataChunk(chunkToSend.takeBytes());
       }
 
-      Logger.info(
-        'apps',
-        'Sideload finalized. Waiting for device unpacking...',
+      logger.info('Sideload finalized. Waiting for device unpacking...',
       );
       await Future.delayed(const Duration(seconds: 3));
 
@@ -647,7 +619,7 @@ class AppsModule extends TabModule {
       await _syncInstalledApps();
       return true;
     } catch (e) {
-      Logger.error('apps', 'Error uploading RPK: $e');
+      logger.error('Error uploading RPK: $e');
       return false;
     }
   }
@@ -675,9 +647,7 @@ class AppsModule extends TabModule {
       ..appInfo = appInfo
       ..status = isConnected ? 1 : 2;
 
-    Logger.info(
-      'apps',
-      'Proactively sending app status for $package: ${isConnected ? "connected" : "disconnected"}',
+    logger.info('Proactively sending app status for $package: ${isConnected ? "connected" : "disconnected"}',
     );
 
     await DeviceConnection.send(
@@ -690,7 +660,7 @@ class AppsModule extends TabModule {
 
   Future<void> uninstall(String package) async {
     if (!DeviceConnection.connected.value) return;
-    Logger.info('apps', 'Requesting deletion for RPK: $package');
+    logger.info('Requesting deletion for RPK: $package');
 
     final app = AppsBlob.instance.value[package];
     final sha = app?.fingerprint ?? const <int>[];

@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:crypto/crypto.dart';
 import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart';
-import '../debug/logger.dart';
 import '../screen.dart';
 import '../crc32.dart';
 import 'module.dart';
@@ -43,12 +42,11 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
         _selectedFaceName = file.name;
         _selectedFaceBytes = file.bytes;
       });
-      Logger.info(
-        'faces',
+      module.logger.info(
         'selected watch face: ${file.name} (${file.size} bytes)',
       );
     } catch (e) {
-      Logger.error('faces', 'error picking file: $e');
+      module.logger.error('error picking file: $e');
     }
   }
 
@@ -72,7 +70,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
       _uploadProgress = 0.0;
     });
 
-    Logger.info('faces', 'starting watch face installation');
+    module.logger.info('starting watch face installation');
     final bytes = _selectedFaceBytes!;
     final size = bytes.length;
 
@@ -92,7 +90,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
         ..watchface = (Watchface()..watchfaceInstallStart = installStart);
 
       await DeviceConnection.send(cmd: cmd);
-      Logger.info('faces', 'sent WatchfaceInstallStart command');
+      module.logger.info('sent WatchfaceInstallStart command');
     }
 
     // 3. Construct raw upload payload:
@@ -122,7 +120,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
         chunkSize - 4; // We use 4 bytes header for totalParts & currentPart
     final int totalParts = (finalBytes.length / partSize).ceil();
 
-    Logger.info('faces', 'uploading watch face binary in $totalParts chunks');
+    module.logger.info('uploading watch face binary in $totalParts chunks');
 
     for (int i = 0; i < totalParts; i++) {
       final currentPart = i + 1;
@@ -143,10 +141,10 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
         ..watchface = (Watchface()..watchfaceInstallFinish = installFinish);
 
       await DeviceConnection.send(cmd: cmd);
-      Logger.info('faces', 'sent WatchfaceInstallFinish command');
+      module.logger.info('sent WatchfaceInstallFinish command');
     }
 
-    Logger.info('faces', 'watch face installation completed successfully');
+    module.logger.info('watch face installation completed successfully');
     setState(() {
       _isUploading = false;
       _uploadProgress = 1.0;

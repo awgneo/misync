@@ -10,6 +10,7 @@ import '../debug/logger.dart';
 import 'blobs/settings.dart';
 
 class DeviceConnection extends ChangeNotifier {
+  static late final Logger logger;
   // Singleton pattern
   static final DeviceConnection _instance = DeviceConnection._internal();
   static DeviceConnection get instance => _instance;
@@ -87,16 +88,14 @@ class DeviceConnection extends ChangeNotifier {
 
     _connecting = true;
     notifyListeners();
-    Logger.info(
-      'device',
-      'connecting to device $macAddress via classic bluetooth SPP',
+    logger.info('connecting to device $macAddress via classic bluetooth SPP',
     );
     int retryCount = 0;
     const maxRetries = 3;
 
     while (retryCount < maxRetries) {
       try {
-        Logger.info('device', 'connection attempt ${retryCount + 1}');
+        logger.info('connection attempt ${retryCount + 1}');
         await _cleanup();
 
         final conn = await _bluetooth.connect(
@@ -107,21 +106,21 @@ class DeviceConnection extends ChangeNotifier {
         _session(conn);
         return; // Success!
       } catch (e) {
-        Logger.error('device', 'attempt ${retryCount + 1} failed: $e');
+        logger.error('attempt ${retryCount + 1} failed: $e');
         retryCount++;
         if (retryCount < maxRetries) {
-          Logger.info('device', 'waiting 2 seconds before retrying');
+          logger.info('waiting 2 seconds before retrying');
           await Future.delayed(const Duration(seconds: 2));
         }
       }
     }
 
-    Logger.error('device', 'all connection attempts failed');
+    logger.error('all connection attempts failed');
     disconnect();
   }
 
   Future<void> _cleanup() async {
-    Logger.info('device', 'closing existing socket');
+    logger.info('closing existing socket');
     try {
       await _connection?.close();
     } catch (_) {}
@@ -131,15 +130,14 @@ class DeviceConnection extends ChangeNotifier {
 
   void _session(BtcConnection conn) {
     _connection = conn;
-    Logger.info(
-      'device',
-      'connected over RFCOMM socket, initializing protocol manager',
+    logger.info('connected over RFCOMM socket, initializing protocol manager',
     );
 
     _protocol = Protocol(
       authKeyHex: SettingsBlob.authKeyHex,
       deviceId: SettingsBlob.deviceId,
       deviceModel: SettingsBlob.deviceModel,
+      logger: logger,
     );
 
     notifyListeners();
@@ -148,20 +146,18 @@ class DeviceConnection extends ChangeNotifier {
     _subscription = conn.input.listen(
       _receive,
       onError: (e) {
-        Logger.error('device', 'spp stream error: $e');
+        logger.error('spp stream error: $e');
         disconnect();
       },
       onDone: () {
-        Logger.info('device', 'spp connection closed by peer');
+        logger.info('spp connection closed by peer');
         disconnect();
       },
     );
 
-    Logger.info('device', 'sending SPP version request');
+    logger.info('sending SPP version request');
     final versionReq = _protocol!.initiateVersionRequest();
-    Logger.debug(
-      'device',
-      '→ write SPP version req: ${hex.encode(versionReq).toUpperCase()}',
+    logger.debug('→ write SPP version req: ${hex.encode(versionReq).toUpperCase()}',
     );
     conn.output.add(Uint8List.fromList(versionReq));
 
@@ -177,7 +173,7 @@ class DeviceConnection extends ChangeNotifier {
     if (_protocol == null) return;
 
     final hexStr = hex.encode(bytes).toUpperCase();
-    Logger.debug('device', '← raw rx: $hexStr');
+    logger.debug('← raw rx: $hexStr');
 
     try {
       // 1. Check for SPP Version Response
@@ -188,15 +184,13 @@ class DeviceConnection extends ChangeNotifier {
 
       // 2. Parse and handle L1/L2 framed packets
       final packets = _protocol!.feedBytes(bytes);
-      Logger.debug(
-        'device',
-        'spp parser: fed ${bytes.length} bytes, got ${packets.length} packets',
+      logger.debug('spp parser: fed ${bytes.length} bytes, got ${packets.length} packets',
       );
       for (var packet in packets) {
         await _handlePacket(packet);
       }
     } catch (e, stackTrace) {
-      Logger.error('device', 'error in _receive processing: $e\n$stackTrace');
+      logger.error('error in _receive processing: $e\n$stackTrace');
     }
   }
 
@@ -209,37 +203,29 @@ class DeviceConnection extends ChangeNotifier {
   }
 
   Future<void> _handleSppVersionResponse(List<int> bytes) async {
-    Logger.info('device', '← spp version response detected');
+    logger.info('← spp version response detected');
     if (bytes.length >= 8) {
       final givenLen = bytes[5] | (bytes[6] << 8);
       final payloadLen = givenLen - 3;
       if (payloadLen > 0 && bytes.length >= 10 + payloadLen) {
         final payload = bytes.sublist(10, 10 + payloadLen);
-        Logger.info(
-          'device',
-          'parsed watch SPP version: ${payload[0]}.${payload[1]}',
+        logger.info('parsed watch SPP version: ${payload[0]}.${payload[1]}',
         );
       }
     }
 
     // Version confirmed. Handshake proceeds by sending SppPacketV2 Session Config Request.
-    Logger.info(
-      'device',
-      'session configuration: sending client session config',
+    logger.info('session configuration: sending client session config',
     );
     final configBytes = _protocol!.initiateSessionConfig();
-    Logger.debug(
-      'device',
-      '→ write config bytes: ${hex.encode(configBytes).toUpperCase()}',
+    logger.debug('→ write config bytes: ${hex.encode(configBytes).toUpperCase()}',
     );
     await _write(configBytes);
   }
 
   Future<void> _handlePacket(Packet packet) async {
     try {
-      Logger.debug(
-        'device',
-        '← packet parsed: type=${packet.packetType}, seq=${packet.sequenceNumber}, payloadLen=${packet.payload.length}',
+      logger.debug('← packet parsed: type=${packet.packetType}, seq=${packet.sequenceNumber}, payloadLen=${packet.payload.length}',
       );
 
       // Acknowledge the V2 packet immediately
@@ -257,24 +243,20 @@ class DeviceConnection extends ChangeNotifier {
           await _handleData(packet);
           break;
         default:
-          Logger.error('device', 'unknown packet type: ${packet.packetType}');
+          logger.error('unknown packet type: ${packet.packetType}');
           break;
       }
     } catch (e, stackTrace) {
-      Logger.error('device', 'error in _handlePacket: $e\n$stackTrace');
+      logger.error('error in _handlePacket: $e\n$stackTrace');
     }
   }
 
   void _handleSessionConfig(Packet packet) async {
-    Logger.debug(
-      'device',
-      '← session config packet payload: ${hex.encode(packet.payload).toUpperCase()}',
+    logger.debug('← session config packet payload: ${hex.encode(packet.payload).toUpperCase()}',
     );
     if (packet.payload.isNotEmpty && packet.payload[0] == 2) {
       // OPCODE_START_SESSION_RESPONSE = 2
-      Logger.info(
-        'device',
-        'session config complete, initiating handshake step 1: sending phone nonce',
+      logger.info('session config complete, initiating handshake step 1: sending phone nonce',
       );
       final step1Bytes = _protocol!.initiateHandshake();
       await _write(step1Bytes);
@@ -285,24 +267,18 @@ class DeviceConnection extends ChangeNotifier {
   Future<void> _handleData(Packet packet) async {
     try {
       final cmd = _protocol!.decryptAndParseCommand(packet);
-      Logger.debug(
-        'device',
-        '← parsed cmd: type=${cmd.type}, subtype=${cmd.subtype}',
+      logger.debug('← parsed cmd: type=${cmd.type}, subtype=${cmd.subtype}',
       );
 
       if (_protocol!.state != ProtocolState.authenticated) {
         await _handleHandshake(cmd);
       } else {
-        Logger.debug(
-          'device',
-          '← secure cmd: type=${cmd.type}, content=${cmd.writeToJsonMap()}',
+        logger.debug('← secure cmd: type=${cmd.type}, content=${cmd.writeToJsonMap()}',
         );
         _read(cmd);
       }
     } catch (e, stackTrace) {
-      Logger.error(
-        'device',
-        'failed to decrypt/parse data command: $e\n$stackTrace',
+      logger.error('failed to decrypt/parse data command: $e\n$stackTrace',
       );
     }
   }
@@ -311,26 +287,22 @@ class DeviceConnection extends ChangeNotifier {
     try {
       final response = _protocol!.handleHandshakeCommand(cmd);
       if (response != null) {
-        Logger.debug(
-          'device',
-          '→ send handshake: ${hex.encode(response).toUpperCase()}',
+        logger.debug('→ send handshake: ${hex.encode(response).toUpperCase()}',
         );
         await _write(response);
       }
 
       if (_protocol!.state == ProtocolState.authenticated) {
-        Logger.info('device', 'handshake successful: secure channel is active');
+        logger.info('handshake successful: secure channel is active');
         notifyListeners();
       } else if (_protocol!.state == ProtocolState.authFailed) {
-        Logger.error('device', 'handshake failed: auth key is invalid');
+        logger.error('handshake failed: auth key is invalid');
         _disconnect();
       } else {
         notifyListeners();
       }
     } catch (e, stackTrace) {
-      Logger.error(
-        'device',
-        'error during handshake processing: $e\n$stackTrace',
+      logger.error('error during handshake processing: $e\n$stackTrace',
       );
     }
   }
@@ -352,11 +324,9 @@ class DeviceConnection extends ChangeNotifier {
       final sys = cmd.system;
       if (sys.hasFindDevice()) {
         final find = sys.findDevice;
-        Logger.info('device', 'system command: find device triggered ($find)');
+        logger.info('system command: find device triggered ($find)');
         if (find == 1) {
-          Logger.info(
-            'device',
-            'ringing phone (triggered from watch find phone app)',
+          logger.info('ringing phone (triggered from watch find phone app)',
           );
           // Ring phone audio playback loop logic
         }
@@ -377,7 +347,7 @@ class DeviceConnection extends ChangeNotifier {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     if (!_connected) {
-      Logger.error('device', 'cannot send command: secure channel not active');
+      logger.error('cannot send command: secure channel not active');
       return null;
     }
 
@@ -406,9 +376,7 @@ class DeviceConnection extends ChangeNotifier {
       }
 
       final framed = _protocol!.encryptAndWrapCommand(targetCmd);
-      Logger.debug(
-        'device',
-        '→ send command: type=${targetCmd.type}, subtype=${targetCmd.subtype}, content=${targetCmd.writeToJsonMap()}',
+      logger.debug('→ send command: type=${targetCmd.type}, subtype=${targetCmd.subtype}, content=${targetCmd.writeToJsonMap()}',
       );
       await _write(framed);
 
@@ -420,12 +388,12 @@ class DeviceConnection extends ChangeNotifier {
           if (_requests[key]?.isEmpty ?? false) {
             _requests.remove(key);
           }
-          Logger.error('device', 'response timeout for $type/$subtype: $e');
+          logger.error('response timeout for $type/$subtype: $e');
           return null;
         }
       }
     } catch (e) {
-      Logger.error('device', 'failed to send command $type/$subtype: $e');
+      logger.error('failed to send command $type/$subtype: $e');
     }
     return null;
   }
@@ -433,14 +401,14 @@ class DeviceConnection extends ChangeNotifier {
   Future<void> _write(List<int> bytes) async {
     if (_connection == null) return;
     final hexStr = hex.encode(bytes).toUpperCase();
-    Logger.debug('device', '→ raw tx: $hexStr');
+    logger.debug('→ raw tx: $hexStr');
     _connection!.output.add(Uint8List.fromList(bytes));
   }
 
   static Future<void> sendDataChunk(Uint8List chunk) async {
     final instance = _instance;
     if (!instance._connected || instance._protocol == null) {
-      Logger.error('device', 'cannot send data chunk: not connected');
+      logger.error('cannot send data chunk: not connected');
       return;
     }
     final framed = instance._protocol!.wrapDataChunk(chunk);
@@ -452,7 +420,7 @@ class DeviceConnection extends ChangeNotifier {
   // ==========================================
 
   Future<void> _disconnect() async {
-    Logger.info('device', 'disconnecting from watch');
+    logger.info('disconnecting from watch');
     await _subscription?.cancel();
     _subscription = null;
     try {
@@ -463,7 +431,7 @@ class DeviceConnection extends ChangeNotifier {
     _connecting = false;
     _protocol?.reset();
 
-    Logger.info('device', 'disconnected');
+    logger.info('disconnected');
     notifyListeners();
     _scheduleRetry();
   }
@@ -473,9 +441,7 @@ class DeviceConnection extends ChangeNotifier {
     _retryTimer?.cancel();
     _retryTimer = Timer(const Duration(seconds: 10), () {
       if (SettingsBlob.watchMac.isNotEmpty && !_connected && !_connecting) {
-        Logger.info(
-          'device',
-          'reconnection loop: watch is disconnected, attempting connection',
+        logger.info('reconnection loop: watch is disconnected, attempting connection',
         );
         _connect();
       }

@@ -21,32 +21,24 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
   ActionsModule get module => ActionsModule.instance;
 
   void _testTriggerAction(Action action) {
-    Logger.info(
-      'actions',
-      'local trigger: Running action "${action.name}" with intent target ${action.intent}',
-    );
     module.runPhoneAction(action);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Triggered "${action.name}" successfully!'),
-        backgroundColor: const Color(0xFF00E5FF),
-      ),
-    );
   }
 
   void _showAddActionDialog() async {
-    final name = await showMiTextModal(
+    final name = await showMiModal<String>(
       context: context,
       title: 'Add Shortcut Action',
-      labelText: 'Shortcut Name (e.g. Open Map)',
+      label: 'Shortcut Name (e.g. Open Map)',
+      confirm: 'Add',
     );
     if (name == null || name.isEmpty) return;
 
     if (!mounted) return;
-    final intent = await showMiTextModal(
+    final intent = await showMiModal<String>(
       context: context,
       title: 'Action Android Intent',
-      labelText: 'Intent Action or Package Name',
+      label: 'Intent Action or Package Name',
+      confirm: 'Add',
     );
     if (intent == null || intent.isEmpty) return;
 
@@ -58,6 +50,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
             ? intent.split('.').first
             : 'custom.action',
       );
+
     ActionsBlob.instance.update(updated);
   }
 

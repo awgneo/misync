@@ -111,11 +111,11 @@ class MainActivity : FlutterActivity() {
                 "minute" to calendar.get(java.util.Calendar.MINUTE)
             )
             runOnUiThread {
-                methodChannel?.invokeMethod("onNextAlarmChanged", data)
+                methodChannel?.invokeMethod("nextAlarmChanged", data)
             }
         } else {
             runOnUiThread {
-                methodChannel?.invokeMethod("onNextAlarmChanged", null)
+                methodChannel?.invokeMethod("nextAlarmChanged", null)
             }
         }
     }
@@ -134,7 +134,7 @@ class MainActivity : FlutterActivity() {
                             "notification" -> if (!isNotificationServiceEnabled()) missing.add("notification")
                               "sms" -> if (checkSelfPermission(android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) missing.add("sms")
                               "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) missing.add("contacts")
-                              "companion" -> if (!isDeviceAssociated()) missing.add("companion")
+                              "companion" -> if (!getDeviceAssociated()) missing.add("companion")
                               "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) missing.add("dnd")
                         }
                     }
@@ -155,7 +155,7 @@ class MainActivity : FlutterActivity() {
                             "contacts" -> if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
                                 runtimePerms.add(android.Manifest.permission.READ_CONTACTS)
                             }
-                            "companion" -> if (!isDeviceAssociated()) {
+                            "companion" -> if (!getDeviceAssociated()) {
                                 associateDevice()
                             }
                             "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) {
@@ -191,15 +191,15 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
-                "checkCompanionAssociation" -> {
-                    result.success(isDeviceAssociated())
+                "getDeviceAssociated" -> {
+                    result.success(getDeviceAssociated())
                 }
                 "requestCompanionAssociation" -> {
                     associateDevice()
                     result.success(true)
                 }
-                "startPresenceObservation" -> {
-                    startPresenceObservation()
+                "observeDevicePresence" -> {
+                    observeDevicePresence()
                     result.success(true)
                 }
                 "replyToNotification" -> {
@@ -456,7 +456,7 @@ class MainActivity : FlutterActivity() {
         return false
     }
 
-    private fun isDeviceAssociated(): Boolean {
+    private fun getDeviceAssociated(): Boolean {
         val deviceManager = getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             deviceManager.myAssociations.isNotEmpty()
@@ -506,7 +506,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun startPresenceObservation() {
+    private fun observeDevicePresence() {
         val deviceManager = getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val associations = deviceManager.myAssociations
@@ -543,9 +543,9 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_ASSOCIATE_DEVICE && resultCode == Activity.RESULT_OK) {
             Log.d(TAG, "Device associated successfully!")
-            startPresenceObservation()
+            observeDevicePresence()
             // Notify Flutter that association is done
-            methodChannel?.invokeMethod("onCompanionAssociationComplete", true)
+            methodChannel?.invokeMethod("deviceAssociated", true)
         }
     }
 

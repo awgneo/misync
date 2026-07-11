@@ -1,25 +1,50 @@
 import '../../storage/blob.dart';
 
 class Alarm {
-  final int id;      // Slot ID (e.g. 2 to 10)
   final int hour;
   final int minute;
-  final bool enabled;
 
   const Alarm({
-    required this.id,
     required this.hour,
     required this.minute,
+  });
+
+  String get timeString =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+  factory Alarm.fromMap(Map<String, dynamic> map) {
+    return Alarm(
+      hour: map['hour'] as int,
+      minute: map['minute'] as int,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'hour': hour,
+      'minute': minute,
+    };
+  }
+}
+
+class WatchAlarm extends Alarm {
+  final int id;      // Watch Alarm ID (e.g. 1 to 9)
+  final bool enabled;
+
+  const WatchAlarm({
+    required this.id,
+    required super.hour,
+    required super.minute,
     required this.enabled,
   });
 
-  Alarm copyWith({
+  WatchAlarm copyWith({
     int? id,
     int? hour,
     int? minute,
     bool? enabled,
   }) {
-    return Alarm(
+    return WatchAlarm(
       id: id ?? this.id,
       hour: hour ?? this.hour,
       minute: minute ?? this.minute,
@@ -28,7 +53,7 @@ class Alarm {
   }
 }
 
-class AlarmsBlob extends Blob<List<Alarm>> {
+class AlarmsBlob extends Blob<List<WatchAlarm>> {
   static final AlarmsBlob _instance = AlarmsBlob._();
   static AlarmsBlob get instance => _instance;
 
@@ -37,13 +62,13 @@ class AlarmsBlob extends Blob<List<Alarm>> {
           module: 'clock',
           name: 'alarms',
           defaultValue: const [
-            Alarm(id: 2, hour: 8, minute: 30, enabled: false),
+            WatchAlarm(id: 1, hour: 8, minute: 30, enabled: false),
           ],
         );
 
-  static List<Alarm> get list => _instance.value;
+  static List<WatchAlarm> get list => _instance.value;
 
-  Alarm? operator [](int slotId) {
+  WatchAlarm? operator [](int slotId) {
     try {
       return value.firstWhere((a) => a.id == slotId);
     } catch (_) {
@@ -51,8 +76,8 @@ class AlarmsBlob extends Blob<List<Alarm>> {
     }
   }
 
-  void operator []=(int slotId, Alarm val) {
-    final updated = List<Alarm>.from(value);
+  void operator []=(int slotId, WatchAlarm val) {
+    final updated = List<WatchAlarm>.from(value);
     final index = updated.indexWhere((a) => a.id == slotId);
     if (index != -1) {
       updated[index] = val;
@@ -63,12 +88,12 @@ class AlarmsBlob extends Blob<List<Alarm>> {
   }
 
   @override
-  List<Alarm> parse(dynamic json) {
+  List<WatchAlarm> parse(dynamic json) {
     final raw = json as List<dynamic>?;
     if (raw == null) return [];
     return raw.map((item) {
       final map = Map<String, dynamic>.from(item as Map);
-      return Alarm(
+      return WatchAlarm(
         id: map['id'] as int,
         hour: map['hour'] as int,
         minute: map['minute'] as int,
@@ -78,7 +103,7 @@ class AlarmsBlob extends Blob<List<Alarm>> {
   }
 
   @override
-  dynamic serialize(List<Alarm> value) {
+  dynamic serialize(List<WatchAlarm> value) {
     return value.map((a) => {
       'id': a.id,
       'hour': a.hour,

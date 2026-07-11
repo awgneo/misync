@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class MiItems extends StatelessWidget {
   final List<Widget> children;
 
-  const MiItems({
-    super.key,
-    required this.children,
-  });
+  const MiItems({super.key, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -21,11 +18,7 @@ class MiItems extends StatelessWidget {
       child: Column(
         children: [
           for (int i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              const Divider(
-                color: Color(0xFF26324D),
-                height: 1,
-              ),
+            if (i > 0) const Divider(color: Color(0xFF26324D), height: 1),
             children[i],
           ],
         ],

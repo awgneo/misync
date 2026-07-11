@@ -3,7 +3,6 @@ import '../module.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../device/proto/constants.dart';
 import '../device/connection.dart';
-import '../debug/logger.dart';
 import 'screen.dart';
 
 class HealthModule extends TabModule {
@@ -27,8 +26,7 @@ class HealthModule extends TabModule {
 
   @override
   Future<void> sync() async {
-    Logger.info(
-      'health',
+    logger.info(
       'syncing health configuration and requesting activities from watch',
     );
 
@@ -58,6 +56,6 @@ class HealthModule extends TabModule {
       subtype: HealthSubtype.fetchData,
     );
 
-    Logger.info('health', 'health sync tasks initiated');
+    logger.info('health sync tasks initiated');
   }
 }
