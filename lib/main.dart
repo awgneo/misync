@@ -67,17 +67,52 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
   final List<TabModule> _tabModules = modules.whereType<TabModule>().toList();
 
   @override
+  void initState() {
+    super.initState();
+    final deviceIndex = _tabModules.indexWhere((m) => m.name == 'device');
+    if (deviceIndex != -1) {
+      _currentIndex = deviceIndex;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final List<Widget> tabs = _tabModules.map((m) => m.screen).toList();
+    final activeModule = _tabModules[_currentIndex];
+    final activeModuleName = activeModule.name[0].toUpperCase() + activeModule.name.substring(1);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'MiSync',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF00E5FF),
-          ),
+        leading: Builder(
+          builder: (context) {
+            return IconButton(
+              icon: const Icon(Icons.menu, color: Color(0xFF00E5FF)),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            );
+          },
+        ),
+        title: Row(
+          children: [
+            const Text(
+              'MiSync',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00E5FF),
+              ),
+            ),
+            const Text(
+              ' • ',
+              style: TextStyle(color: Colors.grey),
+            ),
+            Text(
+              activeModuleName,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+          ],
         ),
         backgroundColor: const Color(0xFF0F1219),
         elevation: 0,
@@ -99,25 +134,43 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
         ],
       ),
       body: tabs[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF141822),
-        selectedItemColor: const Color(0xFF00E5FF),
-        unselectedItemColor: Colors.grey,
-        items: _tabModules.map((m) {
-          final capitalized = m.name[0].toUpperCase() + m.name.substring(1);
-          return BottomNavigationBarItem(
-            icon: Icon(m.icon),
-            label: capitalized,
-          );
-        }).toList(),
+      drawer: Drawer(
+        backgroundColor: const Color(0xFF0F111A),
+        child: SafeArea(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: _tabModules.length,
+            itemBuilder: (context, index) {
+              final m = _tabModules[index];
+              final capitalized = m.name[0].toUpperCase() + m.name.substring(1);
+              final isSelected = index == _currentIndex;
+              return ListTile(
+                leading: Icon(
+                  m.icon,
+                  color: isSelected ? const Color(0xFF00E5FF) : Colors.grey,
+                ),
+                title: Text(
+                  capitalized,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                selected: isSelected,
+                selectedTileColor: const Color(0xFF00E5FF).withOpacity(0.1),
+                onTap: () {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                  Navigator.pop(context); // Close the drawer
+                },
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 }
+
+
