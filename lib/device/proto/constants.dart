@@ -6,6 +6,7 @@ enum CmdType implements ValuedEnum {
   system(2),
   notification(7),
   health(8),
+  weather(10),
   calendar(12),
   schedule(17),
   thirdPartyApp(20),
@@ -21,6 +22,8 @@ enum SystemSubtype implements ValuedEnum {
   deviceInfo(2),
   clockSync(3),
   dnd(11),
+  findPhone(17),
+  findWatch(18),
   deviceState(78);
 
   @override
@@ -60,11 +63,31 @@ enum CalendarSubtype implements ValuedEnum {
   const CalendarSubtype(this.value);
 }
 
+enum WeatherSubtype implements ValuedEnum {
+  setCurrentWeather(0),
+  updateDailyForecast(1),
+  updateHourlyForecast(2),
+  requestConditionsForLocation(3),
+  getLocations(5),
+  setLocations(6),
+  addLocation(7),
+  removeLocations(8),
+  getWeatherPrefs(9),
+  setWeatherPrefs(10);
+
+  @override
+  final int value;
+  const WeatherSubtype(this.value);
+}
+
 enum ScheduleSubtype implements ValuedEnum {
   getAlarms(0),
   createAlarm(1),
   editAlarm(2),
-  deleteAlarm(4);
+  deleteAlarm(4),
+  getWorldClocks(10),
+  setWorldClocks(11),
+  deleteWorldClock(13);
 
   @override
   final int value;

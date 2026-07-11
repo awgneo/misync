@@ -74,6 +74,10 @@ class DeviceModule extends TabModule {
         _deviceAssociated = false;
         logger.info('device unassociated');
         break;
+      case 'stopFindPhone':
+        logger.info('stopFindPhone request from native side');
+        await stopFindPhone();
+        break;
     }
   }
 
@@ -118,6 +122,10 @@ class DeviceModule extends TabModule {
         _handleWatchBattery(cmd);
       } else if (cmd.subtype == SystemSubtype.deviceState.value) {
         _handleWatchDeviceState(cmd);
+      } else if (cmd.subtype == SystemSubtype.findPhone.value) {
+        _handleWatchFindPhone(cmd);
+      } else if (cmd.subtype == SystemSubtype.findWatch.value) {
+        _handleWatchFindWatch(cmd);
       }
     }
   }
@@ -375,6 +383,37 @@ class DeviceModule extends TabModule {
     } catch (e) {
       logger.error('Error during data upload of type $type: $e');
       return false;
+    }
+  }
+
+  void _handleWatchFindPhone(Command cmd) {
+    final int findDevice = cmd.system.findDevice;
+    logger.info('received find phone request: findDevice=$findDevice');
+    if (findDevice == 0) {
+      PlatformModule.instance.invokeMethod('startFindPhone');
+    } else {
+      PlatformModule.instance.invokeMethod('stopFindPhone');
+    }
+  }
+
+  Future<void> stopFindPhone() async {
+    logger.info('stopping find phone alert');
+    if (DeviceConnection.connected.value) {
+      await DeviceConnection.send(
+        type: CmdType.system,
+        subtype: SystemSubtype.findPhone,
+        builder: (cmd) => cmd.system = (System()..findDevice = 1),
+      );
+    }
+    await PlatformModule.instance.invokeMethod('stopFindPhone');
+  }
+
+  void _handleWatchFindWatch(Command cmd) {
+    final int findDevice = cmd.system.findDevice;
+    logger.info('received find watch update from wrist: findDevice=$findDevice');
+    if (findDevice == 1) {
+      PlatformModule.instance.findingWatch.value = false;
+      PlatformModule.instance.invokeMethod('updateFindWatchState', false);
     }
   }
 }

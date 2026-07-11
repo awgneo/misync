@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import '../screen.dart';
 import 'module.dart';
 import 'blobs/alarms.dart';
+import 'blobs/clocks.dart';
+import 'clocks.dart';
 import '../widgets/panel.dart';
 import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
+import '../widgets/tabs.dart';
 import '../platform/module.dart';
+import 'dart:async';
 
 class ClockScreen extends StatefulWidget {
   const ClockScreen({super.key});
@@ -18,6 +22,7 @@ class ClockScreen extends StatefulWidget {
 class _ClockScreenState extends ScreenState<ClockScreen> {
   @override
   ClockModule get module => ClockModule.instance;
+
 
   Future<void> _createAlarm() async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
@@ -73,6 +78,21 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {
+    return MiTabs(
+      tabs: [
+        MiTab(
+          label: 'Alarms',
+          child: _buildAlarmsTab(connected),
+        ),
+        MiTab(
+          label: 'Clocks',
+          child: _buildClocksTab(connected),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlarmsTab(bool connected) {
     return ListenableBuilder(
       listenable: AlarmsBlob.instance,
       builder: (context, _) {
@@ -158,6 +178,77 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
         );
       },
     );
+  }
+
+  Widget _buildClocksTab(bool connected) {
+    return ListenableBuilder(
+      listenable: ClocksBlob.instance,
+      builder: (context, _) {
+        final list = ClocksBlob.list;
+
+        return MiPanel(
+          buttons: connected
+              ? MiButtons(
+                  children: [
+                    MiButton(
+                      label: 'Add Clock',
+                      icon: Icons.add_location,
+                      pressed: _addClock,
+                    ),
+                  ],
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (list.isEmpty)
+                Container(
+                  height: 150,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141822),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF26324D)),
+                  ),
+                  child: const Text(
+                    'No world clocks on watch yet.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              else
+                MiItems(
+                  children: list.map((id) {
+                    final city = clocks.firstWhere(
+                      (c) => c.id == id,
+                      orElse: () => const Clock(id: '', timezone: '', name: '', country: ''),
+                    );
+                    if (city.id.isEmpty) return const SizedBox.shrink();
+
+                    return MiItem(
+                      title: city.name,
+                      subtitle: '${city.country} (${city.timezone})',
+                      delete: () => module.deleteClock(id),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _addClock() async {
+    final result = await showModalBottomSheet<Clock>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _AddClockSheet(),
+    );
+
+    if (result != null) {
+      await module.addClock(result.id);
+    }
   }
 }
 
@@ -522,6 +613,141 @@ class _DayToggle extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AddClockSheet extends StatefulWidget {
+  const _AddClockSheet();
+
+  @override
+  State<_AddClockSheet> createState() => _AddClockSheetState();
+}
+
+class _AddClockSheetState extends State<_AddClockSheet> {
+  String _query = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final existing = ClocksBlob.list;
+    final filtered = clocks.where((c) {
+      if (existing.contains(c.id)) return false;
+      final q = _query.toLowerCase().trim();
+      if (q.isEmpty) return true;
+      return c.name.toLowerCase().contains(q) ||
+          c.country.toLowerCase().contains(q) ||
+          c.timezone.toLowerCase().contains(q);
+    }).toList();
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F111A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Add World Clock',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search city or country...',
+              hintStyle: const TextStyle(color: Colors.grey),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              filled: true,
+              fillColor: const Color(0xFF141822),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF26324D)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+              ),
+            ),
+            onChanged: (val) {
+              setState(() {
+                _query = val;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: filtered.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No matching cities found',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final city = filtered[index];
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        title: Text(
+                          city.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${city.country} (${city.timezone})',
+                          style: const TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                        trailing: const Icon(
+                          Icons.add_circle_outline,
+                          color: Color(0xFF00E5FF),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).pop(city);
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

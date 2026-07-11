@@ -5,6 +5,7 @@ import 'module.dart';
 import 'blobs/settings.dart';
 import 'blobs/device.dart';
 import '../screen.dart';
+import '../platform/module.dart';
 import '../widgets/panel.dart';
 import '../widgets/modal.dart';
 import '../widgets/item.dart';
@@ -73,6 +74,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
         DeviceConnection.instance,
         DeviceBlob.instance,
         SettingsBlob.instance,
+        PlatformModule.instance.findingWatch,
       ]),
       builder: (context, _) {
         final MiButtons? panelActions;
@@ -87,8 +89,19 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
             ],
           );
         } else {
+          final finding = PlatformModule.instance.findingWatch.value;
           panelActions = MiButtons(
             children: [
+              MiButton(
+                label: finding ? 'Stop Finding' : 'Find Watch',
+                icon: Icons.watch,
+                pressed: () {
+                  if (connected) {
+                    PlatformModule.instance.findWatch(!finding);
+                  }
+                },
+                color: finding ? Colors.redAccent : (connected ? const Color(0xFF00E5FF) : Colors.grey),
+              ),
               MiButton(
                 label: 'Sync All Now',
                 icon: Icons.sync,
@@ -102,7 +115,6 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                     ),
                   );
                 },
-                color: const Color(0xFF00E5FF),
               ),
             ],
           );

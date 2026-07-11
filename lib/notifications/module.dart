@@ -514,10 +514,6 @@ class NotificationModule extends TabModule {
     }
   }
 
-  Future<Map<String, App>> getApps() async {
-    return PlatformModule.instance.getApps();
-  }
-
   Future<void> saveContactEnabled(bool enabled) async {
     ContactBlob.enabled = enabled;
     await _syncContact();

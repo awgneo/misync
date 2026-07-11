@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../module.dart';
+import '../device/connection.dart';
+import '../device/proto/xiaomi.pb.dart' as pb;
+import '../device/proto/constants.dart';
 import 'app.dart';
 
 class PlatformModule extends Module {
@@ -12,6 +16,19 @@ class PlatformModule extends Module {
 
   static const _channel = MethodChannel('com.misync.misync/channels');
   final List<Future<dynamic> Function(MethodCall call)> _handlers = [];
+  final ValueNotifier<bool> findingWatch = ValueNotifier<bool>(false);
+
+  Future<void> findWatch(bool start) async {
+    findingWatch.value = start;
+    if (DeviceConnection.connected.value) {
+      await DeviceConnection.send(
+        type: CmdType.system,
+        subtype: SystemSubtype.findWatch,
+        builder: (cmd) => cmd.system = (pb.System()..findDevice = start ? 0 : 1),
+      );
+    }
+    await invokeMethod('updateFindWatchState', start);
+  }
 
   void register(Future<dynamic> Function(MethodCall call) handler) {
     _handlers.add(handler);
@@ -23,6 +40,7 @@ class PlatformModule extends Module {
 
   @override
   Future<void> start() async {
+    register(_receiveTileCall);
     _channel.setMethodCallHandler((call) async {
       for (final handler in _handlers) {
         try {
@@ -30,6 +48,13 @@ class PlatformModule extends Module {
         } catch (_) {}
       }
     });
+  }
+
+  Future<dynamic> _receiveTileCall(MethodCall call) async {
+    if (call.method == 'findWatchFromTile') {
+      final enabled = call.arguments as bool? ?? false;
+      await findWatch(enabled);
+    }
   }
 
   Future<List<String>> checkPermissions(List<String> permissions) async {

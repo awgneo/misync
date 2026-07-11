@@ -11,6 +11,7 @@ import 'platform/module.dart';
 import 'clock/module.dart';
 import 'apps/module.dart';
 import 'calendar/module.dart';
+import 'weather/module.dart';
 import 'module.dart';
 
 final List<Module> modules = [
@@ -20,6 +21,7 @@ final List<Module> modules = [
   ClockModule.instance,
   AppsModule.instance,
   CalendarModule.instance,
+  WeatherModule.instance,
   NotificationModule.instance,
   FacesModule.instance,
   HealthModule.instance,

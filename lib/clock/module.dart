@@ -8,6 +8,7 @@ import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
 import '../platform/module.dart';
 import 'blobs/alarms.dart';
+import 'blobs/clocks.dart';
 import 'screen.dart';
 
 class ClockModule extends TabModule {
@@ -68,6 +69,7 @@ class ClockModule extends TabModule {
     if (!DeviceConnection.connected.value) return;
     await _syncTime();
     await _syncAlarms();
+    await _syncClocks();
   }
 
   Future<void> _syncTime() async {
@@ -205,6 +207,26 @@ class ClockModule extends TabModule {
     logger.info('alarms sync complete');
   }
 
+  Future<void> _syncClocks() async {
+    if (!DeviceConnection.connected.value) return;
+
+    logger.info('querying world clocks from watch');
+    final response = await DeviceConnection.send(
+      type: CmdType.schedule,
+      subtype: ScheduleSubtype.getWorldClocks,
+      expectResponse: true,
+    );
+
+    if (response == null || !response.schedule.hasWorldClocks()) {
+      logger.error('failed to pull world clocks from watch');
+      return;
+    }
+
+    final cityIds = response.schedule.worldClocks.worldClock;
+    await ClocksBlob.instance.update(List<String>.from(cityIds));
+    logger.info('world clocks sync complete: $cityIds');
+  }
+
   Future<void> createAlarm(
     int hour,
     int minute, {
@@ -326,6 +348,49 @@ class ClockModule extends TabModule {
 
       // Update the blob with the updated alarms
       await AlarmsBlob.instance.update(updatedAlarms);
+    }
+  }
+
+  Future<void> addClock(String cityId) async {
+    if (!DeviceConnection.connected.value) return;
+
+    final list = List<String>.from(ClocksBlob.list);
+    if (list.contains(cityId)) return;
+    list.add(cityId);
+
+    logger.info('syncing world clocks list to watch: $list');
+    final pClocks = pb.WorldClocks()..worldClock.addAll(list);
+
+    final result = await DeviceConnection.send(
+      type: CmdType.schedule,
+      subtype: ScheduleSubtype.setWorldClocks,
+      expectResponse: true,
+      builder: (cmd) => cmd.schedule = (pb.Schedule()
+        ..worldClocks = pClocks),
+    );
+
+    if (result != null) {
+      await ClocksBlob.instance.update(list);
+    }
+  }
+
+  Future<void> deleteClock(String cityId) async {
+    if (!DeviceConnection.connected.value) return;
+
+    logger.info('deleting world clock from watch: $cityId');
+    final pClocks = pb.WorldClocks()..worldClock.add(cityId);
+
+    final result = await DeviceConnection.send(
+      type: CmdType.schedule,
+      subtype: ScheduleSubtype.deleteWorldClock,
+      expectResponse: true,
+      builder: (cmd) => cmd.schedule = (pb.Schedule()
+        ..worldClocks = pClocks),
+    );
+
+    if (result != null) {
+      final list = List<String>.from(ClocksBlob.list)..remove(cityId);
+      await ClocksBlob.instance.update(list);
     }
   }
 }

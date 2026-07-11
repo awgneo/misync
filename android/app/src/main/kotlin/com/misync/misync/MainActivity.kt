@@ -21,6 +21,16 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import java.io.ByteArrayOutputStream
+import android.media.MediaPlayer
+import android.media.AudioManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.service.quicksettings.TileService
+import android.location.Geocoder
+import java.util.Locale
 
 class MainActivity : FlutterActivity() {
     private val TAG = "MainActivity"
@@ -28,6 +38,10 @@ class MainActivity : FlutterActivity() {
     private val REQUEST_ASSOCIATE_DEVICE = 1001
 
     private var methodChannel: MethodChannel? = null
+    private var mediaPlayer: MediaPlayer? = null
+    private var originalVolume: Int? = null
+    private var findWatchReceiver: BroadcastReceiver? = null
+    private var stopFindPhoneReceiver: BroadcastReceiver? = null
 
     private val notificationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -137,6 +151,8 @@ class MainActivity : FlutterActivity() {
                               "companion" -> if (!getDeviceAssociated()) missing.add("companion")
                               "dnd" -> if (!notificationManager.isNotificationPolicyAccessGranted) missing.add("dnd")
                               "calendar" -> if (checkSelfPermission(android.Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) missing.add("calendar")
+                              "location" -> if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                                               checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) missing.add("location")
                         }
                     }
                     result.success(missing)
@@ -164,6 +180,14 @@ class MainActivity : FlutterActivity() {
                             }
                             "calendar" -> if (checkSelfPermission(android.Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
                                 runtimePerms.add(android.Manifest.permission.READ_CALENDAR)
+                            }
+                            "location" -> {
+                                if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                    runtimePerms.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                                }
+                                if (checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                    runtimePerms.add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                                }
                             }
                         }
                     }
@@ -507,6 +531,23 @@ class MainActivity : FlutterActivity() {
                         }
                     }.start()
                 }
+                "startFindPhone" -> {
+                    startFindPhone()
+                    result.success(true)
+                }
+                "stopFindPhone" -> {
+                    stopFindPhone()
+                    result.success(true)
+                }
+                "updateFindWatchState" -> {
+                    val enabled = call.arguments as? Boolean ?: false
+                    updateFindWatchState(enabled)
+                    result.success(true)
+                }
+                "getLocation" -> {
+                    val loc = getLocation()
+                    result.success(loc)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -562,6 +603,42 @@ class MainActivity : FlutterActivity() {
         } else {
             registerReceiver(dndReceiver, dndFilter)
         }
+
+        // Register local broadcast receiver to stop Find Phone
+        stopFindPhoneReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == "com.misync.misync.STOP_FIND_PHONE") {
+                    stopFindPhone()
+                    runOnUiThread {
+                        methodChannel?.invokeMethod("stopFindPhone", null)
+                    }
+                }
+            }
+        }
+        val stopFilter = IntentFilter("com.misync.misync.STOP_FIND_PHONE")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(stopFindPhoneReceiver, stopFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(stopFindPhoneReceiver, stopFilter)
+        }
+
+        // Register local broadcast receiver for Find Watch requests from TileService
+        findWatchReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == "com.misync.misync.FIND_WATCH") {
+                    val enabled = intent.getBooleanExtra("enabled", false)
+                    runOnUiThread {
+                        methodChannel?.invokeMethod("findWatchFromTile", enabled)
+                    }
+                }
+            }
+        }
+        val watchFilter = IntentFilter("com.misync.misync.FIND_WATCH")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(findWatchReceiver, watchFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(findWatchReceiver, watchFilter)
+        }
     }
 
     override fun onDestroy() {
@@ -574,6 +651,12 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {}
         try {
             unregisterReceiver(dndReceiver)
+        } catch (e: Exception) {}
+        try {
+            unregisterReceiver(stopFindPhoneReceiver)
+        } catch (e: Exception) {}
+        try {
+            unregisterReceiver(findWatchReceiver)
         } catch (e: Exception) {}
     }
 
@@ -702,6 +785,146 @@ class MainActivity : FlutterActivity() {
             Log.e(TAG, "Failed to query reminder minutes for event $eventId", e)
         }
         return minutes
+    }
+
+    private fun startFindPhone() {
+        Log.d(TAG, "startFindPhone: playing loud alert")
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (originalVolume == null) {
+            originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+        }
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+
+        if (mediaPlayer == null) {
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(applicationContext, alarmUri)
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                isLooping = true
+                prepare()
+                start()
+            }
+        }
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "find_phone_channel"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Find Phone Alert",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Plays loud alert when finding phone from watch"
+                setBypassDnd(true)
+                setSound(null, null)
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val stopIntent = Intent("com.misync.misync.STOP_FIND_PHONE").apply {
+            setPackage(packageName)
+        }
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            this, 0, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            android.app.Notification.Builder(this, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            android.app.Notification.Builder(this)
+        }
+        val notification = builder
+            .setSmallIcon(android.R.drawable.ic_menu_search)
+            .setContentTitle("Find Phone Alert")
+            .setContentText("Your watch is finding this phone")
+            .setOngoing(true)
+            .setCategory(android.app.Notification.CATEGORY_ALARM)
+            .addAction(android.app.Notification.Action.Builder(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Found It",
+                stopPendingIntent
+            ).build())
+            .build()
+
+        notificationManager.notify(1008, notification)
+    }
+
+    private fun stopFindPhone() {
+        Log.d(TAG, "stopFindPhone: stopping alarm player")
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping media player", e)
+        }
+        mediaPlayer = null
+
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        originalVolume?.let {
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, it, 0)
+            originalVolume = null
+        }
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(1008)
+    }
+
+    private fun updateFindWatchState(enabled: Boolean) {
+        val prefs = getSharedPreferences("misync_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("finding_watch", enabled).apply()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            TileService.requestListeningState(
+                this,
+                android.content.ComponentName(this, FindWatchTileService::class.java)
+            )
+        }
+    }
+
+    private fun getLocation(): Map<String, Any>? {
+        Log.d(TAG, "getLocation: querying LocationManager")
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        val providers = locationManager.getProviders(true)
+        var bestLocation: android.location.Location? = null
+        for (provider in providers) {
+            try {
+                val loc = locationManager.getLastKnownLocation(provider) ?: continue
+                if (bestLocation == null || loc.accuracy < bestLocation.accuracy) {
+                    bestLocation = loc
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Location permission not granted for provider $provider", e)
+            }
+        }
+        if (bestLocation != null) {
+            var cityName = "Current Location"
+            try {
+                val geocoder = Geocoder(this, Locale.getDefault())
+                val addresses = geocoder.getFromLocation(bestLocation.latitude, bestLocation.longitude, 1)
+                if (!addresses.isNullOrEmpty()) {
+                    val address = addresses[0]
+                    cityName = address.locality ?: address.subAdminArea ?: address.adminArea ?: "Current Location"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Geocoder failed to get city name", e)
+            }
+            Log.d(TAG, "getLocation: found lat=${bestLocation.latitude}, lon=${bestLocation.longitude}, city=$cityName")
+            return mapOf(
+                "latitude" to bestLocation.latitude,
+                "longitude" to bestLocation.longitude,
+                "cityName" to cityName
+            )
+        }
+        Log.w(TAG, "getLocation: no last known location found")
+        return null
     }
 
     private fun drawableToByteArray(drawable: Drawable): ByteArray? {
