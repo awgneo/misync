@@ -220,6 +220,20 @@ class Protocol {
     }
   }
 
+  Uint8List decryptDataPayload(Uint8List dataPayload) {
+    if (dataPayload.isEmpty) return Uint8List(0);
+    final opCode = dataPayload[0];
+    final ciphertext = dataPayload.sublist(1);
+    if (opCode == 2) {
+      if (sessionKeys == null) {
+        throw StateError('Cannot decrypt payload: sessionKeys is null');
+      }
+      return Crypto.decrypt(ciphertext, sessionKeys!.decryptionKey);
+    } else {
+      return ciphertext;
+    }
+  }
+
   Uint8List? handleHandshakeCommand(Command cmd) {
     if (state == ProtocolState.handshakeStep1) {
       if (cmd.type == 1 && cmd.auth.hasWatchNonce()) {

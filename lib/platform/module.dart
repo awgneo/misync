@@ -15,20 +15,9 @@ class PlatformModule extends Module {
   PlatformModule._();
 
   static const _channel = MethodChannel('com.misync.misync/channels');
+
   final List<Future<dynamic> Function(MethodCall call)> _handlers = [];
   final ValueNotifier<bool> findingWatch = ValueNotifier<bool>(false);
-
-  Future<void> findWatch(bool start) async {
-    findingWatch.value = start;
-    if (DeviceConnection.connected.value) {
-      await DeviceConnection.send(
-        type: CmdType.system,
-        subtype: SystemSubtype.findWatch,
-        builder: (cmd) => cmd.system = (pb.System()..findDevice = start ? 0 : 1),
-      );
-    }
-    await invokeMethod('updateFindWatchState', start);
-  }
 
   void register(Future<dynamic> Function(MethodCall call) handler) {
     _handlers.add(handler);
@@ -57,26 +46,31 @@ class PlatformModule extends Module {
     }
   }
 
-  Future<List<String>> checkPermissions(List<String> permissions) async {
+  Future<bool> checkModulePermissions(String moduleName) async {
     try {
-      final List<dynamic>? missing = await invokeMethod<List<dynamic>>(
-        'checkPermissions',
-        {'permissions': permissions},
-      );
-      return missing?.cast<String>() ?? [];
+      return await invokeMethod<bool>('$moduleName.checkPermissions') ?? true;
     } catch (_) {
-      return permissions;
+      return true;
     }
   }
 
-  Future<void> requestPermissions(List<String> permissions) async {
+  Future<void> requestModulePermissions(String moduleName) async {
     try {
-      await invokeMethod('requestPermissions', {'permissions': permissions});
+      await invokeMethod('$moduleName.requestPermissions');
     } catch (_) {}
   }
 
+  @override
+  Future<void> sync() async {}
+
+  static Future<Map<String, App>> GetApps() async {
+    return const {};
+  }
+
   Future<Map<String, App>> getApps() async {
-    final List<dynamic>? appsList = await invokeMethod<List<dynamic>>('getApps');
+    final List<dynamic>? appsList = await invokeMethod<List<dynamic>>(
+      'notifications.getApps',
+    );
     if (appsList != null) {
       final Map<String, App> map = {};
       for (final item in appsList) {
@@ -89,6 +83,16 @@ class PlatformModule extends Module {
     return const {};
   }
 
-  @override
-  Future<void> sync() async {}
+  Future<void> findWatch(bool start) async {
+    findingWatch.value = start;
+    if (DeviceConnection.instance.connected.value) {
+      await DeviceConnection.instance.send(
+        type: CmdType.system,
+        subtype: SystemSubtype.findWatch,
+        builder: (cmd) =>
+            cmd.system = (pb.System()..findDevice = start ? 0 : 1),
+      );
+    }
+    await invokeMethod('device.updateFindWatchState', start);
+  }
 }

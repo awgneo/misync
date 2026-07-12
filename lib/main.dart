@@ -83,7 +83,8 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
   Widget build(BuildContext context) {
     final List<Widget> tabs = _tabModules.map((m) => m.screen).toList();
     final activeModule = _tabModules[_currentIndex];
-    final activeModuleName = activeModule.name[0].toUpperCase() + activeModule.name.substring(1);
+    final activeModuleName =
+        activeModule.name[0].toUpperCase() + activeModule.name.substring(1);
 
     return Scaffold(
       appBar: AppBar(
@@ -104,10 +105,7 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
                 color: Color(0xFF00E5FF),
               ),
             ),
-            const Text(
-              ' • ',
-              style: TextStyle(color: Colors.grey),
-            ),
+            const Text(' • ', style: TextStyle(color: Colors.grey)),
             Text(
               activeModuleName,
               style: const TextStyle(
@@ -122,7 +120,7 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
         elevation: 0,
         actions: [
           ValueListenableBuilder<bool>(
-            valueListenable: DeviceConnection.connected,
+            valueListenable: DeviceConnection.instance.connected,
             builder: (context, connected, _) {
               return IconButton(
                 icon: Icon(
@@ -157,7 +155,9 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
                   capitalized,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.grey,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 selected: isSelected,
@@ -176,5 +176,3 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
     );
   }
 }
-
-

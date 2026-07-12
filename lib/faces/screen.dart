@@ -53,7 +53,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
   Future<void> _startUpload() async {
     if (_selectedFaceBytes == null) return;
 
-    if (!DeviceConnection.connected.value) {
+    if (!DeviceConnection.instance.connected.value) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -78,7 +78,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
     final md5Sum = md5.convert(bytes).bytes;
 
     // 2. Send WatchfaceInstallStart protobuf command (Type 4 = Watchface, Subtype 4 = CMD_WATCHFACE_INSTALL)
-    if (DeviceConnection.connected.value) {
+    if (DeviceConnection.instance.connected.value) {
       final installStart = WatchfaceInstallStart()
         ..id = 'custom_face'
         ..size = size;
@@ -89,7 +89,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
             4 // Install
         ..watchface = (Watchface()..watchfaceInstallStart = installStart);
 
-      await DeviceConnection.send(cmd: cmd);
+      await DeviceConnection.instance.send(cmd: cmd);
       module.logger.info('sent WatchfaceInstallStart command');
     }
 
@@ -131,7 +131,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
     }
 
     // 5. Send WatchfaceInstallFinish
-    if (DeviceConnection.connected.value) {
+    if (DeviceConnection.instance.connected.value) {
       final installFinish = WatchfaceInstallFinish()..id = 'custom_face';
 
       final cmd = Command()
@@ -140,7 +140,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
             7 // Finish
         ..watchface = (Watchface()..watchfaceInstallFinish = installFinish);
 
-      await DeviceConnection.send(cmd: cmd);
+      await DeviceConnection.instance.send(cmd: cmd);
       module.logger.info('sent WatchfaceInstallFinish command');
     }
 

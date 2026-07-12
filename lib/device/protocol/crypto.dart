@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
@@ -67,13 +68,11 @@ class Crypto {
     );
   }
 
-  // AES-CTR Encrypt (identical to Decrypt in CTR mode)
-  // We initialize the CTR counter with the KEY itself, matching the python extractor
+  // AES-CTR Encrypt (Standard Command Channel 1)
+  // We initialize the CTR counter with the KEY itself.
   static Uint8List encrypt(Uint8List plaintext, Uint8List key) {
     final keyObj = enc.Key(key);
-    final ivObj = enc.IV(
-      key,
-    ); // Using key itself as the IV (counter initial state)
+    final ivObj = enc.IV(key);
     final encrypter = enc.Encrypter(
       enc.AES(keyObj, mode: enc.AESMode.ctr, padding: null),
     );
@@ -82,7 +81,8 @@ class Crypto {
     );
   }
 
-  // AES-CTR Decrypt
+  // AES-CTR Decrypt (Standard Command Channel 1)
+  // We initialize the CTR counter with the KEY itself.
   static Uint8List decrypt(Uint8List ciphertext, Uint8List key) {
     final keyObj = enc.Key(key);
     final ivObj = enc.IV(key);
@@ -91,6 +91,25 @@ class Crypto {
     );
     return Uint8List.fromList(
       encrypter.decryptBytes(enc.Encrypted(ciphertext), iv: ivObj),
+    );
+  }
+
+  // AES-CTR Decrypt for Data payloads (Channel 2)
+  // Extracts the first 16 bytes as the IV, and decrypts the remaining payload.
+  static Uint8List decryptData(Uint8List ciphertext, Uint8List key) {
+    if (ciphertext.length < 16) {
+      throw ArgumentError('Ciphertext is too short (must be at least 16 bytes for IV)');
+    }
+    final iv = ciphertext.sublist(0, 16);
+    final encryptedData = ciphertext.sublist(16);
+
+    final keyObj = enc.Key(key);
+    final ivObj = enc.IV(iv);
+    final encrypter = enc.Encrypter(
+      enc.AES(keyObj, mode: enc.AESMode.ctr, padding: null),
+    );
+    return Uint8List.fromList(
+      encrypter.decryptBytes(enc.Encrypted(encryptedData), iv: ivObj),
     );
   }
 

@@ -1,4 +1,4 @@
-package com.misync.misync
+package com.misync.misync.device
 
 import android.content.Context
 import android.content.Intent
@@ -6,8 +6,8 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
 
-class FindWatchTileService : TileService() {
-    private val TAG = "FindWatchTileService"
+class FindWatchService : TileService() {
+    private val TAG = "FindWatchService"
 
     override fun onStartListening() {
         super.onStartListening()
@@ -21,7 +21,7 @@ class FindWatchTileService : TileService() {
         val newFinding = !currentFinding
 
         Log.d(TAG, "Tile clicked: toggling finding state to $newFinding")
-        
+
         // Save state immediately
         prefs.edit().putBoolean("finding_watch", newFinding).apply()
 

@@ -23,7 +23,6 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
   @override
   ClockModule get module => ClockModule.instance;
 
-
   Future<void> _createAlarm() async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -80,14 +79,8 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
   Widget buildScreen(BuildContext context, bool connected) {
     return MiTabs(
       tabs: [
-        MiTab(
-          label: 'Alarms',
-          child: _buildAlarmsTab(connected),
-        ),
-        MiTab(
-          label: 'Clocks',
-          child: _buildClocksTab(connected),
-        ),
+        MiTab(label: 'Alarms', child: _buildAlarmsTab(connected)),
+        MiTab(label: 'Clocks', child: _buildClocksTab(connected)),
       ],
     );
   }
@@ -116,7 +109,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ValueListenableBuilder<Alarm?>(
-                valueListenable: ClockModule.phoneNextAlarm,
+                valueListenable: module.phoneNextAlarm,
                 builder: (context, phoneNextAlarm, _) {
                   final String phoneNextAlarmString = phoneNextAlarm != null
                       ? phoneNextAlarm.timeString
@@ -131,9 +124,10 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                         enabled: phoneNextAlarm != null,
                         toggled: null, // Read-only mirror of phone state
                         clicked: () {
-                          PlatformModule.instance.invokeMethod('launchAction', {
-                            'intent': 'android.intent.action.SHOW_ALARMS',
-                          });
+                          PlatformModule.instance.invokeMethod(
+                            'device.launchAction',
+                            {'intent': 'android.intent.action.SHOW_ALARMS'},
+                          );
                         },
                       ),
                     ],
@@ -220,7 +214,12 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                   children: list.map((id) {
                     final city = clocks.firstWhere(
                       (c) => c.id == id,
-                      orElse: () => const Clock(id: '', timezone: '', name: '', country: ''),
+                      orElse: () => const Clock(
+                        id: '',
+                        timezone: '',
+                        name: '',
+                        country: '',
+                      ),
                     );
                     if (city.id.isEmpty) return const SizedBox.shrink();
 
@@ -734,7 +733,10 @@ class _AddClockSheetState extends State<_AddClockSheet> {
                         ),
                         subtitle: Text(
                           '${city.country} (${city.timezone})',
-                          style: const TextStyle(color: Colors.grey, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
                         ),
                         trailing: const Icon(
                           Icons.add_circle_outline,

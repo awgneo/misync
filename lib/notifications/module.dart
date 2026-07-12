@@ -10,7 +10,6 @@ import '../device/proto/constants.dart';
 import 'dart:async';
 import '../apps/module.dart';
 import '../apps/blobs/apps.dart' as app_registry;
-import '../platform/app.dart';
 import 'blobs/contact.dart';
 import 'blobs/apps.dart';
 import 'blobs/replies.dart';
@@ -23,14 +22,6 @@ class NotificationModule extends TabModule {
 
   @override
   IconData get icon => Icons.notifications;
-
-  @override
-  List<String> get permissions => const [
-    'notification',
-    'sms',
-    'contacts',
-    'dnd',
-  ];
 
   DateTime _lastMessageTime = DateTime.fromMillisecondsSinceEpoch(0);
   String? _lastMessageKey;
@@ -49,7 +40,7 @@ class NotificationModule extends TabModule {
   Future<void> start() async {
     DeviceModule.instance.register(this);
     PlatformModule.instance.register(_receivePhoneMethod);
-    DeviceConnection.listen(_receiveWatchCommand);
+    DeviceConnection.instance.listen(_receiveWatchCommand);
   }
 
   Future<dynamic> _receivePhoneMethod(MethodCall call) async {
@@ -79,7 +70,7 @@ class NotificationModule extends TabModule {
     }
 
     final String? defaultSmsPkg = await PlatformModule.instance
-        .invokeMethod<String>('getDefaultSmsPackage');
+        .invokeMethod<String>('device.getDefaultSmsPackage');
     final bool sms = defaultSmsPkg != null && package == defaultSmsPkg;
     final bool call = category == 'call';
 
@@ -129,7 +120,7 @@ class NotificationModule extends TabModule {
     });
 
     // Handled below based on category
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.notification,
       subtype: NotificationSubtype.push,
       builder: (cmd) =>
@@ -175,7 +166,7 @@ class NotificationModule extends TabModule {
       ..package = package
       ..key = key;
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.notification,
       subtype: NotificationSubtype.dismiss,
       builder: (c) =>
@@ -195,7 +186,7 @@ class NotificationModule extends TabModule {
 
     logger.info('sending DND update to watch', {'enabled': dnd});
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.system,
       subtype: SystemSubtype.dnd,
       builder: (cmd) =>
@@ -232,7 +223,7 @@ class NotificationModule extends TabModule {
       'message': reply.message,
     });
 
-    PlatformModule.instance.invokeMethod('replyToNotification', {
+    PlatformModule.instance.invokeMethod('notifications.replyToNotification', {
       'id': reply.unknown1,
       'message': reply.message,
     });
@@ -294,10 +285,10 @@ class NotificationModule extends TabModule {
         'launch': launch,
       });
 
-      PlatformModule.instance.invokeMethod('dismissNotification', {
-        'key': key,
-        'id': id,
-      });
+      PlatformModule.instance.invokeMethod(
+        'notifications.dismissNotification',
+        {'key': key, 'id': id},
+      );
 
       if (launch) {
         AppsModule.instance.launchApp(messagesPackage);
@@ -314,10 +305,10 @@ class NotificationModule extends TabModule {
       });
 
       for (var notifId in dismiss.notificationId) {
-        PlatformModule.instance.invokeMethod('dismissNotification', {
-          'key': notifId.key,
-          'id': notifId.id,
-        });
+        PlatformModule.instance.invokeMethod(
+          'notifications.dismissNotification',
+          {'key': notifId.key, 'id': notifId.id},
+        );
       }
 
       return;
@@ -333,10 +324,10 @@ class NotificationModule extends TabModule {
       });
 
       if (dismiss.notificationId.isNotEmpty) {
-        PlatformModule.instance.invokeMethod('dismissNotification', {
-          'key': key,
-          'id': id,
-        });
+        PlatformModule.instance.invokeMethod(
+          'notifications.dismissNotification',
+          {'key': key, 'id': id},
+        );
       }
 
       return;
@@ -357,10 +348,10 @@ class NotificationModule extends TabModule {
           {'package': package, 'key': key},
         );
 
-        PlatformModule.instance.invokeMethod('dismissNotification', {
-          'key': key,
-          'id': id,
-        });
+        PlatformModule.instance.invokeMethod(
+          'notifications.dismissNotification',
+          {'key': key, 'id': id},
+        );
       }
     }
   }
@@ -413,7 +404,7 @@ class NotificationModule extends TabModule {
 
     logger.info('sending quick replies to watch', repliesPayload);
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.sendPhoneMessage,
       builder: (replyCmd) =>
@@ -432,7 +423,7 @@ class NotificationModule extends TabModule {
         'message': text,
       });
 
-      await PlatformModule.instance.invokeMethod<bool>('sendSms', {
+      await PlatformModule.instance.invokeMethod<bool>('device.sendSms', {
         'phoneNumber': phoneNumber,
         'message': text,
       });
@@ -442,14 +433,15 @@ class NotificationModule extends TabModule {
         'message': text,
       });
 
-      await PlatformModule.instance.invokeMethod('replyToNotification', {
-        'key': _lastMessageKey,
-        'message': text,
-      });
+      await PlatformModule.instance.invokeMethod(
+        'notifications.replyToNotification',
+        {'key': _lastMessageKey, 'message': text},
+      );
 
-      await PlatformModule.instance.invokeMethod('dismissNotification', {
-        'key': _lastMessageKey,
-      });
+      await PlatformModule.instance.invokeMethod(
+        'notifications.dismissNotification',
+        {'key': _lastMessageKey},
+      );
     }
   }
 
@@ -459,9 +451,10 @@ class NotificationModule extends TabModule {
 
     if (key != null && key.isNotEmpty) {
       logger.info('received dismiss from watch Messages app', {'key': key});
-      await PlatformModule.instance.invokeMethod('dismissNotification', {
-        'key': key,
-      });
+      await PlatformModule.instance.invokeMethod(
+        'notifications.dismissNotification',
+        {'key': key},
+      );
     }
   }
 
@@ -483,13 +476,15 @@ class NotificationModule extends TabModule {
 
     final currentPhoneDnd = await _getPhoneDnd();
     if (currentPhoneDnd != dnd) {
-      await PlatformModule.instance.invokeMethod('setDnd', {'enabled': dnd});
+      await PlatformModule.instance.invokeMethod('device.setDnd', {
+        'enabled': dnd,
+      });
     }
   }
 
   @override
   Future<void> sync() async {
-    if (!DeviceConnection.connected.value) return;
+    if (!DeviceConnection.instance.connected.value) return;
     await _syncDnd();
     await _syncContact();
   }
@@ -502,7 +497,9 @@ class NotificationModule extends TabModule {
   }
 
   Future<bool> _getPhoneDnd() async {
-    final dnd = await PlatformModule.instance.invokeMethod<bool>('getDnd');
+    final dnd = await PlatformModule.instance.invokeMethod<bool>(
+      'device.getDnd',
+    );
     return dnd ?? false;
   }
 

@@ -8,24 +8,20 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
     with WidgetsBindingObserver {
   Module get module;
 
-  List<String> _missingPermissions = [];
-  List<String> get missingPermissions => _missingPermissions;
+  bool _hasPermissions = true;
+  bool get hasPermissions => _hasPermissions;
 
   @override
   void initState() {
     super.initState();
-    if (module.permissions.isNotEmpty) {
-      WidgetsBinding.instance.addObserver(this);
-      checkPermissions();
-    }
+    WidgetsBinding.instance.addObserver(this);
+    checkPermissions();
     refresh();
   }
 
   @override
   void dispose() {
-    if (module.permissions.isNotEmpty) {
-      WidgetsBinding.instance.removeObserver(this);
-    }
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -37,27 +33,20 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   }
 
   Future<void> checkPermissions() async {
-    if (module.permissions.isEmpty) return;
-    final missing = await PlatformModule.instance.checkPermissions(
-      module.permissions,
+    final hasPerms = await PlatformModule.instance.checkModulePermissions(
+      module.name,
     );
     if (mounted) {
       setState(() {
-        _missingPermissions = missing;
+        _hasPermissions = hasPerms;
       });
     }
   }
 
-  Widget _buildBannerWidget(List<String> missing) {
-    final names = missing
-        .map((p) {
-          return p[0].toUpperCase() + p.substring(1);
-        })
-        .join(', ');
-
+  Widget _buildBannerWidget() {
     return GestureDetector(
       onTap: () async {
-        await PlatformModule.instance.requestPermissions(missing);
+        await PlatformModule.instance.requestModulePermissions(module.name);
         await checkPermissions();
       },
       child: Container(
@@ -68,14 +57,14 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.3)),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
-            const SizedBox(width: 12),
+            Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Required permissions ($names) are disabled. Tap to enable.',
-                style: const TextStyle(
+                'Required permissions are disabled. Tap to enable.',
+                style: TextStyle(
                   color: Colors.orangeAccent,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -89,7 +78,7 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   }
 
   Future<void> refresh() async {
-    if (!DeviceConnection.connected.value) return;
+    if (!DeviceConnection.instance.connected.value) return;
 
     try {
       await module.sync();
@@ -105,21 +94,18 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: DeviceConnection.connected,
+      valueListenable: DeviceConnection.instance.connected,
       builder: (context, connected, _) {
         final child = buildScreen(context, connected);
-        final missing = module.permissions
-            .where((p) => _missingPermissions.contains(p))
-            .toList();
 
         final Widget contentWithBanner;
-        if (missing.isEmpty) {
+        if (_hasPermissions) {
           contentWithBanner = child;
         } else {
           contentWithBanner = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildBannerWidget(missing),
+              _buildBannerWidget(),
               Expanded(child: child),
             ],
           );

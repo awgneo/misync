@@ -23,7 +23,7 @@ class ActionsModule extends TabModule {
 
   @override
   Future<void> start() async {
-    DeviceConnection.listen(_receiveWatchCommand);
+    DeviceConnection.instance.listen(_receiveWatchCommand);
   }
 
   @override
@@ -79,7 +79,7 @@ class ActionsModule extends TabModule {
     }
 
     final bool? success = await PlatformModule.instance.invokeMethod<bool>(
-      'launchAction',
+      'device.launchAction',
       {
         'intent': intent,
         'package': package,

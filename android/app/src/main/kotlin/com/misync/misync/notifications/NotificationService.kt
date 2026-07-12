@@ -1,4 +1,4 @@
-package com.misync.misync
+package com.misync.misync.notifications
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification

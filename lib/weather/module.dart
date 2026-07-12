@@ -20,9 +20,6 @@ class WeatherModule extends TabModule {
   @override
   Widget get screen => const WeatherScreen();
 
-  @override
-  List<String> get permissions => const ['location'];
-
   static final WeatherModule _instance = WeatherModule._();
   static WeatherModule get instance => _instance;
   WeatherModule._();
@@ -32,7 +29,7 @@ class WeatherModule extends TabModule {
   @override
   Future<void> start() async {
     DeviceModule.instance.register(this);
-    DeviceConnection.listen(_receiveWatchCommand);
+    DeviceConnection.instance.listen(_receiveWatchCommand);
   }
 
   void _receiveWatchCommand(pb.Command cmd) {
@@ -63,7 +60,7 @@ class WeatherModule extends TabModule {
   }
 
   Future<void> _syncWeather({String? code, String? name}) async {
-    if (!DeviceConnection.connected.value) return;
+    if (!DeviceConnection.instance.connected.value) return;
 
     if (!WeatherBlob.enabled) {
       logger.info('skip weather sync (disabled in settings)');
@@ -77,7 +74,9 @@ class WeatherModule extends TabModule {
     _syncingWeather = true;
 
     try {
-      final loc = await PlatformModule.instance.invokeMethod('getLocation');
+      final loc = await PlatformModule.instance.invokeMethod(
+        'device.getLocation',
+      );
       if (loc == null) {
         logger.error('failed to fetch weather: coordinates unavailable');
         return;
@@ -191,7 +190,7 @@ class WeatherModule extends TabModule {
 
     // Set weather preferences
     final prefs = pb.WeatherPrefs()..temperatureScale = useFahrenheit ? 2 : 1;
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.setWeatherPrefs,
       builder: (cmd) => cmd.weather = (pb.Weather()..prefs = prefs),
@@ -202,7 +201,7 @@ class WeatherModule extends TabModule {
       ..code = code
       ..name = name;
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.addLocation,
       builder: (cmd) => cmd.weather = (pb.Weather()..location = location),
@@ -210,7 +209,7 @@ class WeatherModule extends TabModule {
 
     // Set Locations Order
     final locations = pb.WeatherLocations()..location.add(location);
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.setLocations,
       builder: (cmd) => cmd.weather = (pb.Weather()..locations = locations),
@@ -239,7 +238,7 @@ class WeatherModule extends TabModule {
       ..warning = pb.WeatherWarnings()
       ..pressure = pressure * 100.0;
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.setCurrentWeather,
       builder: (cmd) => cmd.weather = (pb.Weather()..current = pbCurrent),
@@ -282,7 +281,7 @@ class WeatherModule extends TabModule {
       ..metadata = meta
       ..entries = entries;
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.updateDailyForecast,
       builder: (cmd) => cmd.weather = (pb.Weather()..forecast = pbForecast),
@@ -318,7 +317,7 @@ class WeatherModule extends TabModule {
       ..metadata = meta
       ..entries = hEntries;
 
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.updateHourlyForecast,
       builder: (cmd) =>

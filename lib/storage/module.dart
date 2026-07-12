@@ -44,9 +44,6 @@ class StorageModule extends TabModule with ChangeNotifier {
   @override
   Future<void> sync() async {}
 
-  @override
-  List<String> get permissions => const [];
-
   List<String> get modules {
     final modules = <String>{};
     for (final key in _cache.keys) {

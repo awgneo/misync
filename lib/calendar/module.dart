@@ -19,9 +19,6 @@ class CalendarModule extends TabModule {
   @override
   Widget get screen => const CalendarScreen();
 
-  @override
-  List<String> get permissions => const ['calendar'];
-
   static final CalendarModule _instance = CalendarModule._();
   static CalendarModule get instance => _instance;
   CalendarModule._();
@@ -37,7 +34,7 @@ class CalendarModule extends TabModule {
   }
 
   Future<void> _syncCalendar() async {
-    if (!DeviceConnection.connected.value) {
+    if (!DeviceConnection.instance.connected.value) {
       logger.info('skip sync (not connected)');
       return;
     }
@@ -45,7 +42,7 @@ class CalendarModule extends TabModule {
     final enabledIds = CalendarsBlob.enabledIds;
     if (enabledIds.isEmpty) {
       logger.info('clearing watch calendar events');
-      await DeviceConnection.send(
+      await DeviceConnection.instance.send(
         type: CmdType.calendar,
         subtype: CalendarSubtype.setCalendar,
         builder: (cmd) =>
@@ -57,7 +54,9 @@ class CalendarModule extends TabModule {
 
     logger.info('syncing ${enabledIds.length} calendars');
     final List<dynamic>? phoneEvents = await PlatformModule.instance
-        .invokeMethod('getUpcomingEvents', {'calendarIds': enabledIds});
+        .invokeMethod('calendar.getUpcomingEvents', {
+          'calendarIds': enabledIds,
+        });
 
     final List<pb.CalendarEvent> events = [];
     if (phoneEvents != null) {
@@ -80,7 +79,7 @@ class CalendarModule extends TabModule {
     }
 
     logger.info('syncing ${events.length} events');
-    await DeviceConnection.send(
+    await DeviceConnection.instance.send(
       type: CmdType.calendar,
       subtype: CalendarSubtype.setCalendar,
       builder: (cmd) =>
@@ -93,7 +92,7 @@ class CalendarModule extends TabModule {
 
   Future<List<PhoneCalendar>> getCalendars() async {
     final List<dynamic>? raw = await PlatformModule.instance.invokeMethod(
-      'getCalendars',
+      'calendar.getCalendars',
     );
     if (raw == null) return [];
     return raw

@@ -1,4 +1,4 @@
-package com.misync.misync
+package com.misync.misync.device
 
 import android.companion.CompanionDeviceService
 import android.companion.AssociationInfo

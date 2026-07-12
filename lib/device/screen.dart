@@ -100,7 +100,9 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                     PlatformModule.instance.findWatch(!finding);
                   }
                 },
-                color: finding ? Colors.redAccent : (connected ? const Color(0xFF00E5FF) : Colors.grey),
+                color: finding
+                    ? Colors.redAccent
+                    : (connected ? const Color(0xFF00E5FF) : Colors.grey),
               ),
               MiButton(
                 label: 'Sync All Now',
@@ -192,9 +194,9 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
         : 'Unknown';
 
     String statusText = 'PAIRED';
-    if (DeviceConnection.connected.value) {
+    if (DeviceConnection.instance.connected.value) {
       statusText = 'CONNECTED';
-    } else if (DeviceConnection.connecting) {
+    } else if (DeviceConnection.instance.connecting) {
       statusText = 'CONNECTING...';
     }
 
@@ -206,11 +208,12 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
             MiItem(
               title: 'Connection Status',
               subtitle: statusText,
-              primaryIcon: DeviceConnection.connected.value
+              primaryIcon: DeviceConnection.instance.connected.value
                   ? Icons.link
                   : Icons.link_off,
             ),
-            if (DeviceConnection.connected.value && infoState.batteryLevel > 0)
+            if (DeviceConnection.instance.connected.value &&
+                infoState.batteryLevel > 0)
               MiItem(
                 title: 'Battery Level',
                 subtitle:

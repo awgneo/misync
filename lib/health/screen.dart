@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import '../device/connection.dart';
-import '../device/proto/xiaomi.pb.dart';
-import '../screen.dart';
 import 'module.dart';
+import 'blobs/health.dart';
+import '../screen.dart';
 import '../widgets/panel.dart';
-import '../widgets/item.dart';
 import '../widgets/items.dart';
-import '../widgets/button.dart';
+import '../widgets/item.dart';
 
 class HealthScreen extends StatefulWidget {
   const HealthScreen({super.key});
@@ -16,110 +14,429 @@ class HealthScreen extends StatefulWidget {
 }
 
 class _HealthScreenState extends ScreenState<HealthScreen> {
-  bool _isSyncing = false;
-  String _syncStatus = 'Last synced: 3 hours ago';
-
   @override
-  Module get module => HealthModule.instance;
+  HealthModule get module => HealthModule.instance;
 
-  Future<void> _triggerSync() async {
-    setState(() {
-      _isSyncing = true;
-      _syncStatus = 'Syncing health logs from band...';
-    });
+  Future<void> _selectBirthday(
+    BuildContext context,
+    Health currentSettings,
+  ) async {
+    final birthYear =
+        int.tryParse(currentSettings.birthday.substring(0, 4)) ?? 1995;
+    final birthMonth =
+        int.tryParse(currentSettings.birthday.substring(4, 6)) ?? 1;
+    final birthDay =
+        int.tryParse(currentSettings.birthday.substring(6, 8)) ?? 1;
 
-    if (!DeviceConnection.connected.value) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Watch not connected. Connect to the watch in the Pairing tab to sync health data.',
+    final initialDate = DateTime(birthYear, birthMonth, birthDay);
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF00E5FF),
+              onPrimary: Colors.black,
+              surface: Color(0xFF141822),
+              onSurface: Colors.white,
+            ),
           ),
-          backgroundColor: Colors.orangeAccent,
-        ),
-      );
-      setState(() {
-        _isSyncing = false;
-        _syncStatus = 'Last synced: 3 hours ago (Sync failed)';
-      });
-      return;
-    }
-
-    module.logger.info('requesting today activity logs');
-
-    if (DeviceConnection.connected.value) {
-      final syncReq = ActivitySyncRequestToday()..unknown1 = 1;
-      final cmd = Command()
-        ..type =
-            10 // COMMAND_TYPE = 10 (Health)
-        ..subtype =
-            5 // CMD_ACTIVITY_SYNC_TODAY
-        ..health = (Health()..activitySyncRequestToday = syncReq);
-
-      await DeviceConnection.send(cmd: cmd);
-      module.logger.info('sent ActivitySyncRequestToday command');
-    }
-
-    setState(() {
-      _isSyncing = false;
-      _syncStatus =
-          'Synced successfully just now. Google Health Connect updated.';
-    });
-    module.logger.info(
-      'google Health Connect updated with today\'s sleep and workout metrics',
+          child: child!,
+        );
+      },
     );
+
+    if (pickedDate != null) {
+      final y = pickedDate.year.toString();
+      final m = pickedDate.month.toString().padLeft(2, '0');
+      final d = pickedDate.day.toString().padLeft(2, '0');
+      final newBirthday = '$y$m$d';
+
+      final newSettings = currentSettings.copyWith(birthday: newBirthday);
+      await module.saveHealth(newSettings);
+    }
+  }
+
+  Future<void> _editGoalDialog({
+    required String title,
+    required int initialValue,
+    required String suffix,
+    required ValueChanged<int> onSave,
+  }) async {
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _GoalSetupSheet(
+        title: title,
+        initialValue: initialValue,
+        suffix: suffix,
+      ),
+    );
+
+    if (result != null) {
+      onSave(result);
+    }
   }
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {
-    return MiPanel(
-      buttons: connected && !_isSyncing
-          ? MiButtons(
-              children: [
-                MiButton(
-                  label: 'Sync Today Activity',
-                  icon: Icons.sync,
-                  pressed: _triggerSync,
-                ),
-              ],
-            )
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Google Health Connect Sync Card
-          MiItems(
+    return ListenableBuilder(
+      listenable: HealthBlob.instance,
+      builder: (context, _) {
+        final currentSettings = HealthBlob.settings;
+        final isEnabled = currentSettings.enabled;
+
+        final String heightStr;
+        final String weightStr;
+
+        if (currentSettings.height > 0) {
+          if (currentSettings.imperial) {
+            final totalInches = currentSettings.height / 2.54;
+            final feet = totalInches ~/ 12;
+            final inches = (totalInches % 12).round();
+            heightStr = '$feet\' $inches"';
+          } else {
+            heightStr = '${currentSettings.height.toStringAsFixed(1)} cm';
+          }
+        } else {
+          heightStr = '--';
+        }
+
+        if (currentSettings.weight > 0) {
+          if (currentSettings.imperial) {
+            final weightLbs = currentSettings.weight * 2.20462;
+            weightStr = '${weightLbs.toStringAsFixed(1)} lbs';
+          } else {
+            weightStr = '${currentSettings.weight.toStringAsFixed(1)} kg';
+          }
+        } else {
+          weightStr = '--';
+        }
+
+        return MiPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MiItem(
-                title: 'Google Health Connect',
-                subtitle: _syncStatus,
-                primaryIcon: _isSyncing ? Icons.sync : Icons.favorite_border,
+              MiItems(
+                children: [
+                  MiItem(
+                    title: 'Sync Health Data',
+                    subtitle:
+                        'Fetch activity, sleep, and workouts from band and sync directly to Google Health Connect',
+                    primaryIcon: Icons.favorite,
+                    enabled: isEnabled,
+                    toggled: (value) async {
+                      final newSettings = currentSettings.copyWith(
+                        enabled: value,
+                      );
+                      await module.saveHealth(newSettings);
+                    },
+                  ),
+                  MiItem(
+                    title: 'Use Imperial Units',
+                    subtitle: 'Display weight in lbs and height in feet/inches',
+                    primaryIcon: Icons.straighten,
+                    enabled: currentSettings.imperial,
+                    toggled: (value) async {
+                      final newSettings = currentSettings.copyWith(
+                        imperial: value,
+                      );
+                      await module.saveHealth(newSettings);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              MiItems(
+                children: [
+                  // Height (Read-only from Health Connect)
+                  MiItem(
+                    title: 'Height',
+                    subtitle: '$heightStr (from Health Connect)',
+                    primaryIcon: Icons.height,
+                  ),
+
+                  // Weight (Read-only from Health Connect)
+                  MiItem(
+                    title: 'Weight',
+                    subtitle: '$weightStr (from Health Connect)',
+                    primaryIcon: Icons.monitor_weight,
+                  ),
+
+                  // Birthday Picker
+                  MiItem(
+                    title: 'Date of Birth',
+                    subtitle: _formatBirthday(currentSettings.birthday),
+                    primaryIcon: Icons.cake,
+                    clicked: () => _selectBirthday(context, currentSettings),
+                  ),
+
+                  // Gender Selector
+                  MiItem(
+                    title: 'Gender',
+                    subtitle: currentSettings.gender == 1 ? 'Male' : 'Female',
+                    primaryIcon: Icons.wc,
+                    clicked: () async {
+                      final nextGender = currentSettings.gender == 1 ? 2 : 1;
+                      final newSettings = currentSettings.copyWith(
+                        gender: nextGender,
+                      );
+                      await module.saveHealth(newSettings);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              MiItems(
+                children: [
+                  MiItem(
+                    title: 'Steps Goal',
+                    subtitle: '${currentSettings.goals.steps} steps',
+                    primaryIcon: Icons.directions_walk,
+                    clicked: () => _editGoalDialog(
+                      title: 'Steps Goal',
+                      initialValue: currentSettings.goals.steps,
+                      suffix: 'steps',
+                      onSave: (val) async {
+                        final newGoals = currentSettings.goals.copyWith(
+                          steps: val,
+                        );
+                        await module.saveHealth(
+                          currentSettings.copyWith(goals: newGoals),
+                        );
+                      },
+                    ),
+                  ),
+                  MiItem(
+                    title: 'Active Calories Goal',
+                    subtitle: '${currentSettings.goals.calories} kcal',
+                    primaryIcon: Icons.local_fire_department,
+                    clicked: () => _editGoalDialog(
+                      title: 'Active Calories Goal',
+                      initialValue: currentSettings.goals.calories,
+                      suffix: 'kcal',
+                      onSave: (val) async {
+                        final newGoals = currentSettings.goals.copyWith(
+                          calories: val,
+                        );
+                        await module.saveHealth(
+                          currentSettings.copyWith(goals: newGoals),
+                        );
+                      },
+                    ),
+                  ),
+                  MiItem(
+                    title: 'Standing Goal',
+                    subtitle: '${currentSettings.goals.standing} hours',
+                    primaryIcon: Icons.accessibility_new,
+                    clicked: () => _editGoalDialog(
+                      title: 'Standing Goal',
+                      initialValue: currentSettings.goals.standing,
+                      suffix: 'hours',
+                      onSave: (val) async {
+                        final newGoals = currentSettings.goals.copyWith(
+                          standing: val,
+                        );
+                        await module.saveHealth(
+                          currentSettings.copyWith(goals: newGoals),
+                        );
+                      },
+                    ),
+                  ),
+                  MiItem(
+                    title: 'Active Time Goal',
+                    subtitle: '${currentSettings.goals.moving} minutes',
+                    primaryIcon: Icons.timer,
+                    clicked: () => _editGoalDialog(
+                      title: 'Active Time Goal',
+                      initialValue: currentSettings.goals.moving,
+                      suffix: 'min',
+                      onSave: (val) async {
+                        final newGoals = currentSettings.goals.copyWith(
+                          moving: val,
+                        );
+                        await module.saveHealth(
+                          currentSettings.copyWith(goals: newGoals),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 24),
+        );
+      },
+    );
+  }
 
-          // Metrics list wrapped in MiItems
-          MiItems(
+  String _formatBirthday(String birthday) {
+    if (birthday.length != 8) return birthday;
+    final year = birthday.substring(0, 4);
+    final month = birthday.substring(4, 6);
+    final day = birthday.substring(6, 8);
+
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final mIdx = int.tryParse(month);
+    final mString = (mIdx != null && mIdx >= 1 && mIdx <= 12)
+        ? months[mIdx - 1]
+        : month;
+
+    return '$mString $day, $year';
+  }
+}
+
+class _GoalSetupSheet extends StatefulWidget {
+  final String title;
+  final int initialValue;
+  final String suffix;
+
+  const _GoalSetupSheet({
+    required this.title,
+    required this.initialValue,
+    required this.suffix,
+  });
+
+  @override
+  State<_GoalSetupSheet> createState() => _GoalSetupSheetState();
+}
+
+class _GoalSetupSheetState extends State<_GoalSetupSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue.toString());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F111A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const MiItem(
-                title: 'Heart Rate: 72 bpm',
-                subtitle: 'Resting: 64 bpm',
-                primaryIcon: Icons.favorite,
+              Text(
+                'Edit ${widget.title}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const MiItem(
-                title: 'SpO2: 99%',
-                subtitle: 'All-day sync: ON',
-                primaryIcon: Icons.bloodtype,
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () => Navigator.of(context).pop(),
               ),
-              const MiItem(
-                title: 'Sleep: 7h 45m',
-                subtitle: 'Deep sleep: 2h 10m',
-                primaryIcon: Icons.nightlight_round,
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            decoration: InputDecoration(
+              suffixText: ' ${widget.suffix}',
+              suffixStyle: const TextStyle(color: Colors.grey),
+              filled: true,
+              fillColor: const Color(0xFF141822),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF26324D)),
               ),
-              const MiItem(
-                title: 'Workouts: 420 kcal',
-                subtitle: '1 active session',
-                primaryIcon: Icons.directions_run,
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF141822),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color(0xFF26324D)),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF00E5FF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    final parsed = int.tryParse(_controller.text);
+                    if (parsed != null && parsed > 0) {
+                      Navigator.of(context).pop(parsed);
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

@@ -48,7 +48,12 @@ enum NotificationSubtype implements ValuedEnum {
 
 enum HealthSubtype implements ValuedEnum {
   userInfo(0),
-  fetchData(1);
+  getTodayFitnessIds(1),
+  getHistoryFitnessIds(2),
+  requestMultipleFitnessIds(3),
+  requestSingleFitnessId(4),
+  confirmFitnessId(5),
+  getWearSportStatus(29);
 
   @override
   final int value;

@@ -1,20 +1,21 @@
 # MiSync Developer Guide
 
-Welcome to the **MiSync** developer guide. This document serves as the onboarding and reference manual for engineers (and AI coding agents) building on top of the MiSync codebase. It covers the architecture, the Bluetooth/SPP protocol stack, cryptographic handshakes, code generation, reference tools, and a step-by-step tutorial for adding new modules.
+Welcome to the **MiSync** developer guide. This document serves as the onboarding and reference manual for engineers (and AI coding agents) building on top of the MiSync codebase. It covers the architecture, the Kotlin-to-Flutter native module bridging pattern, Google Health Connect integration, the Bluetooth/SPP protocol stack, cryptographic handshakes, and a guide for adding new modules.
 
 ---
 
 ## 1. Project Philosophy & Architecture
 
-MiSync is built as a highly decoupled companion application using Flutter. The architecture separates protocol serialization, business logic, storage, and UI into clear layers:
+MiSync is built as a highly decoupled companion application using Flutter for cross-platform UI and Kotlin for native Android integration. The architecture separates protocol serialization, business logic, storage, and UI into clear layers, extending from the Dart UI code down into native Android SDK features like Bluetooth RFCOMM sockets, Calendar providers, and Google Health Connect:
 
 ```mermaid
 graph TD
-    UI[UI Screens: clock/screen.dart] -->|Calls API Methods| Module[Modules: ClockModule]
-    UI -->|Listens to updates| Blob[Blobs: AlarmsBlob]
+    UI[UI Screens: health/screen.dart] -->|Calls API Methods| Module[Modules: HealthModule]
+    UI -->|Listens to updates| Blob[Blobs: HealthBlob]
     Module -->|Mutates state inside| Blob
     Blob -->|Persists via| Storage[StorageModule]
-    Module -->|Registers Tasks| DeviceModule[DeviceModule]
+    Module -->|Invokes MethodChannel| NativeModule[Kotlin Modules: HealthModule.kt]
+    NativeModule -->|Queries/Writes SDKs| HC[Google Health Connect]
     Module -->|Sends Commands| DeviceConnection[DeviceConnection]
     DeviceConnection -->|Serializes/Encrypts| Protocol[Protocol]
     Protocol -->|Writes Socket| RFCOMM[Classic Bluetooth SPP]
@@ -26,21 +27,103 @@ graph TD
 2.  **Modules (`lib/<feature>/module.dart`)**: The logical engine of a feature.
     * Implement the **`Module`** interface (for background/framework services like `StorageModule`, `PlatformModule`).
     * Implement the **`TabModule`** interface (for user-facing features that render in navigation tabs). They override properties: `String get name` (lowercase, e.g., `'device'`, `'clock'`), `IconData get icon`, and `Widget get screen`.
-    * **Best Practice**: All data mutation operations (e.g. `addAction`, `deleteAction`, `editAlarm`, `removeApp`) should be defined as methods on the `Module` class. Screen classes should call these methods rather than mutating blobs directly in the view layer.
+    * **Best Practice**: All data mutation operations (e.g. `saveHealth`, `editAlarm`, `removeApp`) should be defined as methods on the `Module` class. Screen classes should call these methods rather than mutating blobs directly in the view layer.
 3.  **Blobs (`lib/<feature>/blobs/<name>.dart`)**: Reactive state holders extending `Blob<T>`. They automatically read/write JSON values to the persistent key-value store (`StorageModule`) and notify UI screens upon updates.
 4.  **Screens (`lib/<feature>/screen.dart`)**: Independent presentation layer extending `ScreenState<T>`. 
-    * Screens **never** interact directly with the Bluetooth connection or write directly to the database. They delegate updates to the `Module`.
-    * All screen states extend `ScreenState<T>` and override `Widget buildScreen(BuildContext context, bool connected)`. The base class automatically wraps the tree in a `ValueListenableBuilder` listening to `DeviceConnection.connected`.
+    * Screens **never** interact directly with the Bluetooth connection, execute platform method channels, or write directly to the database. They delegate updates to the `Module`.
+    * All screen states extend `ScreenState<T>` and override `Widget buildScreen(BuildContext context, bool connected)`. The base class automatically wraps the tree in a `ValueListenableBuilder` listening to `DeviceConnection.instance.connected`.
     * Interactive controls (switches, text fields, adding/editing/deleting elements) **must be disabled** when `connected` is false.
-    * **Specific Subclass Getter**: To call features on the module, screens should type-specialize the `module` getter override returning the concrete implementation class (e.g., `ClockModule get module => ClockModule.instance;`) instead of returning the abstract `Module` base class.
+    * **Specific Subclass Getter**: To call features on the module, screens should type-specialize the `module` getter override returning the concrete implementation class (e.g., `HealthModule get module => HealthModule.instance;`) instead of returning the abstract `Module` base class.
     * **Piggyback on refresh()**: Do **not** override `initState()` manually in a screen state to trigger initial logic or query native endpoints. Instead, override `refresh()` (and remember to await `super.refresh()`), which the base class `ScreenState` automatically invokes at initialization and connection changes.
     * **Reactive Lists**: Use `ListenableBuilder` tied directly to the module's `Blob` instance to automatically redraw views on modification and support instant, side-effect-free updates.
     * **Manifest Permissions Requirement**: If you add any custom permission (such as `calendar`) inside `module.permissions`, you must explicitly register it inside `android/app/src/main/AndroidManifest.xml` (e.g., `<uses-permission android:name="android.permission.READ_CALENDAR" />`), otherwise the permission dialog popup will fail silently.
-5.  **`DeviceConnection` (`lib/device/connection.dart`)**: The unified Bluetooth SPP connection and protocol manager. Exposes `DeviceConnection.listen((cmd) => ...)` and `DeviceConnection.send(...)` to other modules.
+5.  **`DeviceConnection` (`lib/device/connection.dart`)**: The unified Bluetooth SPP connection and protocol manager. Exposes `DeviceConnection.instance.listen((cmd) => ...)` and `DeviceConnection.instance.send(...)` to other modules.
 
 ---
 
-## 2. Protobuf & Code Generation
+## 2. Flutter to Kotlin Native Bridging Pattern
+
+Certain features (like Reading from the Calendar, playing Ring Phone audio, or querying Health Connect) must execute native Android APIs. MiSync implements a decoupled, self-contained architecture for these native channels.
+
+### Dart Side
+Each feature module extends `Module` and uses `PlatformModule.instance.invokeMethod` to request native actions:
+```dart
+final Map? latest = await PlatformModule.instance.invokeMethod<Map>('health.getLatestHeightAndWeight');
+```
+Platform channel routing prefixes method calls with the module name (e.g. `'health.getLatestHeightAndWeight'`, `'calendar.syncEvents'`) to resolve target handlers.
+
+### Kotlin Side
+On the Android native layer, the project implements self-contained module handlers:
+1. **`BaseModule` (`android/.../base/BaseModule.kt`)**: An abstract class representing a native feature handler with predefined methods for checking permissions, requesting permissions, and handling platform calls:
+   ```kotlin
+   abstract class BaseModule(val name: String) {
+       abstract fun checkPermissions(): Boolean
+       abstract fun requestPermissions(activity: Activity)
+       abstract fun onMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean
+   }
+   ```
+2. **Concrete Feature Modules**: Files like `HealthModule.kt`, `CalendarModule.kt`, and `DeviceModule.kt` subclass `BaseModule`. They construct their helper managers internally using the passed `Context` and define concrete actions:
+   ```kotlin
+   class HealthModule(private val context: Context) : BaseModule("health") {
+       private val healthManager = HealthManager(context)
+       // Checks and requests permissions, handles "getLatestHeightAndWeight", "writeSteps", etc.
+   }
+   ```
+3. **Module Registration in MainActivity**: Avoid adding ad-hoc platform channel handlers inside `MainActivity.kt`. Instead, instantiate and add your custom Kotlin modules to the registration loop inside `configureFlutterEngine()`:
+   ```kotlin
+   // MainActivity.kt
+   private val modules = listOf(
+       HealthModule(this),
+       CalendarModule(this),
+       DeviceModule(this)
+   )
+   ```
+   The engine automatically binds MethodChannel requests and executes matching callbacks.
+
+---
+
+## 3. Google Health Connect Integration
+
+MiSync writes fitness metrics (Steps, Heart Rate, Oxygen Saturation, Distance, Sleep Stages, and Workouts) and reads demographic constraints (Height, Weight) from Google Health Connect.
+
+### Reading Data (Demographics)
+Health Connect does not expose static profile databases for fields like birthdates or gender. However, physical metrics can be queried from weight and height timelines. To import these metrics without forcing users to type them, `HealthManager.kt` queries the client for the latest logs:
+```kotlin
+val weightResponse = currentClient.readRecords(
+    ReadRecordsRequest(
+        recordType = WeightRecord::class,
+        timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH)
+    )
+)
+val weight = weightResponse.records.maxByOrNull { it.time }?.weight?.inKilograms
+```
+
+### Writing Data (Activity & Workouts)
+1. **Activity Streams**: Periodic tasks write cumulative records (like step counts, sleep cycles, and heart rates) into Health Connect database intervals.
+2. **Workouts (Exercise Sessions)**: Health Connect uses a modular structure for workouts. An `ExerciseSessionRecord` holds only metadata (duration, sport type, title). To write calories and distance, separate records (`ActiveCaloriesBurnedRecord`, `DistanceRecord`, and `StepsRecord`) must be created covering the exact same duration and inserted in a batch list.
+
+### Manifest Declarations
+Every Health Connect record type read or written by the app must be declared in [AndroidManifest.xml](file:///Users/awgneo/Repositories/awgneo/misync/android/app/src/main/AndroidManifest.xml):
+```xml
+<uses-permission android:name="android.permission.health.READ_HEIGHT"/>
+<uses-permission android:name="android.permission.health.READ_WEIGHT"/>
+<uses-permission android:name="android.permission.health.WRITE_EXERCISE"/>
+<uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED"/>
+```
+
+---
+
+## 4. Save and Sync Architectural Pattern
+
+To keep code decoupled, clean, and bug-free, always follow the **Save and Sync** pattern when a settings value changes:
+
+1. **Screens Read State Only**: Screens listen to Blob streams to render UI and show values. Screens **never** write directly to the database or call `Blob.update()`.
+2. **Delegation to Module**: When the user edits a value (e.g. changing steps goals or selecting a birthday), the screen calls a method on the module (e.g., `module.saveHealth(updatedSettings)`).
+3. **Encapsulated Sync**: The module's save method writes the updated model to the persistent `HealthBlob`, logs details using structured maps (`logger.info('User profile synced', {...})`), and immediately packages and transmits the `UserInfo` protobuf command to the watch if connected.
+
+---
+
+## 5. Protobuf & Code Generation
 
 All payloads exchanged with the watch are serialized using Google Protocol Buffers. 
 
@@ -61,7 +144,7 @@ protoc --dart_out=lib/device/proto -Iproto proto/xiaomi.proto
 
 ---
 
-## 3. SPP Protocol & Packet Framing
+## 6. SPP Protocol & Packet Framing
 
 The Xiaomi Smart Band 10 Pro communicates over Classic Bluetooth RFCOMM (Serial Port Profile - SPP) using a custom packet layout (L1/L2/L3 framing).
 
@@ -86,7 +169,7 @@ For **Packet Type 3 (Secure Command)**, the payload is encrypted using **AES-CCM
 
 ---
 
-## 4. Dual-Stage Authentication & Handshake Flow
+## 7. Dual-Stage Authentication & Handshake Flow
 
 To successfully query device statistics or execute edits, the app must authenticate the secure channel in two sequential stages.
 
@@ -106,7 +189,7 @@ Xiaomi HyperOS requires an additional verification step before allowing data syn
 
 ---
 
-## 5. Decompiled References & AOSP Codebases
+## 8. Decompiled References & AOSP Codebases
 
 To map out command types, payload definitions, and fields without guessing, utilize the reference folders:
 
@@ -115,305 +198,30 @@ To map out command types, payload definitions, and fields without guessing, util
 
 ---
 
-## 6. Shared & DRY Platform UI Components
+## 9. Shared & DRY Platform UI Components
 
 To maintain consistency and rich styling across screens, utilize these shared types and widgets located in the `lib/widgets/` directory:
 
 ### 1. `App` Model (`lib/platform/app.dart`)
-Represents an installed system application with type safety:
-```dart
-class App {
-  final String package;
-  final String name;
-  final Uint8List? icon;
-
-  const App({required this.package, required this.name, this.icon});
-}
-```
+Represents an installed system application with type safety.
 
 ### 2. `MiPanel` (`lib/widgets/panel.dart`)
-The root scrolling container for tab screens. Handles consistent padding, margins, and floating action button stack placement:
-```dart
-MiPanel(
-  buttons: connected ? MiButtons(children: [...]) : null,
-  child: Column(children: [...]),
-)
-```
+The root scrolling container for tab screens. Handles consistent padding, margins, and floating action button stack placement.
 
 ### 3. `MiButton` & `MiButtons` (`lib/widgets/button.dart`)
-Floating Action Button controller. Renders a single FAB if only one child is supplied, or compiles a premium slide-up mini FAB list menu when there are two or more children:
-```dart
-MiButtons(
-  children: [
-    MiButton(
-      label: 'Add Action',
-      icon: Icons.add,
-      pressed: _addAction,
-    ),
-  ],
-)
-```
+Floating Action Button controller. Renders a single FAB if only one child is supplied, or compiles a premium slide-up mini FAB list menu when there are two or more children.
 
 ### 4. `MiItems` (`lib/widgets/items.dart`)
 A dark, rounded-corner container (`#141822`) used to group multiple items inside a sleek card block. It automatically draws consistent divider lines (`#26324D`) between adjacent child items.
 
 ### 5. `MiItem` (`lib/widgets/item.dart`)
-A highly configurable, standard row widget matching the premium look of the application. It supports:
-*   **Wipe/Delete Action**: Exposes a left-side red trash icon (`delete`).
-*   **Custom Labels**: `title` and `subtitle` values.
-*   **Interactive Toggles**: Built-in `Switch` configuration (`enabled`, `toggled`).
-*   **Interactive Selection**: Nested dropdown configurations (`options`, `value`, `selected`).
-*   **Custom Action button**: Replaces/appends right side elements (`order`, `secondaryIcon`).
-*   **Click Handler**: Tapping the title/subtitle row triggers a callback (`clicked`).
-
-```dart
-MiItem(
-  title: 'Smart Wake',
-  subtitle: 'Wakes you up during light sleep',
-  enabled: _smartWake,
-  toggled: (val) => setState(() => _smartWake = val),
-)
-```
+A highly configurable, standard row widget matching the premium look of the application. It supports delete swipes, toggles, select options, custom badges, and click handlers.
 
 ### 6. `showMiModal` (`lib/widgets/modal.dart`)
-Exposes premium, round-cornered confirmation overlays. Can be parameterized to gather text input or act as confirmation dialogues:
-```dart
-// 1. Text Input Dialog
-final String? input = await showMiModal<String>(
-  context: context,
-  title: 'Canned Reply',
-  label: 'Text (e.g. Yes, on my way!)',
-);
-
-// 2. Simple Action Confirm
-final bool? confirm = await showMiModal<bool>(
-  context: context,
-  title: 'Delete Item?',
-  body: 'This action is irreversible.',
-);
-```
+Exposes premium, round-cornered confirmation overlays. Can be parameterized to gather text input or act as confirmation dialogues.
 
 ### 7. `MiTabs` & `MiTab` (`lib/widgets/tabs.dart`)
-Scrollable tab controller for nesting view panels:
-```dart
-MiTabs(
-  tabs: [
-    MiTab(label: 'Apps', child: _buildAppsView()),
-    MiTab(label: 'Quick Replies', child: _buildRepliesView()),
-  ],
-)
-```
+Scrollable tab controller for nesting view panels.
 
 ### 8. `MiPicker` Bottom Sheet (`lib/widgets/picker.dart`)
-A DRY bottom drawer listing all system applications, with built-in alphabetical sorting and real-time search-filtering:
-```dart
-showModalBottomSheet(
-  context: context,
-  isScrollControlled: true,
-  backgroundColor: Colors.transparent,
-  builder: (context) => MiPicker(
-    registeredFilters: activeFiltersList,
-    onAppSelected: (packageName) => module.addFilter(packageName),
-  ),
-);
-```
-
----
-
-## 7. How to Implement a New Module (Walkthrough)
-
-If you are developing a new feature (e.g., **DND Synchronization**), follow these structured steps:
-
-### Step 1: Check the Protobuf definitions
-Inspect `xiaomi.proto` to locate DND/Do Not Disturb structures (usually inside `message System` or tag 19 `Schedule`). Make sure you know the command type and subtypes.
-
-### Step 2: Create the Persistent Blob
-Create a reactive storage class in `lib/dnd/blobs/dnd_settings.dart` to hold state:
-```dart
-import '../../storage/blob.dart';
-
-class DndBlob extends Blob<Map<String, dynamic>> {
-  static final DndBlob _instance = DndBlob._();
-  static DndBlob get instance => _instance;
-
-  DndBlob._() : super(
-    module: 'dnd',
-    name: 'settings',
-    defaultValue: {'enabled': false},
-  );
-
-  @override
-  Map<String, dynamic> parse(dynamic json) => Map<String, dynamic>.from(json);
-
-  @override
-  dynamic serialize(Map<String, dynamic> value) => value;
-}
-```
-
-### Step 3: Implement the Module Lifecycle (TabModule)
-Create `lib/dnd/module.dart` implementing `TabModule`:
-```dart
-import 'package:flutter/material.dart';
-import '../module.dart';
-import '../device/connection.dart';
-import '../device/proto/xiaomi.pb.dart';
-import '../device/proto/constants.dart';
-import '../debug/logger.dart';
-import 'blobs/dnd_settings.dart';
-import 'screen.dart';
-
-class DndModule implements TabModule {
-  static final DndModule instance = DndModule._();
-  DndModule._();
-
-  @override
-  String get name => 'dnd';
-
-  @override
-  IconData get icon => Icons.do_not_disturb;
-
-  @override
-  Widget get screen => const DndScreen();
-
-  @override
-  Future<void> start() async {
-    // Listen to incoming watch messages for changes set on-wrist
-    DeviceConnection.listen((cmd) {
-      if (cmd.type == CmdType.system.value && cmd.subtype == SystemSubtype.dnd.value) {
-        _handleWatchDndUpdate(cmd);
-      }
-    });
-  }
-
-  @override
-  Future<void> sync() async {
-    if (!DeviceConnection.connected.value) return; // Top-level sync guard
-    await syncDndToWatch();
-  }
-
-  void updateDnd(bool enabled) {
-    DndBlob.instance.update({'enabled': enabled});
-    syncDndToWatch();
-  }
-
-  Future<void> syncDndToWatch() async {
-    final enabled = DndBlob.instance.value['enabled'] ?? false;
-    await DeviceConnection.send(
-      type: CmdType.system,
-      subtype: SystemSubtype.dnd,
-      builder: (cmd) => cmd.system = (System()
-        ..dndStatus = (DoNotDisturb()..status = enabled ? 1 : 2)),
-    );
-  }
-
-  void _handleWatchDndUpdate(Command cmd) {
-    DndBlob.instance.update({'enabled': cmd.system.dndStatus.status == 1});
-  }
-}
-```
-
-### Step 4: Register in `lib/main.dart`
-Add your module singleton to the top-level `modules` list in [main.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/main.dart):
-```dart
-final List<Module> modules = [
-  StorageModule.instance,
-  PlatformModule.instance,
-  DeviceModule.instance,
-  ClockModule.instance,
-  NotificationModule.instance,
-  FacesModule.instance,
-  HealthModule.instance,
-  ActionsModule.instance,
-  DebugModule.instance,
-  DndModule.instance, // Registered! Will start boot loop & mount navigation tab automatically.
-];
-```
-
-### Step 5: Build the Screen UI
-Create `lib/dnd/screen.dart` and bind elements using `buildScreen`:
-```dart
-import 'package:flutter/material.dart';
-import '../screen.dart';
-import 'blobs/dnd_settings.dart';
-import 'module.dart';
-
-class DndScreen extends StatefulWidget {
-  const DndScreen({super.key});
-
-  @override
-  State<DndScreen> createState() => _DndScreenState();
-}
-
-class _DndScreenState extends ScreenState<DndScreen> {
-  @override
-  DndModule get module => DndModule.instance;
-
-  @override
-  Widget buildScreen(BuildContext context, bool connected) {
-    return ListenableBuilder(
-      listenable: DndBlob.instance,
-      builder: (context, _) {
-        final dndEnabled = DndBlob.instance.value['enabled'] ?? false;
-        return SwitchListTile(
-          title: const Text("Do Not Disturb"),
-          value: dndEnabled,
-          onChanged: connected 
-              ? (val) => module.updateDnd(val) 
-              : null, // Grayed out when watch is disconnected
-        );
-      },
-    );
-  }
-}
-```
-
----
-
-## 8. Debugging Workflows & Commands
-
-Use these commands to trace protocols, dumpsys states, and logs:
-
-### Viewing Real-Time Logs
-Watch packets, parse events, and connection status directly through Logcat or the built-in Developer tab:
-```bash
-# General flutter running logs
-flutter run
-
-# Filter by application logs via ADB
-adb logcat -s flutter
-```
-
-### Dumping Registered Alarms
-Verify if your alarm is registered in the Android system database:
-```bash
-adb shell dumpsys alarm | grep -A 5 "Next alarm clock information"
-```
-
-### Viewing Classic Bluetooth Details
-Retrieve local bonded devices and connection attributes:
-```bash
-adb shell dumpsys bluetooth_manager
-```
-
----
-
-## 9. Telephony & Notification Control Patterns
-
-To keep permissions minimal and user setup simple, MiSync utilizes specialized patterns for handling telephony controls and bridging watch actions to the phone.
-
-### Permission-Free Call Rejection
-Standard Android API calls for rejecting/ending calls (e.g., `TelecomManager.endCall()`) require the system permission `ANSWER_PHONE_CALLS` which prompts the user with intrusive runtime permission dialogs. 
-
-To bypass this, MiSync scans the action buttons attached to the dialer's status bar notification itself.
-1. When a call notification is dismissed or replied to from the watch:
-2. The `NotificationService` scans the list of `Notification.Action` items on the active status bar notification.
-3. It performs a case-insensitive keyword match on the action titles (e.g., searching for `"decline"`, `"hang"`, `"reject"`, `"挂断"`, `"拒绝"`).
-4. If a matching action is found, it sends the action's pending intent directly: `action.actionIntent.send()`.
-5. This rejects the call immediately at the system level without requiring any telephony permissions.
-
-### Custom Intercepts & Watch Launcher Caching
-When a notification is received in `NotificationModule`, we check if it is a messaging app or a phone call.
-- Dialer and telecom packages (`com.google.android.dialer`, `com.android.phone`, `com.android.server.telecom`, etc.) are recognized as interactive notifications.
-- When an active call or chat notification arrives, we cache it in `ActionsModule.activeNotification`.
-- When the user swipes to dismiss or replies on the watch, the watch sends a wrist dismiss event back to the phone. Since the package is cached in `activeNotification` as an interactive type, the phone immediately triggers the watch Messages Quick Reply app to launch on the wrist.
-- Once the user types a quick reply or dismisses, the phone executes the programmatic decline, ensuring a seamless wrist-to-telephony integration.
+A DRY bottom drawer listing all system applications, with built-in alphabetical sorting and real-time search-filtering.
