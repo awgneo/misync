@@ -54,7 +54,7 @@ class _DebugScreenState extends ScreenState<DebugScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
-                  ? activeColor.withOpacity(0.15)
+                  ? activeColor.withValues(alpha: 0.15)
                   : const Color(0xFF141822),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(

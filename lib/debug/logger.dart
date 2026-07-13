@@ -58,15 +58,7 @@ class Logger extends ChangeNotifier {
       _global.notifyListeners();
     });
 
-    String dataStr = '';
-    if (data != null && data.isNotEmpty) {
-      try {
-        dataStr = '\n${const JsonEncoder.withIndent('  ').convert(data)}';
-      } catch (e) {
-        dataStr = '\nData: $data';
-      }
-    }
-    debugPrint('MiSync: [$level] [${module.toUpperCase()}] $message$dataStr');
+    debugPrint('MiSync: $record');
   }
 
   void clear() {

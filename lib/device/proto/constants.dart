@@ -4,6 +4,7 @@ abstract class ValuedEnum {
 
 enum CmdType implements ValuedEnum {
   system(2),
+  watchface(4),
   notification(7),
   health(8),
   weather(10),
@@ -165,4 +166,16 @@ enum MusicSubtype implements ValuedEnum {
   @override
   final int value;
   const MusicSubtype(this.value);
+}
+
+enum WatchfaceSubtype implements ValuedEnum {
+  list(0),
+  set(1),
+  delete(2),
+  installStart(4),
+  installFinish(7);
+
+  @override
+  final int value;
+  const WatchfaceSubtype(this.value);
 }

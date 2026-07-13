@@ -46,6 +46,17 @@ build-proto() {
   protoc --dart_out=lib/device/proto -Iproto proto/xiaomi.proto || abort "Failed to compile protobuf schemas." 2
 }
 
+build-icon() {
+  info "Converting icon SVG to PNG..."
+  if command -v rsvg-convert &> /dev/null; then
+    rsvg-convert -w 1024 -h 1024 assets/icon/icon.svg -o assets/icon/icon.png || abort "Failed to convert icon SVG to PNG." 2
+  else
+    warning "rsvg-convert is not installed. Skipping SVG to PNG conversion."
+  fi
+  info "Generating launcher icons..."
+  dart run flutter_launcher_icons || abort "Failed to generate launcher icons." 2
+}
+
 build-apk() {
   local sources_dir=".apks"
   local apk_path="$sources_dir/com.xiaomi.wear.apk"
@@ -100,6 +111,7 @@ build() {
   build-generate || exit $?
   build-watch || exit $?
   build-proto || exit $?
+  build-icon || exit $?
   success "Build completed successfully."
 }
 
@@ -123,6 +135,7 @@ misync-usage() {
   echo "build-generate|Regenerate sport schemas from extracted APK sources."
   echo "build-watch|Build watch apps (Messages) and copy RPK to assets."
   echo "build-proto|Compile Protocol Buffer schemas."
+  echo "build-icon|Generate launcher icons."
   echo "clean|Clean watch app and Flutter build artifacts."
   echo "analyze|Run static analysis checks."
 }
@@ -134,6 +147,7 @@ misync-flow() {
     build-generate) build-generate; return $?;;
     build-watch) build-watch; return $?;;
     build-proto) build-proto; return $?;;
+    build-icon) build-icon; return $?;;
     clean) clean; return $?;;
     analyze) analyze; return $?;;
     *) return 127 ;;

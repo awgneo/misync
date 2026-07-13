@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <filter id="glooming" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComponentTransfer in="blur" result="glow1">
+        <feFuncA type="linear" slope="0.6"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="glow1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="arrow-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+
+    <linearGradient id="watchBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2d3037" />
+      <stop offset="50%" stop-color="#1b1c1f" />
+      <stop offset="100%" stop-color="#0f1012" />
+    </linearGradient>
+
+    <radialGradient id="watchScreen" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0f1115" />
+      <stop offset="100%" stop-color="#040507" />
+    </radialGradient>
+
+    <linearGradient id="strapGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e2024" />
+      <stop offset="50%" stop-color="#3a3d45" />
+      <stop offset="100%" stop-color="#1e2024" />
+    </linearGradient>
+
+    <linearGradient id="metalHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#515661" />
+      <stop offset="100%" stop-color="#1e2024" />
+    </linearGradient>
+
+    <linearGradient id="cyanGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#005b7f" />
+      <stop offset="30%" stop-color="#00a8cc" />
+      <stop offset="70%" stop-color="#00e5ff" />
+      <stop offset="100%" stop-color="#33efff" />
+    </linearGradient>
+
+    <path id="sync-arrow" d="M 60.42 -72.01 A 94 94 0 0 1 81.41 47.00 L 96.99 56.00 L 44.08 60.68 L 32.91 19.00 L 48.50 28.00 A 56 56 0 0 0 36.00 -42.90 Z" 
+          fill="url(#cyanGrad)" stroke="#060709" stroke-width="1.5" stroke-linejoin="round"/>
+  </defs>
+
+  <g transform="translate(81.92, 81.92) scale(0.68)">
+    <g id="straps">
+      <path d="M 176,105 L 176,0 L 336,0 L 336,105 Z" fill="url(#strapGrad)" />
+      <rect x="196" y="20" width="120" height="7" rx="3.5" fill="#0b0c0e" opacity="0.8"/>
+      <rect x="196" y="42" width="120" height="7" rx="3.5" fill="#0b0c0e" opacity="0.8"/>
+      <rect x="196" y="64" width="120" height="7" rx="3.5" fill="#0b0c0e" opacity="0.8"/>
+
+      <path d="M 176,407 L 176,512 L 336,512 L 336,407 Z" fill="url(#strapGrad)" />
+      <rect x="196" y="485" width="120" height="7" rx="3.5" fill="#0b0c0e" opacity="0.8"/>
+      <rect x="196" y="463" width="120" height="7" rx="3.5" fill="#0b0c0e" opacity="0.8"/>
+      <rect x="196" y="441" width="120" height="7" rx="3.5" fill="#0b0c0e" opacity="0.8"/>
+    </g>
+
+    <rect x="111" y="101" width="290" height="310" rx="76" fill="url(#watchBody)" stroke="url(#metalHighlight)" stroke-width="2" />
+    
+    <rect x="115" y="105" width="282" height="302" rx="72" fill="none" stroke="#000000" stroke-width="3" opacity="0.8"/>
+
+    <rect x="121" y="111" width="270" height="290" rx="66" fill="url(#watchScreen)" />
+    <rect x="123" y="113" width="266" height="286" rx="64" fill="none" stroke="#22252c" stroke-width="1" opacity="0.4"/>
+
+    <g id="sync-loop" transform="translate(256, 256) rotate(-40)" filter="url(#glooming)">
+      <use href="#sync-arrow" transform="rotate(0)" filter="url(#arrow-shadow)"/>
+      <use href="#sync-arrow" transform="rotate(120)" filter="url(#arrow-shadow)"/>
+      <use href="#sync-arrow" transform="rotate(240)" filter="url(#arrow-shadow)"/>
+    </g>
+  </g>
+</svg>
