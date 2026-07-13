@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'connection.dart';
 import 'module.dart';
 import 'blobs/settings.dart';
 import 'blobs/device.dart';
@@ -12,17 +11,14 @@ import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
 
-class DeviceScreen extends StatefulWidget {
-  const DeviceScreen({super.key});
+class DeviceScreen extends Screen<DeviceModule> {
+  const DeviceScreen(super.module, {super.key});
 
   @override
   State<DeviceScreen> createState() => _DeviceScreenState();
 }
 
 class _DeviceScreenState extends ScreenState<DeviceScreen> {
-  @override
-  DeviceModule get module => DeviceModule.instance;
-
   Future<void> _extractDeviceCredentials() async {
     try {
       final result = await FilePicker.pickFiles(
@@ -37,7 +33,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
       }
 
       final file = result.files.first;
-      final success = await module.extractDeviceCredentials(
+      final success = await widget.module.extractDeviceCredentials(
         file.path!,
         file.name,
       );
@@ -71,10 +67,10 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
 
     return ListenableBuilder(
       listenable: Listenable.merge([
-        DeviceConnection.instance,
+        widget.module.connection,
         DeviceBlob.instance,
         SettingsBlob.instance,
-        PlatformModule.instance.findingWatch,
+        PlatformModule.module.findingWatch,
       ]),
       builder: (context, _) {
         final MiButtons? panelActions;
@@ -89,7 +85,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
             ],
           );
         } else {
-          final finding = PlatformModule.instance.findingWatch.value;
+          final finding = PlatformModule.module.findingWatch.value;
           panelActions = MiButtons(
             children: [
               MiButton(
@@ -97,7 +93,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                 icon: Icons.watch,
                 pressed: () {
                   if (connected) {
-                    PlatformModule.instance.findWatch(!finding);
+                    PlatformModule.module.findWatch(!finding);
                   }
                 },
                 color: finding
@@ -108,7 +104,7 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                 label: 'Sync All Now',
                 icon: Icons.sync,
                 pressed: () async {
-                  await module.sync();
+                  await widget.module.sync();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -194,9 +190,9 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
         : 'Unknown';
 
     String statusText = 'PAIRED';
-    if (DeviceConnection.instance.connected.value) {
+    if (widget.module.connection.connected.value) {
       statusText = 'CONNECTED';
-    } else if (DeviceConnection.instance.connecting) {
+    } else if (widget.module.connection.connecting) {
       statusText = 'CONNECTING...';
     }
 
@@ -208,11 +204,11 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
             MiItem(
               title: 'Connection Status',
               subtitle: statusText,
-              primaryIcon: DeviceConnection.instance.connected.value
+              primaryIcon: widget.module.connection.connected.value
                   ? Icons.link
                   : Icons.link_off,
             ),
-            if (DeviceConnection.instance.connected.value &&
+            if (widget.module.connection.connected.value &&
                 infoState.batteryLevel > 0)
               MiItem(
                 title: 'Battery Level',

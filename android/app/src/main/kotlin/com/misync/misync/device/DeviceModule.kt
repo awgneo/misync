@@ -91,9 +91,15 @@ class DeviceModule(
 
     override fun checkPermissions(): Boolean {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val backgroundLocationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            hasRuntimePermission(context, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            true
+        }
         return isDeviceAssociated() &&
                hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) &&
                hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) &&
+               backgroundLocationGranted &&
                notificationManager.isNotificationPolicyAccessGranted
     }
 
@@ -102,16 +108,19 @@ class DeviceModule(
         if (!isDeviceAssociated()) {
             associateDevice(activity)
         }
-        val perms = mutableListOf<String>()
-        if (!hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)) {
-            perms.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-        if (!hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
-            perms.add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
-        }
-        if (perms.isNotEmpty()) {
+        val hasFine = hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
+        val hasCoarse = hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        
+        if (!hasFine || !hasCoarse) {
+            val perms = mutableListOf<String>()
+            if (!hasFine) perms.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            if (!hasCoarse) perms.add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
             activity.requestPermissions(perms.toTypedArray(), 102)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                   !hasRuntimePermission(context, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+            activity.requestPermissions(arrayOf(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION), 103)
         }
+        
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
         }

@@ -10,19 +10,14 @@ import '../widgets/button.dart';
 
 import '../widgets/modal.dart';
 
-class AppsScreen extends StatefulWidget {
-  const AppsScreen({super.key});
+class AppsScreen extends Screen<AppsModule> {
+  const AppsScreen(super.module, {super.key});
 
   @override
   State<AppsScreen> createState() => _AppsScreenState();
 }
 
 class _AppsScreenState extends ScreenState<AppsScreen> {
-  final _module = AppsModule.instance;
-
-  @override
-  Module get module => _module;
-
   Future<void> _installApp() async {
     final result = await FilePicker.pickFiles(type: FileType.any);
     if (result == null || result.files.isEmpty) return;
@@ -30,7 +25,7 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
     final path = result.files.first.path;
     if (path == null) throw StateError('Picked file path is null');
 
-    final success = await _module.install(path);
+    final success = await widget.module.install(path);
     if (!success) {
       if (!mounted) return;
       await showMiModal<bool>(
@@ -91,15 +86,17 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
               primaryIcon: app.external
                   ? Icons.apps
                   : Icons.settings_applications,
-              delete: app.external ? () => _module.uninstall(package) : null,
+              delete: app.external
+                  ? () => widget.module.uninstall(package)
+                  : null,
               enabled: app.external ? null : app.enabled,
               toggled: app.external
                   ? null
                   : (enabled) {
                       if (enabled) {
-                        _module.enableApp(package);
+                        widget.module.enableApp(package);
                       } else {
-                        _module.disableApp(package);
+                        widget.module.disableApp(package);
                       }
                     },
             );

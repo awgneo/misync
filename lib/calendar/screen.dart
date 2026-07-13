@@ -6,17 +6,14 @@ import '../widgets/item.dart';
 import 'module.dart';
 import 'blobs/calendars.dart';
 
-class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+class CalendarScreen extends Screen<CalendarModule> {
+  const CalendarScreen(super.module, {super.key});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
 class _CalendarScreenState extends ScreenState<CalendarScreen> {
-  @override
-  CalendarModule get module => CalendarModule.instance;
-
   List<PhoneCalendar> _allCalendars = [];
 
   @override
@@ -26,7 +23,7 @@ class _CalendarScreenState extends ScreenState<CalendarScreen> {
   }
 
   Future<void> _refreshCalendars() async {
-    final list = await module.getCalendars();
+    final list = await widget.module.getCalendars();
     setState(() {
       _allCalendars = list;
     });
@@ -89,7 +86,10 @@ class _CalendarScreenState extends ScreenState<CalendarScreen> {
                     ),
                     enabled: isEnabled,
                     toggled: (value) async {
-                      await module.setCalendarEnabled(calendar.id, value);
+                      await widget.module.setCalendarEnabled(
+                        calendar.id,
+                        value,
+                      );
                     },
                   );
                 }).toList(),

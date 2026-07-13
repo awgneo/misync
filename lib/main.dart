@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'device/connection.dart';
 import 'device/module.dart';
 import 'notifications/module.dart';
 import 'faces/module.dart';
@@ -15,18 +14,18 @@ import 'weather/module.dart';
 import 'module.dart';
 
 final List<Module> modules = [
-  StorageModule.instance,
-  PlatformModule.instance,
-  DeviceModule.instance,
-  ClockModule.instance,
-  AppsModule.instance,
-  CalendarModule.instance,
-  WeatherModule.instance,
-  NotificationModule.instance,
-  FacesModule.instance,
-  HealthModule.instance,
-  ActionsModule.instance,
-  DebugModule.instance,
+  StorageModule.module,
+  PlatformModule.module,
+  DeviceModule.module,
+  ClockModule.module,
+  AppsModule.module,
+  CalendarModule.module,
+  WeatherModule.module,
+  NotificationModule.module,
+  FacesModule.module,
+  HealthModule.module,
+  ActionsModule.module,
+  DebugModule.module,
 ];
 
 void main() async {
@@ -120,7 +119,7 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
         elevation: 0,
         actions: [
           ValueListenableBuilder<bool>(
-            valueListenable: DeviceConnection.instance.connected,
+            valueListenable: DeviceModule.module.connection.connected,
             builder: (context, connected, _) {
               return IconButton(
                 icon: Icon(
@@ -161,7 +160,9 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
                   ),
                 ),
                 selected: isSelected,
-                selectedTileColor: const Color(0xFF00E5FF).withOpacity(0.1),
+                selectedTileColor: const Color(
+                  0xFF00E5FF,
+                ).withValues(alpha: 0.1),
                 onTap: () {
                   setState(() {
                     _currentIndex = index;

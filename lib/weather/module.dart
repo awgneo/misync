@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../module.dart';
-import '../device/connection.dart';
+import 'package:misync/screen.dart';
 import '../device/module.dart';
 import '../device/proto/constants.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
@@ -18,18 +17,18 @@ class WeatherModule extends TabModule {
   IconData get icon => Icons.wb_sunny;
 
   @override
-  Widget get screen => const WeatherScreen();
+  late final Screen screen = WeatherScreen(this);
 
-  static final WeatherModule _instance = WeatherModule._();
-  static WeatherModule get instance => _instance;
+  static final WeatherModule _module = WeatherModule._();
+  static WeatherModule get module => _module;
   WeatherModule._();
 
   bool _syncingWeather = false;
 
   @override
   Future<void> start() async {
-    DeviceModule.instance.register(this);
-    DeviceConnection.instance.listen(_receiveWatchCommand);
+    DeviceModule.module.register(this);
+    DeviceModule.module.connection.listen(_receiveWatchCommand);
   }
 
   void _receiveWatchCommand(pb.Command cmd) {
@@ -60,7 +59,7 @@ class WeatherModule extends TabModule {
   }
 
   Future<void> _syncWeather({String? code, String? name}) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     if (!WeatherBlob.enabled) {
       logger.info('skip weather sync (disabled in settings)');
@@ -74,7 +73,7 @@ class WeatherModule extends TabModule {
     _syncingWeather = true;
 
     try {
-      final loc = await PlatformModule.instance.invokeMethod(
+      final loc = await PlatformModule.module.invokeMethod(
         'device.getLocation',
       );
       if (loc == null) {
@@ -190,7 +189,7 @@ class WeatherModule extends TabModule {
 
     // Set weather preferences
     final prefs = pb.WeatherPrefs()..temperatureScale = useFahrenheit ? 2 : 1;
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.setWeatherPrefs,
       builder: (cmd) => cmd.weather = (pb.Weather()..prefs = prefs),
@@ -201,7 +200,7 @@ class WeatherModule extends TabModule {
       ..code = code
       ..name = name;
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.addLocation,
       builder: (cmd) => cmd.weather = (pb.Weather()..location = location),
@@ -209,7 +208,7 @@ class WeatherModule extends TabModule {
 
     // Set Locations Order
     final locations = pb.WeatherLocations()..location.add(location);
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.setLocations,
       builder: (cmd) => cmd.weather = (pb.Weather()..locations = locations),
@@ -238,7 +237,7 @@ class WeatherModule extends TabModule {
       ..warning = pb.WeatherWarnings()
       ..pressure = pressure * 100.0;
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.setCurrentWeather,
       builder: (cmd) => cmd.weather = (pb.Weather()..current = pbCurrent),
@@ -265,8 +264,8 @@ class WeatherModule extends TabModule {
       final entry = pb.ForecastEntry()
         ..aqi = _buildUnitValue(aqi, _getAqiDescription(aqi))
         ..temperatureRange = (pb.WeatherRange()
-          ..from = maxT
-          ..to = minT)
+          ..from = minT
+          ..to = maxT)
         ..conditionRange = (pb.WeatherRange()
           ..from = cond
           ..to = cond)
@@ -281,7 +280,7 @@ class WeatherModule extends TabModule {
       ..metadata = meta
       ..entries = entries;
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.updateDailyForecast,
       builder: (cmd) => cmd.weather = (pb.Weather()..forecast = pbForecast),
@@ -304,10 +303,10 @@ class WeatherModule extends TabModule {
 
       final hEntry = pb.ForecastEntry()
         ..temperatureRange = (pb.WeatherRange()
-          ..from = 0
+          ..from = hTemp
           ..to = hTemp)
         ..conditionRange = (pb.WeatherRange()
-          ..from = 0
+          ..from = hCond
           ..to = hCond)
         ..wind = _buildUnitValue(_windSpeedToBeaufort(hWind), hDir.toString());
       hEntries.entry.add(hEntry);
@@ -317,7 +316,7 @@ class WeatherModule extends TabModule {
       ..metadata = meta
       ..entries = hEntries;
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.weather,
       subtype: WeatherSubtype.updateHourlyForecast,
       builder: (cmd) =>

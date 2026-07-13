@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../module.dart';
+import 'package:misync/screen.dart';
 import 'screen.dart';
 
 class DebugModule extends TabModule {
@@ -10,9 +10,10 @@ class DebugModule extends TabModule {
   IconData get icon => Icons.bug_report;
 
   @override
-  Widget get screen => const DebugScreen();
-  static final DebugModule _instance = DebugModule._();
-  static DebugModule get instance => _instance;
+  late final Screen screen = DebugScreen(this);
+
+  static final DebugModule _module = DebugModule._();
+  static DebugModule get module => _module;
   DebugModule._();
 
   @override

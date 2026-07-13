@@ -6,17 +6,14 @@ import '../widgets/items.dart';
 import '../widgets/item.dart';
 import '../widgets/modal.dart';
 
-class StorageScreen extends StatefulWidget {
-  const StorageScreen({super.key});
+class StorageScreen extends Screen<StorageModule> {
+  const StorageScreen(super.module, {super.key});
 
   @override
   State<StorageScreen> createState() => _StorageScreenState();
 }
 
 class _StorageScreenState extends ScreenState<StorageScreen> {
-  @override
-  StorageModule get module => StorageModule.instance;
-
   void _clearAll() async {
     final confirm = await showMiModal<bool>(
       context: context,
@@ -28,7 +25,7 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
     );
 
     if (confirm == true) {
-      await module.clearAll();
+      await widget.module.clearAll();
     }
   }
 
@@ -43,7 +40,7 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
     );
 
     if (confirm == true) {
-      await module.delete(m);
+      await widget.module.delete(m);
     }
   }
 
@@ -64,9 +61,9 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
           ),
           const SizedBox(height: 24),
           ListenableBuilder(
-            listenable: module,
+            listenable: widget.module,
             builder: (context, _) {
-              final modules = module.modules;
+              final modules = widget.module.modules;
               if (modules.isEmpty) {
                 return const Center(
                   child: Padding(

@@ -6,9 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:crypto/crypto.dart';
 import 'package:convert/convert.dart';
 import 'package:archive/archive.dart';
-import '../module.dart';
+import 'package:misync/screen.dart';
 import '../device/module.dart';
-import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
 import '../platform/module.dart';
@@ -23,10 +22,10 @@ class AppsModule extends TabModule {
   IconData get icon => Icons.apps;
 
   @override
-  Widget get screen => const AppsScreen();
+  late final Screen screen = AppsScreen(this);
 
-  static final AppsModule _instance = AppsModule._();
-  static AppsModule get instance => _instance;
+  static final AppsModule _module = AppsModule._();
+  static AppsModule get module => _module;
   AppsModule._();
 
   final List<String> internalApps = [];
@@ -34,8 +33,8 @@ class AppsModule extends TabModule {
   @override
   Future<void> start() async {
     _startInternalApps();
-    DeviceModule.instance.register(this);
-    DeviceConnection.instance.listen(_receiveWatchCommand);
+    DeviceModule.module.register(this);
+    DeviceModule.module.connection.listen(_receiveWatchCommand);
   }
 
   Future<void> _startInternalApps() async {
@@ -118,7 +117,7 @@ class AppsModule extends TabModule {
 
     logger.info('sending app status for $package');
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.responsePhoneAppStatus,
       builder: (cmd) =>
@@ -133,7 +132,7 @@ class AppsModule extends TabModule {
     logger.info('watch requested app icon for: $package');
 
     final iconPackage = pb.NotificationIconPackage()..package = package;
-    final iconResponse = await DeviceConnection.instance.send(
+    final iconResponse = await DeviceModule.module.connection.send(
       type: CmdType.notification,
       subtype: NotificationSubtype.iconRequest,
       builder: (c) =>
@@ -158,7 +157,7 @@ class AppsModule extends TabModule {
     logger.info('watch responded: format=$pixelFormat, size=$size pixels');
 
     // Fetch the app icon raw ARGB bytes from Android
-    final Uint8List? rawBytes = await PlatformModule.instance
+    final Uint8List? rawBytes = await PlatformModule.module
         .invokeMethod<Uint8List>('notifications.getAppIcon', {
           'packageName': package,
           'size': size,
@@ -213,7 +212,7 @@ class AppsModule extends TabModule {
     }
 
     // Send the icon via Data Upload channel (type 22, subtype 0)
-    final success = await DeviceConnection.instance.uploadData(
+    final success = await DeviceModule.module.connection.uploadData(
       type: 50, // TYPE_ICON
       bytes: formattedBytes,
     );
@@ -227,7 +226,7 @@ class AppsModule extends TabModule {
 
   @override
   Future<void> sync() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
     await _syncInternalApps();
     await _syncInstalledApps();
   }
@@ -244,11 +243,11 @@ class AppsModule extends TabModule {
   }
 
   Future<void> _syncInstalledApps() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     // Get installed apps (RPKs) on watch
     logger.info('querying installed RPK list from watch');
-    final response = await DeviceConnection.instance.send(
+    final response = await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.rpkList,
       expectResponse: true,
@@ -318,7 +317,7 @@ class AppsModule extends TabModule {
       request.uri = uri;
     }
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.launchApp,
       builder: (cmd) =>
@@ -327,7 +326,7 @@ class AppsModule extends TabModule {
   }
 
   Future<bool> enableApp(String package) async {
-    if (!DeviceConnection.instance.connected.value) return false;
+    if (!DeviceModule.module.connection.connected.value) return false;
 
     if (!internalApps.contains(package)) {
       logger.error('app $package is not an internal app');
@@ -447,14 +446,14 @@ class AppsModule extends TabModule {
     int versionCode,
     Uint8List fileBytes,
   ) async {
-    if (!DeviceConnection.instance.connected.value) return false;
+    if (!DeviceModule.module.connection.connected.value) return false;
 
     logger.info(
       'Sending RPK install start command for $package ($versionCode)',
     );
 
     // Send CMD_RPK_INSTALL (type 20, subtype 1)
-    final installResponse = await DeviceConnection.instance.send(
+    final installResponse = await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.rpkInstall,
       builder: (cmd) =>
@@ -474,7 +473,7 @@ class AppsModule extends TabModule {
     }
 
     // Send upload start request (type 22, subtype 0)
-    final success = await DeviceConnection.instance.uploadData(
+    final success = await DeviceModule.module.connection.uploadData(
       type: 64, // TYPE_RPK
       bytes: fileBytes,
     );
@@ -490,14 +489,14 @@ class AppsModule extends TabModule {
   }
 
   Future<void> uninstall(String package) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     logger.info('Requesting deletion for RPK: $package');
 
     final app = AppsBlob.instance.value[package];
     final sha = app?.fingerprint ?? const <int>[];
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.rpkDelete,
       builder: (cmd) =>

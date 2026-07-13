@@ -1,4 +1,4 @@
-class Metric {
+class Snapshot {
   final int timestamp;
   int? steps;
   int? calories;
@@ -18,7 +18,7 @@ class Metric {
   int? lightValue;
   int? bodyMomentum;
 
-  Metric(this.timestamp);
+  Snapshot(this.timestamp);
 
   DateTime get endTime => DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
   DateTime get startTime => endTime.subtract(const Duration(minutes: 1));

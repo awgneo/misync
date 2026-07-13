@@ -12,17 +12,14 @@ import '../widgets/tabs.dart';
 import '../platform/module.dart';
 import 'dart:async';
 
-class ClockScreen extends StatefulWidget {
-  const ClockScreen({super.key});
+class ClockScreen extends Screen<ClockModule> {
+  const ClockScreen(super.module, {super.key});
 
   @override
   State<ClockScreen> createState() => _ClockScreenState();
 }
 
 class _ClockScreenState extends ScreenState<ClockScreen> {
-  @override
-  ClockModule get module => ClockModule.instance;
-
   Future<void> _createAlarm() async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -38,7 +35,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
       final repeatFlags = result['repeatFlags'] as int;
       final smart = result['smart'] as int;
 
-      module.createAlarm(
+      widget.module.createAlarm(
         hour,
         minute,
         repeatMode: repeatMode,
@@ -63,7 +60,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
       final repeatFlags = result['repeatFlags'] as int;
       final smart = result['smart'] as int;
 
-      module.editAlarm(
+      widget.module.editAlarm(
         alarm.id,
         hour,
         minute,
@@ -109,7 +106,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ValueListenableBuilder<Alarm?>(
-                valueListenable: module.phoneNextAlarm,
+                valueListenable: widget.module.phoneNextAlarm,
                 builder: (context, phoneNextAlarm, _) {
                   final String phoneNextAlarmString = phoneNextAlarm != null
                       ? phoneNextAlarm.timeString
@@ -124,7 +121,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                         enabled: phoneNextAlarm != null,
                         toggled: null, // Read-only mirror of phone state
                         clicked: () {
-                          PlatformModule.instance.invokeMethod(
+                          PlatformModule.module.invokeMethod(
                             'device.launchAction',
                             {'intent': 'android.intent.action.SHOW_ALARMS'},
                           );
@@ -155,11 +152,11 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                     return MiItem(
                       title: alarm.timeString,
                       subtitle: alarm.repeatString,
-                      delete: () => module.deleteAlarm(alarm.id),
+                      delete: () => widget.module.deleteAlarm(alarm.id),
                       enabled: alarm.enabled,
                       toggled: connected
                           ? (enabled) {
-                              module.setAlarmEnabled(alarm.id, enabled);
+                              widget.module.setAlarmEnabled(alarm.id, enabled);
                             }
                           : null,
                       clicked: connected ? () => _editAlarm(alarm) : null,
@@ -226,7 +223,7 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                     return MiItem(
                       title: city.name,
                       subtitle: '${city.country} (${city.timezone})',
-                      delete: () => module.deleteClock(id),
+                      delete: () => widget.module.deleteClock(id),
                     );
                   }).toList(),
                 ),
@@ -246,14 +243,14 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
     );
 
     if (result != null) {
-      await module.addClock(result.id);
+      await widget.module.addClock(result.id);
     }
   }
 }
 
 class _AlarmSetupSheet extends StatefulWidget {
   final WatchAlarm? alarm;
-  const _AlarmSetupSheet({super.key, this.alarm});
+  const _AlarmSetupSheet({this.alarm});
 
   @override
   State<_AlarmSetupSheet> createState() => _AlarmSetupSheetState();
@@ -410,7 +407,7 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<int>(
-            value: _repeatOption,
+            initialValue: _repeatOption,
             dropdownColor: const Color(0xFF0F111A),
             decoration: InputDecoration(
               filled: true,

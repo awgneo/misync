@@ -1,9 +1,9 @@
 import 'dart:typed_data';
-import 'types/metric.dart';
+import 'types/snapshot.dart';
 import 'id.dart';
 
-class MetricsParser {
-  static List<Metric> parse(Id id, Uint8List data) {
+class SnapshotsParser {
+  static List<Snapshot> parse(Id id, Uint8List data) {
     if (data.length < 7) return [];
     final remaining = data.sublist(7);
     const dataValidLen = 6;
@@ -11,7 +11,7 @@ class MetricsParser {
     final dataValid = remaining.sublist(1, 1 + dataValidLen);
     final bodyData = remaining.sublist(1 + dataValidLen);
 
-    final records = <Metric>[];
+    final records = <Snapshot>[];
     final byteData = ByteData.sublistView(bodyData);
     int offset = 0;
 
@@ -42,7 +42,7 @@ class MetricsParser {
     int currentTimestamp = (startTime ~/ intervalSeconds) * intervalSeconds;
 
     while (offset + 1 <= bodyData.length) {
-      final record = Metric(currentTimestamp);
+      final record = Snapshot(currentTimestamp);
 
       // 0. IncludeSleep & abnormalHr & steps (2 bytes)
       if (existMap[0] == true) {

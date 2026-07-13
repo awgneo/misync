@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:crypto/crypto.dart';
-import '../device/connection.dart';
+import 'package:misync/device/module.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../screen.dart';
 import '../crc32.dart';
@@ -11,8 +11,8 @@ import 'module.dart';
 import '../widgets/panel.dart';
 import '../widgets/button.dart';
 
-class FacesScreen extends StatefulWidget {
-  const FacesScreen({super.key});
+class FacesScreen extends Screen<FacesModule> {
+  const FacesScreen(super.module, {super.key});
 
   @override
   State<FacesScreen> createState() => _FacesScreenState();
@@ -23,9 +23,6 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
   double _uploadProgress = 0.0;
   String? _selectedFaceName;
   Uint8List? _selectedFaceBytes;
-
-  @override
-  Module get module => FacesModule.instance;
 
   Future<void> _pickWatchFace() async {
     try {
@@ -42,18 +39,18 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
         _selectedFaceName = file.name;
         _selectedFaceBytes = file.bytes;
       });
-      module.logger.info(
+      widget.module.logger.info(
         'selected watch face: ${file.name} (${file.size} bytes)',
       );
     } catch (e) {
-      module.logger.error('error picking file: $e');
+      widget.module.logger.error('error picking file: $e');
     }
   }
 
   Future<void> _startUpload() async {
     if (_selectedFaceBytes == null) return;
 
-    if (!DeviceConnection.instance.connected.value) {
+    if (!DeviceModule.module.connection.connected.value) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -70,7 +67,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
       _uploadProgress = 0.0;
     });
 
-    module.logger.info('starting watch face installation');
+    widget.module.logger.info('starting watch face installation');
     final bytes = _selectedFaceBytes!;
     final size = bytes.length;
 
@@ -78,7 +75,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
     final md5Sum = md5.convert(bytes).bytes;
 
     // 2. Send WatchfaceInstallStart protobuf command (Type 4 = Watchface, Subtype 4 = CMD_WATCHFACE_INSTALL)
-    if (DeviceConnection.instance.connected.value) {
+    if (DeviceModule.module.connection.connected.value) {
       final installStart = WatchfaceInstallStart()
         ..id = 'custom_face'
         ..size = size;
@@ -89,8 +86,8 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
             4 // Install
         ..watchface = (Watchface()..watchfaceInstallStart = installStart);
 
-      await DeviceConnection.instance.send(cmd: cmd);
-      module.logger.info('sent WatchfaceInstallStart command');
+      await DeviceModule.module.connection.send(cmd: cmd);
+      widget.module.logger.info('sent WatchfaceInstallStart command');
     }
 
     // 3. Construct raw upload payload:
@@ -120,7 +117,9 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
         chunkSize - 4; // We use 4 bytes header for totalParts & currentPart
     final int totalParts = (finalBytes.length / partSize).ceil();
 
-    module.logger.info('uploading watch face binary in $totalParts chunks');
+    widget.module.logger.info(
+      'uploading watch face binary in $totalParts chunks',
+    );
 
     for (int i = 0; i < totalParts; i++) {
       final currentPart = i + 1;
@@ -131,7 +130,7 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
     }
 
     // 5. Send WatchfaceInstallFinish
-    if (DeviceConnection.instance.connected.value) {
+    if (DeviceModule.module.connection.connected.value) {
       final installFinish = WatchfaceInstallFinish()..id = 'custom_face';
 
       final cmd = Command()
@@ -140,11 +139,11 @@ class _FacesScreenState extends ScreenState<FacesScreen> {
             7 // Finish
         ..watchface = (Watchface()..watchfaceInstallFinish = installFinish);
 
-      await DeviceConnection.instance.send(cmd: cmd);
-      module.logger.info('sent WatchfaceInstallFinish command');
+      await DeviceModule.module.connection.send(cmd: cmd);
+      widget.module.logger.info('sent WatchfaceInstallFinish command');
     }
 
-    module.logger.info('watch face installation completed successfully');
+    widget.module.logger.info('watch face installation completed successfully');
     setState(() {
       _isUploading = false;
       _uploadProgress = 1.0;

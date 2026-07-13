@@ -15,7 +15,7 @@ class Clock {
 }
 
 const List<Clock> clocks = [
-  Clock(id: "C1", timezone: "Africa/Abidjan", name: "Abidjan", country: "Côte d\'Ivoire"),
+  Clock(id: "C1", timezone: "Africa/Abidjan", name: "Abidjan", country: "Côte d'Ivoire"),
   Clock(id: "C2", timezone: "Africa/Accra", name: "Accra", country: "Ghana"),
   Clock(id: "C3", timezone: "Africa/Addis_Ababa", name: "Addis Ababa", country: "Ethiopia"),
   Clock(id: "C4", timezone: "Africa/Algiers", name: "Algiers", country: "Algeria"),
@@ -100,7 +100,7 @@ const List<Clock> clocks = [
   Clock(id: "C85", timezone: "America/Puerto_Rico", name: "Puerto Rico", country: "Puerto Rico"),
   Clock(id: "C86", timezone: "America/Santo_Domingo", name: "Santo Domingo", country: "Dominican Republic"),
   Clock(id: "C87", timezone: "America/Sao_Paulo", name: "São Paulo", country: "Brazil"),
-  Clock(id: "C88", timezone: "America/St_Johns", name: "St. John\'s", country: "Canada"),
+  Clock(id: "C88", timezone: "America/St_Johns", name: "St. John's", country: "Canada"),
   Clock(id: "C89", timezone: "America/St_Kitts", name: "St. Kitts", country: "Saint Kitts and Nevis"),
   Clock(id: "C90", timezone: "America/St_Lucia", name: "Saint Lucia", country: "Saint Lucia"),
   Clock(id: "C91", timezone: "America/St_Thomas", name: "St. Thomas", country: "U.S. Virgin Islands"),
@@ -266,7 +266,7 @@ const List<Clock> clocks = [
   Clock(id: "C254", timezone: "Asia/Kolkata", name: "Delhi", country: "India"),
   Clock(id: "C255", timezone: "Asia/Tokyo", name: "Osaka", country: "Japan"),
   Clock(id: "C256", timezone: "Asia/Karachi", name: "Lahore", country: "Pakistan"),
-  Clock(id: "C257", timezone: "Asia/Riyadh", name: "Sana\'a", country: "Yemen"),
+  Clock(id: "C257", timezone: "Asia/Riyadh", name: "Sana'a", country: "Yemen"),
   Clock(id: "C258", timezone: "Europe/Madrid", name: "Barcelona", country: "Spain"),
   Clock(id: "C259", timezone: "Europe/Berlin", name: "Munich", country: "Germany"),
   Clock(id: "C260", timezone: "Europe/Rome", name: "Milan", country: "Italy"),

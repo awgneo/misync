@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../screen.dart';
 import 'logger.dart';
+import 'module.dart';
 
-class DebugScreen extends StatefulWidget {
-  const DebugScreen({super.key});
+class DebugScreen extends Screen<DebugModule> {
+  const DebugScreen(super.module, {super.key});
 
   @override
   State<DebugScreen> createState() => _DebugScreenState();
@@ -17,7 +19,9 @@ class _DebugScreenState extends State<DebugScreen> {
     super.initState();
     _logger.addListener(_onLogsChanged);
     // Scroll to bottom initially
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(animated: false));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToBottom(animated: false),
+    );
   }
 
   @override
@@ -28,10 +32,14 @@ class _DebugScreenState extends State<DebugScreen> {
   }
 
   void _onLogsChanged() {
-    debugPrint('DebugScreen: _onLogsChanged called. Log count: ${_logger.logs.length}');
+    debugPrint(
+      'DebugScreen: _onLogsChanged called. Log count: ${_logger.logs.length}',
+    );
     if (mounted) {
       setState(() {});
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(animated: true));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollToBottom(animated: true),
+      );
     }
   }
 
@@ -56,7 +64,9 @@ class _DebugScreenState extends State<DebugScreen> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(animated: false));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToBottom(animated: false),
+    );
     final logs = _logger.logs;
     return Column(
       children: [
@@ -76,10 +86,17 @@ class _DebugScreenState extends State<DebugScreen> {
               ),
               TextButton.icon(
                 onPressed: () => _logger.clear(),
-                icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFF00E5FF)),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 16,
+                  color: Color(0xFF00E5FF),
+                ),
                 label: const Text(
                   'Clear',
-                  style: TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Color(0xFF00E5FF),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -108,10 +125,20 @@ class _DebugScreenState extends State<DebugScreen> {
                     itemBuilder: (context, index) {
                       final log = logs[index];
                       Color color = Colors.green;
-                      if (log.contains('← raw') || log.contains('← RAW')) color = Colors.cyan;
-                      if (log.contains('→ write') || log.contains('→ send') || log.contains('→ SEND')) color = Colors.yellowAccent;
-                      if (log.contains('ERROR') || log.contains('failed')) color = Colors.redAccent;
-                      if (log.contains('***')) color = Colors.purpleAccent;
+                      if (log.contains('← raw') || log.contains('← RAW')) {
+                        color = Colors.cyan;
+                      }
+                      if (log.contains('→ write') ||
+                          log.contains('→ send') ||
+                          log.contains('→ SEND')) {
+                        color = Colors.yellowAccent;
+                      }
+                      if (log.contains('ERROR') || log.contains('failed')) {
+                        color = Colors.redAccent;
+                      }
+                      if (log.contains('***')) {
+                        color = Colors.purpleAccent;
+                      }
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 3),

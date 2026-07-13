@@ -340,6 +340,91 @@ class HealthManager(private val context: Context) {
         }
     }
 
+    fun writeMindfulnessSession(timeMs: Long, stress: Int, result: MethodChannel.Result) {
+        val currentClient = client ?: run {
+            result.success(false)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = MindfulnessSessionRecord(
+                    startTime = Instant.ofEpochMilli(timeMs),
+                    startZoneOffset = null,
+                    endTime = Instant.ofEpochMilli(timeMs),
+                    endZoneOffset = null,
+                    title = "Stress Measurement",
+                    notes = "Stress Level: $stress",
+                    mindfulnessSessionType = MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(true)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write mindfulness session: ", e)
+                result.success(false)
+            }
+        }
+    }
+
+    fun writeBodyTemperature(timeMs: Long, skinTemp: Double?, bodyTemp: Double?, result: MethodChannel.Result) {
+        val currentClient = client ?: run {
+            result.success(false)
+            return
+        }
+
+        val temp = bodyTemp ?: skinTemp ?: run {
+            result.success(false)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = BodyTemperatureRecord(
+                    time = Instant.ofEpochMilli(timeMs),
+                    zoneOffset = null,
+                    temperature = Temperature.celsius(temp),
+                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(true)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write body temperature: ", e)
+                result.success(false)
+            }
+        }
+    }
+
+    fun writeBloodPressure(timeMs: Long, systolic: Int, diastolic: Int, result: MethodChannel.Result) {
+        val currentClient = client ?: run {
+            result.success(false)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = BloodPressureRecord(
+                    time = Instant.ofEpochMilli(timeMs),
+                    zoneOffset = null,
+                    systolic = Pressure.millimetersOfMercury(systolic.toDouble()),
+                    diastolic = Pressure.millimetersOfMercury(diastolic.toDouble()),
+                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(true)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write blood pressure: ", e)
+                result.success(false)
+            }
+        }
+    }
+
     fun getLatestHeightAndWeight(result: MethodChannel.Result) {
         val currentClient = client ?: run {
             result.success(null)

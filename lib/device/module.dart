@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter/services.dart';
+import 'package:misync/screen.dart';
 import 'blobs/settings.dart';
 import 'proto/constants.dart';
 import 'proto/xiaomi.pb.dart';
 import 'blobs/device.dart';
-import '../module.dart';
 import '../platform/module.dart';
 import 'connection.dart';
 import 'screen.dart';
@@ -20,10 +20,12 @@ class DeviceModule extends TabModule {
   IconData get icon => Icons.link;
 
   @override
-  Widget get screen => const DeviceScreen();
+  late final Screen screen = DeviceScreen(this);
 
-  static final DeviceModule _instance = DeviceModule._();
-  static DeviceModule get instance => _instance;
+  late final DeviceConnection connection;
+
+  static final DeviceModule _module = DeviceModule._();
+  static DeviceModule get module => _module;
   DeviceModule._();
 
   final List<Module> _modules = [];
@@ -38,19 +40,19 @@ class DeviceModule extends TabModule {
 
   @override
   Future<void> start() async {
-    DeviceConnection.logger = logger;
+    connection = DeviceConnection(logger);
     _startDeviceCompanionship();
-    PlatformModule.instance.register(_receivePhoneMethod);
-    DeviceConnection.instance.connected.addListener(_watchConnectionChanged);
-    DeviceConnection.instance.listen(_receiveWatchCommand);
+    PlatformModule.module.register(_receivePhoneMethod);
+    connection.connected.addListener(_watchConnectionChanged);
+    connection.listen(_receiveWatchCommand);
     SettingsBlob.instance.addListener(_settingsChanged);
-    DeviceConnection.instance.connect();
+    connection.connect();
     _startSyncInterval();
   }
 
   void _startDeviceCompanionship() async {
     _deviceAssociated =
-        await PlatformModule.instance.invokeMethod(
+        await PlatformModule.module.invokeMethod(
           'device.getDeviceAssociated',
         ) ??
         false;
@@ -79,14 +81,12 @@ class DeviceModule extends TabModule {
 
   void _observeDevicePresence() async {
     if (_deviceAssociated) {
-      await PlatformModule.instance.invokeMethod(
-        'device.observeDevicePresence',
-      );
+      await PlatformModule.module.invokeMethod('device.observeDevicePresence');
     }
   }
 
   void _watchConnectionChanged() {
-    if (DeviceConnection.instance.connected.value) {
+    if (connection.connected.value) {
       sync();
     }
   }
@@ -207,7 +207,7 @@ class DeviceModule extends TabModule {
       return;
     }
 
-    if (!DeviceConnection.instance.connected.value) {
+    if (!connection.connected.value) {
       logger.info('sync skipped: watch is not connected');
       return;
     }
@@ -222,12 +222,12 @@ class DeviceModule extends TabModule {
 
   Future<void> _syncDevice() async {
     final futures = [
-      DeviceConnection.instance.send(
+      connection.send(
         type: CmdType.system,
         subtype: SystemSubtype.deviceInfo,
         expectResponse: true,
       ),
-      DeviceConnection.instance.send(
+      connection.send(
         type: CmdType.system,
         subtype: SystemSubtype.battery,
         expectResponse: true,
@@ -308,9 +308,9 @@ class DeviceModule extends TabModule {
     final int findDevice = cmd.system.findDevice;
     logger.info('received find phone request: findDevice=$findDevice');
     if (findDevice == 0) {
-      PlatformModule.instance.invokeMethod('device.startFindPhone');
+      PlatformModule.module.invokeMethod('device.startFindPhone');
     } else {
-      PlatformModule.instance.invokeMethod('device.stopFindPhone');
+      PlatformModule.module.invokeMethod('device.stopFindPhone');
     }
   }
 
@@ -320,23 +320,20 @@ class DeviceModule extends TabModule {
       'received find watch update from wrist: findDevice=$findDevice',
     );
     if (findDevice == 1) {
-      PlatformModule.instance.findingWatch.value = false;
-      PlatformModule.instance.invokeMethod(
-        'device.updateFindWatchState',
-        false,
-      );
+      PlatformModule.module.findingWatch.value = false;
+      PlatformModule.module.invokeMethod('device.updateFindWatchState', false);
     }
   }
 
   Future<void> stopFindPhone() async {
     logger.info('stopping find phone alert');
-    if (DeviceConnection.instance.connected.value) {
-      await DeviceConnection.instance.send(
+    if (connection.connected.value) {
+      await connection.send(
         type: CmdType.system,
         subtype: SystemSubtype.findPhone,
         builder: (cmd) => cmd.system = (System()..findDevice = 1),
       );
     }
-    await PlatformModule.instance.invokeMethod('device.stopFindPhone');
+    await PlatformModule.module.invokeMethod('device.stopFindPhone');
   }
 }

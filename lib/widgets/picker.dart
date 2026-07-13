@@ -36,7 +36,7 @@ class _MiPickerState extends State<MiPicker> {
 
   Future<void> _loadInstalledApps() async {
     try {
-      final appsMap = await PlatformModule.instance.getApps();
+      final appsMap = await PlatformModule.module.getApps();
       final list = appsMap.values.toList();
 
       // Sort alphabetically by name

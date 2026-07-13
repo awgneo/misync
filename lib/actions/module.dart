@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart' hide Action;
-import '../module.dart';
-import '../device/connection.dart';
+import 'package:misync/screen.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../device/proto/constants.dart';
 import '../platform/module.dart';
 import 'blobs/actions.dart';
 import 'screen.dart';
+import '../device/module.dart';
 
 class ActionsModule extends TabModule {
   @override
@@ -16,14 +16,15 @@ class ActionsModule extends TabModule {
   IconData get icon => Icons.touch_app;
 
   @override
-  Widget get screen => const ActionsScreen();
-  static final ActionsModule _instance = ActionsModule._();
-  static ActionsModule get instance => _instance;
+  late final Screen screen = ActionsScreen(this);
+
+  static final ActionsModule _module = ActionsModule._();
+  static ActionsModule get module => _module;
   ActionsModule._();
 
   @override
   Future<void> start() async {
-    DeviceConnection.instance.listen(_receiveWatchCommand);
+    DeviceModule.module.connection.listen(_receiveWatchCommand);
   }
 
   @override
@@ -78,7 +79,7 @@ class ActionsModule extends TabModule {
       extras.addAll(action.extras!);
     }
 
-    final bool? success = await PlatformModule.instance.invokeMethod<bool>(
+    final bool? success = await PlatformModule.module.invokeMethod<bool>(
       'device.launchAction',
       {
         'intent': intent,

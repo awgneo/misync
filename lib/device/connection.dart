@@ -14,13 +14,9 @@ import '../debug/logger.dart';
 import 'blobs/settings.dart';
 
 class DeviceConnection extends ChangeNotifier {
-  static late final Logger logger;
-  // Singleton pattern
-  static final DeviceConnection _instance = DeviceConnection._internal();
-  static DeviceConnection get instance => _instance;
-  factory DeviceConnection() => _instance;
+  final Logger logger;
 
-  DeviceConnection._internal() {
+  DeviceConnection(this.logger) {
     SettingsBlob.instance.addListener(() {
       notifyListeners();
       connect();
@@ -543,24 +539,22 @@ class DeviceConnection extends ChangeNotifier {
     _connection!.output.add(Uint8List.fromList(bytes));
   }
 
-  static Future<void> sendDataChunk(Uint8List chunk) async {
-    final instance = _instance;
-    if (!instance._connected || instance._protocol == null) {
+  Future<void> sendDataChunk(Uint8List chunk) async {
+    if (!_connected || _protocol == null) {
       logger.error('cannot send data chunk: not connected');
       return;
     }
-    final framed = instance._protocol!.wrapDataChunk(chunk);
-    await instance._write(framed);
+    final framed = _protocol!.wrapDataChunk(chunk);
+    await _write(framed);
   }
 
-  static Uint8List decryptData(Uint8List ciphertext) {
-    final instance = _instance;
-    if (instance._protocol == null || instance._protocol!.sessionKeys == null) {
+  Uint8List decryptData(Uint8List ciphertext) {
+    if (_protocol == null || _protocol!.sessionKeys == null) {
       throw StateError('Cannot decrypt: secure channel not active');
     }
     return Crypto.decryptData(
       ciphertext,
-      instance._protocol!.sessionKeys!.decryptionKey,
+      _protocol!.sessionKeys!.decryptionKey,
     );
   }
 

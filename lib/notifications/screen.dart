@@ -15,8 +15,8 @@ import '../widgets/picker.dart';
 import '../widgets/modal.dart';
 import '../platform/app.dart' as phone;
 
-class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+class NotificationsScreen extends Screen<NotificationModule> {
+  const NotificationsScreen(super.module, {super.key});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -30,9 +30,6 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
     {},
   );
   final ValueNotifier<bool> _loadingInstalledApps = ValueNotifier(false);
-
-  @override
-  NotificationModule get module => NotificationModule.instance;
 
   @override
   void initState() {
@@ -61,11 +58,13 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   Future<void> _refreshInstalledApps() async {
     _loadingInstalledApps.value = true;
     try {
-      final apps = await PlatformModule.instance.getApps();
+      final apps = await PlatformModule.module.getApps();
       if (!mounted) return;
       _installedApps.value = apps;
     } catch (e) {
-      module.logger.error('failed to load installed apps in background: $e');
+      widget.module.logger.error(
+        'failed to load installed apps in background: $e',
+      );
     } finally {
       if (mounted) {
         _loadingInstalledApps.value = false;
@@ -82,7 +81,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
         return MiPicker(
           registeredFilters: AppsBlob.map.keys.toList(),
           onAppSelected: (packageName) {
-            module.addApp(packageName);
+            widget.module.addApp(packageName);
           },
         );
       },
@@ -98,7 +97,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
     );
     if (reply != null && reply.trim().isNotEmpty) {
       final replies = List<String>.from(RepliesBlob.list)..add(reply.trim());
-      module.saveReplies(replies);
+      widget.module.saveReplies(replies);
     }
   }
 
@@ -180,7 +179,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
                   'Mirror incoming phone calls and text messages to the watch',
               primaryIcon: Icons.contact_phone_outlined,
               enabled: ContactBlob.enabled,
-              toggled: module.saveContactEnabled,
+              toggled: widget.module.saveContactEnabled,
             ),
           ],
         ),
@@ -219,7 +218,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               title: displayName,
               subtitle: package,
               delete: () {
-                module.removeApp(package);
+                widget.module.removeApp(package);
               },
               primaryIcon: Container(
                 width: 24,
@@ -234,7 +233,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               ),
               enabled: isEnabled,
               toggled: (enabled) {
-                module.saveAppEnabled(package, enabled);
+                widget.module.saveAppEnabled(package, enabled);
               },
             );
           }).toList(),
@@ -280,7 +279,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           final updated = List<String>.from(replies);
           final item = updated.removeAt(oldIndex);
           updated.insert(newIndex, item);
-          module.saveReplies(updated);
+          widget.module.saveReplies(updated);
         },
         itemBuilder: (context, index) {
           final reply = replies[index];
@@ -289,7 +288,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
             title: reply,
             delete: () {
               final updated = List<String>.from(replies)..removeAt(index);
-              module.saveReplies(updated);
+              widget.module.saveReplies(updated);
             },
             order: ReorderableDragStartListener(
               index: index,
@@ -314,7 +313,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               subtitle: 'Sync phone status with the band',
               primaryIcon: Icons.do_not_disturb,
               enabled: dndEnabled,
-              toggled: module.saveDndEnabled,
+              toggled: widget.module.saveDndEnabled,
             ),
           ],
         ),

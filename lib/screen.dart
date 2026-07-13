@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:misync/device/module.dart';
 import 'module.dart';
 export 'module.dart';
-import 'device/connection.dart';
 import 'platform/module.dart';
 
-abstract class ScreenState<T extends StatefulWidget> extends State<T>
-    with WidgetsBindingObserver {
-  Module get module;
+abstract class Screen<M extends Module> extends StatefulWidget {
+  final M module;
+  const Screen(this.module, {super.key});
+}
 
+abstract class ScreenState<T extends Screen> extends State<T>
+    with WidgetsBindingObserver {
   bool _hasPermissions = true;
   bool get hasPermissions => _hasPermissions;
 
@@ -33,8 +36,8 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   }
 
   Future<void> checkPermissions() async {
-    final hasPerms = await PlatformModule.instance.checkModulePermissions(
-      module.name,
+    final hasPerms = await PlatformModule.module.checkModulePermissions(
+      widget.module.name,
     );
     if (mounted) {
       setState(() {
@@ -46,7 +49,9 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   Widget _buildBannerWidget() {
     return GestureDetector(
       onTap: () async {
-        await PlatformModule.instance.requestModulePermissions(module.name);
+        await PlatformModule.module.requestModulePermissions(
+          widget.module.name,
+        );
         await checkPermissions();
       },
       child: Container(
@@ -78,13 +83,13 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   }
 
   Future<void> refresh() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     try {
-      await module.sync();
+      await widget.module.sync();
     } catch (e) {
       debugPrint(
-        'ScreenState: Sync failed for module ${module.runtimeType}: $e',
+        'ScreenState: Sync failed for module ${widget.module.runtimeType}: $e',
       );
     }
   }
@@ -94,7 +99,7 @@ abstract class ScreenState<T extends StatefulWidget> extends State<T>
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: DeviceConnection.instance.connected,
+      valueListenable: DeviceModule.module.connection.connected,
       builder: (context, connected, _) {
         final child = buildScreen(context, connected);
 

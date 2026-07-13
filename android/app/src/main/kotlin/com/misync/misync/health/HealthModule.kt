@@ -26,6 +26,9 @@ class HealthModule(
         HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getWritePermission(DistanceRecord::class),
         HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+        HealthPermission.getWritePermission(MindfulnessSessionRecord::class),
+        HealthPermission.getWritePermission(BodyTemperatureRecord::class),
+        HealthPermission.getWritePermission(BloodPressureRecord::class),
         HealthPermission.getReadPermission(HeightRecord::class),
         HealthPermission.getReadPermission(WeightRecord::class)
     )
@@ -121,6 +124,26 @@ class HealthModule(
             }
             "getLatestHeightAndWeight" -> {
                 healthManager.getLatestHeightAndWeight(result)
+                true
+            }
+            "writeMindfulnessSession" -> {
+                val time = call.argument<Long>("time")!!
+                val stress = call.argument<Int>("stress")!!
+                healthManager.writeMindfulnessSession(time, stress, result)
+                true
+            }
+            "writeBodyTemperature" -> {
+                val time = call.argument<Long>("time")!!
+                val skinTemp = call.argument<Double>("skinTemp")
+                val bodyTemp = call.argument<Double>("bodyTemp")
+                healthManager.writeBodyTemperature(time, skinTemp, bodyTemp, result)
+                true
+            }
+            "writeBloodPressure" -> {
+                val time = call.argument<Long>("time")!!
+                val systolic = call.argument<Int>("systolic")!!
+                val diastolic = call.argument<Int>("diastolic")!!
+                healthManager.writeBloodPressure(time, systolic, diastolic, result)
                 true
             }
             else -> false

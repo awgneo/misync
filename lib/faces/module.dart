@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../module.dart';
+import 'package:misync/screen.dart';
 import 'screen.dart';
 
 class FacesModule extends TabModule {
@@ -10,9 +10,10 @@ class FacesModule extends TabModule {
   IconData get icon => Icons.watch;
 
   @override
-  Widget get screen => const FacesScreen();
-  static final FacesModule _instance = FacesModule._();
-  static FacesModule get instance => _instance;
+  late final Screen screen = FacesScreen(this);
+
+  static final FacesModule _module = FacesModule._();
+  static FacesModule get module => _module;
   FacesModule._();
 
   @override

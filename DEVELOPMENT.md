@@ -26,18 +26,24 @@ graph TD
 1.  **`lib/main.dart` (Bootstrapper)**: Defines the global list of `modules`. Bootstraps and awaits the sequential asynchronous lifecycles of all modules in a loop.
 2.  **Modules (`lib/<feature>/module.dart`)**: The logical engine of a feature.
     * Implement the **`Module`** interface (for background/framework services like `StorageModule`, `PlatformModule`).
-    * Implement the **`TabModule`** interface (for user-facing features that render in navigation tabs). They override properties: `String get name` (lowercase, e.g., `'device'`, `'clock'`), `IconData get icon`, and `Widget get screen`.
+    * Implement the **`TabModule`** interface (for user-facing features that render in navigation tabs). They override properties: `String get name` (lowercase, e.g., `'device'`, `'clock'`), `IconData get icon`, and `late final Screen screen`.
+    * **Instance Access**: Modules expose themselves as a static singleton getter named `module` (e.g., `static final HealthModule _module = HealthModule._(); static HealthModule get module => _module;`).
+    * **Screen Caching**: Concrete modules instantiate and cache their screens lazily as a `late final` field inside the module, passing `this` to the screen constructor:
+      ```dart
+      @override
+      late final Screen screen = WeatherScreen(this);
+      ```
     * **Best Practice**: All data mutation operations (e.g. `saveHealth`, `editAlarm`, `removeApp`) should be defined as methods on the `Module` class. Screen classes should call these methods rather than mutating blobs directly in the view layer.
 3.  **Blobs (`lib/<feature>/blobs/<name>.dart`)**: Reactive state holders extending `Blob<T>`. They automatically read/write JSON values to the persistent key-value store (`StorageModule`) and notify UI screens upon updates.
 4.  **Screens (`lib/<feature>/screen.dart`)**: Independent presentation layer extending `ScreenState<T>`. 
-    * Screens **never** interact directly with the Bluetooth connection, execute platform method channels, or write directly to the database. They delegate updates to the `Module`.
-    * All screen states extend `ScreenState<T>` and override `Widget buildScreen(BuildContext context, bool connected)`. The base class automatically wraps the tree in a `ValueListenableBuilder` listening to `DeviceConnection.instance.connected`.
+    * Screens **never** interact directly with the Bluetooth connection, execute platform method channels, or write directly to the database. They delegate updates to the `module` reference.
+    * All screen widgets extend `Screen<M extends Module>` (which takes the module in its constructor). All screen state classes extend `ScreenState<T extends Screen>` and override `Widget buildScreen(BuildContext context, bool connected)`. The base class automatically wraps the tree in a `ValueListenableBuilder` listening to `DeviceModule.module.connection.connected`.
+    * **Type-Safe Module Access**: Inside the state class, the module is directly accessible as `widget.module`. Since `Screen` is generically parameterized (e.g. `Screen<HealthModule>`), `widget.module` is automatically typed as the concrete module (e.g. `HealthModule`), removing any need for manual type casting or `module` getter overrides.
     * Interactive controls (switches, text fields, adding/editing/deleting elements) **must be disabled** when `connected` is false.
-    * **Specific Subclass Getter**: To call features on the module, screens should type-specialize the `module` getter override returning the concrete implementation class (e.g., `HealthModule get module => HealthModule.instance;`) instead of returning the abstract `Module` base class.
     * **Piggyback on refresh()**: Do **not** override `initState()` manually in a screen state to trigger initial logic or query native endpoints. Instead, override `refresh()` (and remember to await `super.refresh()`), which the base class `ScreenState` automatically invokes at initialization and connection changes.
     * **Reactive Lists**: Use `ListenableBuilder` tied directly to the module's `Blob` instance to automatically redraw views on modification and support instant, side-effect-free updates.
     * **Manifest Permissions Requirement**: If you add any custom permission (such as `calendar`) inside `module.permissions`, you must explicitly register it inside `android/app/src/main/AndroidManifest.xml` (e.g., `<uses-permission android:name="android.permission.READ_CALENDAR" />`), otherwise the permission dialog popup will fail silently.
-5.  **`DeviceConnection` (`lib/device/connection.dart`)**: The unified Bluetooth SPP connection and protocol manager. Exposes `DeviceConnection.instance.listen((cmd) => ...)` and `DeviceConnection.instance.send(...)` to other modules.
+5.  **`DeviceConnection` (`lib/device/connection.dart`)**: The Bluetooth SPP connection and protocol manager. Exposes `DeviceModule.module.connection.listen((cmd) => ...)` and `DeviceModule.module.connection.send(...)` to other modules.
 
 ---
 
@@ -46,9 +52,9 @@ graph TD
 Certain features (like Reading from the Calendar, playing Ring Phone audio, or querying Health Connect) must execute native Android APIs. MiSync implements a decoupled, self-contained architecture for these native channels.
 
 ### Dart Side
-Each feature module extends `Module` and uses `PlatformModule.instance.invokeMethod` to request native actions:
+Each feature module extends `Module` and uses `PlatformModule.module.invokeMethod` to request native actions:
 ```dart
-final Map? latest = await PlatformModule.instance.invokeMethod<Map>('health.getLatestHeightAndWeight');
+final Map? latest = await PlatformModule.module.invokeMethod<Map>('health.getLatestHeightAndWeight');
 ```
 Platform channel routing prefixes method calls with the module name (e.g. `'health.getLatestHeightAndWeight'`, `'calendar.syncEvents'`) to resolve target handlers.
 
@@ -189,12 +195,17 @@ Xiaomi HyperOS requires an additional verification step before allowing data syn
 
 ---
 
-## 8. Decompiled References & AOSP Codebases
+## 8. Decompiled References & Schema Generators
 
-To map out command types, payload definitions, and fields without guessing, utilize the reference folders:
+To speed up development and eliminate guesswork regarding command types, payload fields, or data constants, utilize the local decompiled resources:
 
--   **Mi Fitness Decompiled Source**: Located in [apks/mi_fitness_source](file:///Users/awgneo/Repositories/awgneo/misync/apks/mi_fitness_source). Run a global text search here using `grep` or VS Code to find where protobuf tags are referenced. Look for files named `WearAuthV2.java` or `ScheduleService.java`.
--   **Gadgetbridge Source Reference**: Located in [gadgetbridge_src](file:///Users/awgneo/Repositories/awgneo/misync/gadgetbridge_src). This provides clean, working implementations of HyperOS services (e.g., `XiaomiScheduleService.java` for alarms, DND handling, and battery reporting).
+-   **Decompiled Mi Fitness Source**: Located in `.apks/mi_fitness_source`. Run global text searches to find class handlers, constants, or protobuf tags (e.g., searching for `WearAuthV2.java`, `SportReportBaseParser.java`, or `FitnessDataParser.java` to see mapping definitions).
+-   **Gadgetbridge Source Reference**: Located in `gadgetbridge_src`. Contains clean, open-source implementations of HyperOS Bluetooth services (like alarm sync and battery level notifications).
+-   **Dynamic Schema Generators**: Modules can implement optional Dart generators under `lib/<module>/generators/` to parse Java sources in `.apks/mi_fitness_source` and output static schemas or Dart mappings. For example, running:
+    ```bash
+    dart lib/health/generators/schemas.dart
+    ```
+    extracts the raw sport types, dependent variable array maps, and parser instance associations directly from the decompiled java files, writing updated schema mappings without manual porting errors.
 
 ---
 
@@ -225,3 +236,23 @@ Scrollable tab controller for nesting view panels.
 
 ### 8. `MiPicker` Bottom Sheet (`lib/widgets/picker.dart`)
 A DRY bottom drawer listing all system applications, with built-in alphabetical sorting and real-time search-filtering.
+
+---
+
+## 10. Binary Data SPP Transfer APIs
+
+When building features that read or write files to/from the watch (like daily logs, watch faces, quick replies, or assets), use `DeviceConnection`'s specialized binary transport methods rather than standard command/response envelopes.
+
+### Downloading Data from Watch
+Use `DeviceModule.instance.connection.downloadData` to request and stream raw files from the watch:
+```dart
+final Uint8List? fileData = await DeviceModule.instance.connection.downloadData(cmd: requestCommand);
+```
+- **Mechanism**: Send the trigger command (such as `getFitnessFile`). The connection manager prepares a timeout listener, groups incoming fragmented L1 SPP packets, reasssembles the parts sequentially, and resolves the returned byte array.
+
+### Uploading Data to Watch
+Use `DeviceModule.instance.connection.uploadData` to package and upload raw files to the watch:
+```dart
+final bool success = await DeviceModule.instance.connection.uploadData(type: fileTypeInt, bytes: payloadBytes);
+```
+- **Mechanism**: Initiates a chunked file handshake with the watch. It sends an MD5 checksum of the data payload to start, splits the byte stream into structured parts (framed with index metadata), handles individual packet acknowledgments to guarantee receipt, and transmits a finish transaction command. Useful for watch face RPK installations and large asset pushes.

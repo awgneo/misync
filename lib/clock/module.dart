@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../module.dart';
+import 'package:misync/screen.dart';
 import '../device/module.dart';
-import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
 import '../platform/module.dart';
@@ -19,9 +18,9 @@ class ClockModule extends TabModule {
   IconData get icon => Icons.alarm;
 
   @override
-  Widget get screen => const ClockScreen();
-  static final ClockModule _instance = ClockModule._();
-  static ClockModule get instance => _instance;
+  late final Screen screen = ClockScreen(this);
+  static final ClockModule _module = ClockModule._();
+  static ClockModule get module => _module;
   ClockModule._();
 
   final phoneNextAlarm = ValueNotifier<Alarm?>(null);
@@ -29,8 +28,8 @@ class ClockModule extends TabModule {
   @override
   Future<void> start() async {
     _startNextAlarm();
-    DeviceModule.instance.register(this);
-    PlatformModule.instance.register(_receivePhoneMethod);
+    DeviceModule.module.register(this);
+    PlatformModule.module.register(_receivePhoneMethod);
   }
 
   Future<dynamic> _receivePhoneMethod(MethodCall call) async {
@@ -40,7 +39,7 @@ class ClockModule extends TabModule {
   }
 
   void _startNextAlarm() async {
-    final arguments = await PlatformModule.instance.invokeMethod(
+    final arguments = await PlatformModule.module.invokeMethod(
       'clock.getNextAlarm',
     );
 
@@ -66,19 +65,19 @@ class ClockModule extends TabModule {
 
   @override
   Future<void> sync() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
     await _syncTime();
     await _syncAlarms();
     await _syncClocks();
   }
 
   Future<void> _syncTime() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     final now = DateTime.now();
     logger.info('syncing time, date, and timezone offset: ${now.timeZoneName}');
 
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.system,
       subtype: SystemSubtype.clockSync,
       builder: (cmd) => cmd.system = (pb.System()
@@ -99,12 +98,12 @@ class ClockModule extends TabModule {
   }
 
   Future<void> _syncAlarms() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     // Get the current phone alarm, if any
     final phoneFirstAlarm = phoneNextAlarm.value;
     // Get alarms from the watch
-    final response = await DeviceConnection.instance.send(
+    final response = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.getAlarms,
       expectResponse: true,
@@ -133,7 +132,7 @@ class ClockModule extends TabModule {
     if (phoneFirstAlarm == null) {
       if (watchFirstAlarm != null) {
         // No phone next alarm, yes watch first alarm
-        await DeviceConnection.instance.send(
+        await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.editAlarm,
           expectResponse: true,
@@ -145,7 +144,7 @@ class ClockModule extends TabModule {
         );
       } else {
         // No phone next alarm, no watch first alarm
-        await DeviceConnection.instance.send(
+        await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.createAlarm,
           expectResponse: true,
@@ -157,7 +156,7 @@ class ClockModule extends TabModule {
     } else {
       if (watchFirstAlarm != null) {
         // Yes phone next alarm, yes watch first alarm
-        await DeviceConnection.instance.send(
+        await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.editAlarm,
           expectResponse: true,
@@ -169,7 +168,7 @@ class ClockModule extends TabModule {
         );
       } else {
         // Yes phone next alarm, no watch first alarm
-        await DeviceConnection.instance.send(
+        await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.createAlarm,
           expectResponse: true,
@@ -208,10 +207,10 @@ class ClockModule extends TabModule {
   }
 
   Future<void> _syncClocks() async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     logger.info('querying world clocks from watch');
-    final response = await DeviceConnection.instance.send(
+    final response = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.getWorldClocks,
       expectResponse: true,
@@ -234,7 +233,7 @@ class ClockModule extends TabModule {
     int repeatFlags = 0,
     int smart = 2,
   }) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     final alarms = AlarmsBlob.list;
     final id = alarms.length + 1;
@@ -247,7 +246,7 @@ class ClockModule extends TabModule {
       ..repeatMode = repeatMode
       ..repeatFlags = repeatFlags;
 
-    final result = await DeviceConnection.instance.send(
+    final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.createAlarm,
       expectResponse: true,
@@ -276,7 +275,7 @@ class ClockModule extends TabModule {
     int repeatFlags = 0,
     int smart = 2,
   }) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     final details = pb.AlarmDetails()
       ..enabled = enabled
@@ -287,7 +286,7 @@ class ClockModule extends TabModule {
       ..repeatMode = repeatMode
       ..repeatFlags = repeatFlags;
 
-    final result = await DeviceConnection.instance.send(
+    final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.editAlarm,
       expectResponse: true,
@@ -325,9 +324,9 @@ class ClockModule extends TabModule {
   }
 
   Future<void> deleteAlarm(int id) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
-    final result = await DeviceConnection.instance.send(
+    final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.deleteAlarm,
       expectResponse: true,
@@ -352,7 +351,7 @@ class ClockModule extends TabModule {
   }
 
   Future<void> addClock(String cityId) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     final list = List<String>.from(ClocksBlob.list);
     if (list.contains(cityId)) return;
@@ -361,7 +360,7 @@ class ClockModule extends TabModule {
     logger.info('syncing world clocks list to watch: $list');
     final pClocks = pb.WorldClocks()..worldClock.addAll(list);
 
-    final result = await DeviceConnection.instance.send(
+    final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.setWorldClocks,
       expectResponse: true,
@@ -374,12 +373,12 @@ class ClockModule extends TabModule {
   }
 
   Future<void> deleteClock(String cityId) async {
-    if (!DeviceConnection.instance.connected.value) return;
+    if (!DeviceModule.module.connection.connected.value) return;
 
     logger.info('deleting world clock from watch: $cityId');
     final pClocks = pb.WorldClocks()..worldClock.add(cityId);
 
-    final result = await DeviceConnection.instance.send(
+    final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.deleteWorldClock,
       expectResponse: true,

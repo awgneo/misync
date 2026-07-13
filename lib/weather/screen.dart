@@ -6,17 +6,14 @@ import '../widgets/item.dart';
 import 'module.dart';
 import 'blobs/weather.dart';
 
-class WeatherScreen extends StatefulWidget {
-  const WeatherScreen({super.key});
+class WeatherScreen extends Screen<WeatherModule> {
+  const WeatherScreen(super.module, {super.key});
 
   @override
   State<WeatherScreen> createState() => _WeatherScreenState();
 }
 
 class _WeatherScreenState extends ScreenState<WeatherScreen> {
-  @override
-  WeatherModule get module => WeatherModule.instance;
-
   @override
   Widget buildScreen(BuildContext context, bool connected) {
     return ListenableBuilder(
@@ -32,23 +29,34 @@ class _WeatherScreenState extends ScreenState<WeatherScreen> {
                   MiItem(
                     title: 'Sync Weather',
                     subtitle: 'Fetch location and sync weather to the watch',
-                    primaryIcon: const Icon(Icons.cloud_sync, color: Color(0xFF00E5FF)),
+                    primaryIcon: const Icon(
+                      Icons.cloud_sync,
+                      color: Color(0xFF00E5FF),
+                    ),
                     enabled: weather.enabled,
                     toggled: (value) async {
-                      await WeatherBlob.instance.update(weather.copyWith(enabled: value));
+                      await WeatherBlob.instance.update(
+                        weather.copyWith(enabled: value),
+                      );
                       if (value) {
-                        module.sync();
+                        widget.module.sync();
                       }
                     },
                   ),
                   MiItem(
                     title: 'Use Fahrenheit',
-                    subtitle: 'Display temperatures in Fahrenheit instead of Celsius',
-                    primaryIcon: const Icon(Icons.thermostat, color: Color(0xFFFFB300)),
+                    subtitle:
+                        'Display temperatures in Fahrenheit instead of Celsius',
+                    primaryIcon: const Icon(
+                      Icons.thermostat,
+                      color: Color(0xFFFFB300),
+                    ),
                     enabled: weather.fahrenheit,
                     toggled: (value) async {
-                      await WeatherBlob.instance.update(weather.copyWith(fahrenheit: value));
-                      module.sync();
+                      await WeatherBlob.instance.update(
+                        weather.copyWith(fahrenheit: value),
+                      );
+                      widget.module.sync();
                     },
                   ),
                 ],

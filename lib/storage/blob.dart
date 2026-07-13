@@ -9,12 +9,8 @@ abstract class Blob<T> extends ChangeNotifier {
   T? _value;
   bool _hasLoaded = false;
 
-  Blob({
-    required this.module,
-    required this.name,
-    required this.defaultValue,
-  }) {
-    StorageModule.instance.addListener(_onStorageChanged);
+  Blob({required this.module, required this.name, required this.defaultValue}) {
+    StorageModule.module.addListener(_onStorageChanged);
   }
 
   T parse(dynamic json);
@@ -29,7 +25,7 @@ abstract class Blob<T> extends ChangeNotifier {
 
   void load() {
     _hasLoaded = true;
-    final json = StorageModule.instance.readJson(module, name);
+    final json = StorageModule.module.readJson(module, name);
     if (json != null) {
       try {
         _value = parse(json);
@@ -45,7 +41,7 @@ abstract class Blob<T> extends ChangeNotifier {
   Future<void> update(T newValue) async {
     _value = newValue;
     _hasLoaded = true;
-    await StorageModule.instance.save(module, name, serialize(newValue));
+    await StorageModule.module.save(module, name, serialize(newValue));
     notifyListeners();
   }
 
@@ -55,7 +51,7 @@ abstract class Blob<T> extends ChangeNotifier {
 
   @override
   void dispose() {
-    StorageModule.instance.removeListener(_onStorageChanged);
+    StorageModule.module.removeListener(_onStorageChanged);
     super.dispose();
   }
 }

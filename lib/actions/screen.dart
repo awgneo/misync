@@ -9,19 +9,16 @@ import '../widgets/button.dart';
 import '../widgets/modal.dart';
 import '../widgets/picker.dart';
 
-class ActionsScreen extends StatefulWidget {
-  const ActionsScreen({super.key});
+class ActionsScreen extends Screen<ActionsModule> {
+  const ActionsScreen(super.module, {super.key});
 
   @override
   State<ActionsScreen> createState() => _ActionsScreenState();
 }
 
 class _ActionsScreenState extends ScreenState<ActionsScreen> {
-  @override
-  ActionsModule get module => ActionsModule.instance;
-
   void _testAction(Action action) {
-    module.runAction(action);
+    widget.module.runAction(action);
   }
 
   Future<void> _addAction() async {
@@ -33,7 +30,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     );
 
     if (result != null) {
-      module.addAction(
+      widget.module.addAction(
         Action(
           name: result['name'] as String,
           intent: result['intent'] as String,
@@ -54,7 +51,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     );
 
     if (result != null) {
-      module.editAction(
+      widget.module.editAction(
         action.name,
         Action(
           name: result['name'] as String,
@@ -77,7 +74,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
     );
 
     if (confirm == true) {
-      module.deleteAction(name);
+      widget.module.deleteAction(name);
     }
   }
 
@@ -155,7 +152,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
 
 class _ActionSetupSheet extends StatefulWidget {
   final Action? action;
-  const _ActionSetupSheet({super.key, this.action});
+  const _ActionSetupSheet({this.action});
 
   @override
   State<_ActionSetupSheet> createState() => _ActionSetupSheetState();
@@ -422,7 +419,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
             ),
             const SizedBox(height: 6),
             DropdownButtonFormField<int>(
-              value: _typeSelection,
+              initialValue: _typeSelection,
               dropdownColor: const Color(0xFF0F111A),
               decoration: InputDecoration(
                 filled: true,

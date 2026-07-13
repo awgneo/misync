@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../module.dart';
+import 'package:misync/screen.dart';
 import '../device/module.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
-import '../device/connection.dart';
 import '../device/proto/constants.dart';
 import '../platform/module.dart';
 import 'blobs/health.dart';
@@ -19,17 +18,17 @@ class HealthModule extends TabModule {
   IconData get icon => Icons.favorite;
 
   @override
-  Widget get screen => const HealthScreen();
+  late final Screen screen = HealthScreen(this);
 
   static const int batchSize = 50;
 
-  static final HealthModule _instance = HealthModule._();
-  static HealthModule get instance => _instance;
+  static final HealthModule _module = HealthModule._();
+  static HealthModule get module => _module;
   HealthModule._();
 
   @override
   Future<void> start() async {
-    DeviceModule.instance.register(this);
+    DeviceModule.module.register(this);
   }
 
   @override
@@ -39,7 +38,7 @@ class HealthModule extends TabModule {
       return;
     }
 
-    if (!DeviceConnection.instance.connected.value) {
+    if (!DeviceModule.module.connection.connected.value) {
       logger.info('skip health sync (not connected)');
       return;
     }
@@ -52,7 +51,7 @@ class HealthModule extends TabModule {
 
   Future<void> _syncUser() async {
     logger.info('syncing user profile and goals to watch');
-    final latest = await PlatformModule.instance
+    final latest = await PlatformModule.module
         .invokeMethod<Map<dynamic, dynamic>>('health.getLatestHeightAndWeight');
 
     double? weight = latest?['weight'] as double?;
@@ -94,7 +93,7 @@ class HealthModule extends TabModule {
       cmd.health.userInfo.weight = settings.weight;
     }
 
-    await DeviceConnection.instance.send(cmd: cmd);
+    await DeviceModule.module.connection.send(cmd: cmd);
     logger.info('user profile synced', {
       'height': settings.height,
       'weight': settings.weight,
@@ -108,7 +107,7 @@ class HealthModule extends TabModule {
     // Sync wear sport status first to commit standalone workout logs on the watch
     try {
       logger.info('syncing wear sport status');
-      await DeviceConnection.instance.send(
+      await DeviceModule.module.connection.send(
         type: CmdType.health,
         subtype: HealthSubtype.getWearSportStatus,
         expectResponse: true,
@@ -179,7 +178,7 @@ class HealthModule extends TabModule {
           ..unknown1 = 1));
     }
 
-    final response = await DeviceConnection.instance.send(
+    final response = await DeviceModule.module.connection.send(
       cmd: cmd,
       expectResponse: true,
       timeout: const Duration(seconds: 8),
@@ -213,7 +212,7 @@ class HealthModule extends TabModule {
       ..subtype = HealthSubtype.requestSingleFitnessId.value
       ..health = (pb.Health()..activityRequestFileIds = id.toBytes());
 
-    return await DeviceConnection.instance.downloadData(cmd: cmd);
+    return await DeviceModule.module.connection.downloadData(cmd: cmd);
   }
 
   Future<void> _sendFileAck(Id id) async {
@@ -221,29 +220,32 @@ class HealthModule extends TabModule {
       ..type = CmdType.health.value
       ..subtype = HealthSubtype.confirmFitnessId.value
       ..health = (pb.Health()..activitySyncAckFileIds = id.toBytes());
-    await DeviceConnection.instance.send(cmd: cmd);
+    await DeviceModule.module.connection.send(cmd: cmd);
   }
 
   Future<bool> _syncFile(
     Id id,
-    Uint8List fileData,
-    List<Map<String, DateTime>> workoutRanges,
+    Uint8List data,
+    List<Map<String, DateTime>> exerciseRanges,
   ) async {
     try {
       logger.info('processing file', {
         'id': id.toHexString(),
-        'size': fileData.length,
+        'size': data.length,
       });
 
       if (id.dataType == Id.dataTypeDaily && id.fileType == Id.fileTypeDetail) {
-        return await _syncMericsFile(id, fileData, workoutRanges);
+        if (id.dailyType == 6) {
+          return await _syncMeasurementFile(id, data);
+        }
+        return await _syncSnapshotsFile(id, data, exerciseRanges);
       } else if (id.dataType == Id.dataTypeDaily &&
           (id.dailyType == Id.dailyTypeSleepNight ||
               id.dailyType == Id.dailyTypeSleepDay)) {
-        return await _syncSleepFile(id, fileData);
+        return await _syncSleepFile(id, data);
       } else if (id.dataType == Id.dataTypeSport &&
           id.fileType == Id.fileTypeSummary) {
-        return await _syncExerciseFile(id, fileData, workoutRanges);
+        return await _syncExerciseFile(id, data, exerciseRanges);
       } else if (id.dataType == Id.dataTypeSport &&
           id.fileType == Id.fileTypeDetail) {
         logger.info('skipping detailed samples file for workout', {
@@ -263,24 +265,96 @@ class HealthModule extends TabModule {
     }
   }
 
-  Future<bool> _syncMericsFile(
+  Future<bool> _syncMeasurementFile(Id id, Uint8List data) async {
+    final measures = MeasurementParser.parse(id, data);
+    logger.info('parsed manual health records', {'count': measures.length});
+
+    final futures = <Future<dynamic>>[];
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final r in measures) {
+      final timeMs = (r.timestamp * 1000).clamp(0, now);
+      if (r is HeartRateMeasurement) {
+        futures.add(
+          PlatformModule.module.invokeMethod('health.writeHeartRate', {
+            'time': timeMs,
+            'bpm': r.bpm,
+          }),
+        );
+      } else if (r is OxygenSaturationMeasurement) {
+        futures.add(
+          PlatformModule.module.invokeMethod('health.writeOxygenSaturation', {
+            'time': timeMs,
+            'percentage': r.percentage.toDouble(),
+          }),
+        );
+      } else if (r is StressMeasurement) {
+        futures.add(
+          PlatformModule.module.invokeMethod('health.writeMindfulnessSession', {
+            'time': timeMs,
+            'stress': r.stress,
+          }),
+        );
+      } else if (r is TemperatureMeasurement) {
+        futures.add(
+          PlatformModule.module.invokeMethod('health.writeBodyTemperature', {
+            'time': timeMs,
+            'skinTemp': r.skinTemp,
+            'bodyTemp': r.bodyTemp,
+          }),
+        );
+      } else if (r is BloodPressureMeasurement) {
+        futures.add(
+          PlatformModule.module.invokeMethod('health.writeBloodPressure', {
+            'time': timeMs,
+            'systolic': r.systolic,
+            'diastolic': r.diastolic,
+            'pulse': r.pulse,
+            'status': r.measurementStatus,
+          }),
+        );
+      }
+    }
+
+    // Run all futures
+    for (int i = 0; i < futures.length; i += batchSize) {
+      final end = (i + batchSize < futures.length)
+          ? i + batchSize
+          : futures.length;
+      final batch = futures.sublist(i, end);
+      await Future.wait(batch);
+    }
+
+    logger.info('manual health connect sync complete');
+    return true;
+  }
+
+  Future<bool> _syncSnapshotsFile(
     Id id,
     Uint8List data,
     List<Map<String, DateTime>> exerciseRanges,
   ) async {
-    final metrics = MetricsParser.parse(id, data);
+    final snapshots = SnapshotsParser.parse(id, data);
     logger.info('parsed minute-by-minute daily logs', {
-      'count': metrics.length,
+      'count': snapshots.length,
     });
 
     final futures = <Future<dynamic>>[];
-    for (final r in metrics) {
-      final startTime = r.startTime;
-      final endTime = r.endTime;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final r in snapshots) {
+      var startMs = r.startTime.millisecondsSinceEpoch;
+      var endMs = r.endTime.millisecondsSinceEpoch;
+
+      if (endMs > now) {
+        endMs = now;
+      }
+      if (startMs >= endMs) {
+        startMs = endMs - 1000; // Ensure start is before end
+      }
 
       final isOverlapping = exerciseRanges.any((range) {
-        return startTime.isBefore(range['end']!) &&
-            endTime.isAfter(range['start']!);
+        final rStart = DateTime.fromMillisecondsSinceEpoch(startMs);
+        final rEnd = DateTime.fromMillisecondsSinceEpoch(endMs);
+        return rStart.isBefore(range['end']!) && rEnd.isAfter(range['start']!);
       });
 
       if (r.steps != null && r.steps! > 0) {
@@ -291,9 +365,9 @@ class HealthModule extends TabModule {
           });
         } else {
           futures.add(
-            PlatformModule.instance.invokeMethod('health.writeSteps', {
-              'startTime': startTime.millisecondsSinceEpoch,
-              'endTime': endTime.millisecondsSinceEpoch,
+            PlatformModule.module.invokeMethod('health.writeSteps', {
+              'startTime': startMs,
+              'endTime': endMs,
               'count': r.steps!,
             }),
           );
@@ -301,16 +375,16 @@ class HealthModule extends TabModule {
       }
       if (r.hr != null && r.hr! > 0) {
         futures.add(
-          PlatformModule.instance.invokeMethod('health.writeHeartRate', {
-            'time': endTime.millisecondsSinceEpoch,
+          PlatformModule.module.invokeMethod('health.writeHeartRate', {
+            'time': endMs,
             'bpm': r.hr!,
           }),
         );
       }
       if (r.spo2 != null && r.spo2! > 0) {
         futures.add(
-          PlatformModule.instance.invokeMethod('health.writeOxygenSaturation', {
-            'time': endTime.millisecondsSinceEpoch,
+          PlatformModule.module.invokeMethod('health.writeOxygenSaturation', {
+            'time': endMs,
             'percentage': r.spo2!.toDouble().clamp(0.0, 100.0),
           }),
         );
@@ -343,7 +417,7 @@ class HealthModule extends TabModule {
       final stagesList = sleep.formattedStages;
 
       try {
-        await PlatformModule.instance.invokeMethod('health.writeSleepSession', {
+        await PlatformModule.module.invokeMethod('health.writeSleepSession', {
           'startTime': sessionStart.millisecondsSinceEpoch,
           'endTime': sessionEnd.millisecondsSinceEpoch,
           'stages': stagesList,
@@ -381,16 +455,15 @@ class HealthModule extends TabModule {
       exerciseRanges.add({'start': sTime, 'end': eTime});
 
       try {
-        await PlatformModule.instance
-            .invokeMethod('health.writeWorkoutSession', {
-              'startTime': sTime.millisecondsSinceEpoch,
-              'endTime': eTime.millisecondsSinceEpoch,
-              'sportType': exercise.sportType ?? 0,
-              'title': exercise.title,
-              'calories': exercise.calories?.toDouble(),
-              'distance': exercise.distance?.toDouble(),
-              'skipCount': exercise.sportType == 14 ? exercise.steps : null,
-            });
+        await PlatformModule.module.invokeMethod('health.writeWorkoutSession', {
+          'startTime': sTime.millisecondsSinceEpoch,
+          'endTime': eTime.millisecondsSinceEpoch,
+          'sportType': exercise.sportType ?? 0,
+          'title': exercise.title,
+          'calories': exercise.calories?.toDouble(),
+          'distance': exercise.distance?.toDouble(),
+          'skipCount': exercise.sportType == 14 ? exercise.steps : null,
+        });
         logger.info('synced native workout session', {
           'title': exercise.title,
           'start': sTime.toIso8601String(),
@@ -407,7 +480,7 @@ class HealthModule extends TabModule {
 
   Future<void> saveHealth(Health settings) async {
     await HealthBlob.instance.update(settings);
-    if (DeviceConnection.instance.connected.value) {
+    if (DeviceModule.module.connection.connected.value) {
       await _syncUser();
     }
   }

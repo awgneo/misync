@@ -6,17 +6,14 @@ import '../widgets/panel.dart';
 import '../widgets/items.dart';
 import '../widgets/item.dart';
 
-class HealthScreen extends StatefulWidget {
-  const HealthScreen({super.key});
+class HealthScreen extends Screen<HealthModule> {
+  const HealthScreen(super.module, {super.key});
 
   @override
   State<HealthScreen> createState() => _HealthScreenState();
 }
 
 class _HealthScreenState extends ScreenState<HealthScreen> {
-  @override
-  HealthModule get module => HealthModule.instance;
-
   Future<void> _selectBirthday(
     BuildContext context,
     Health currentSettings,
@@ -56,7 +53,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
       final newBirthday = '$y$m$d';
 
       final newSettings = currentSettings.copyWith(birthday: newBirthday);
-      await module.saveHealth(newSettings);
+      await widget.module.saveHealth(newSettings);
     }
   }
 
@@ -133,7 +130,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                       final newSettings = currentSettings.copyWith(
                         enabled: value,
                       );
-                      await module.saveHealth(newSettings);
+                      await widget.module.saveHealth(newSettings);
                     },
                   ),
                   MiItem(
@@ -145,7 +142,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                       final newSettings = currentSettings.copyWith(
                         imperial: value,
                       );
-                      await module.saveHealth(newSettings);
+                      await widget.module.saveHealth(newSettings);
                     },
                   ),
                 ],
@@ -186,7 +183,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                       final newSettings = currentSettings.copyWith(
                         gender: nextGender,
                       );
-                      await module.saveHealth(newSettings);
+                      await widget.module.saveHealth(newSettings);
                     },
                   ),
                 ],
@@ -207,7 +204,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                         final newGoals = currentSettings.goals.copyWith(
                           steps: val,
                         );
-                        await module.saveHealth(
+                        await widget.module.saveHealth(
                           currentSettings.copyWith(goals: newGoals),
                         );
                       },
@@ -225,7 +222,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                         final newGoals = currentSettings.goals.copyWith(
                           calories: val,
                         );
-                        await module.saveHealth(
+                        await widget.module.saveHealth(
                           currentSettings.copyWith(goals: newGoals),
                         );
                       },
@@ -243,7 +240,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                         final newGoals = currentSettings.goals.copyWith(
                           standing: val,
                         );
-                        await module.saveHealth(
+                        await widget.module.saveHealth(
                           currentSettings.copyWith(goals: newGoals),
                         );
                       },
@@ -261,7 +258,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                         final newGoals = currentSettings.goals.copyWith(
                           moving: val,
                         );
-                        await module.saveHealth(
+                        await widget.module.saveHealth(
                           currentSettings.copyWith(goals: newGoals),
                         );
                       },

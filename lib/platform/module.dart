@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:misync/device/module.dart';
 import '../module.dart';
-import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
 import 'app.dart';
@@ -10,8 +10,8 @@ class PlatformModule extends Module {
   @override
   String get name => 'platform';
 
-  static final PlatformModule _instance = PlatformModule._();
-  static PlatformModule get instance => _instance;
+  static final PlatformModule _module = PlatformModule._();
+  static PlatformModule get module => _module;
   PlatformModule._();
 
   static const _channel = MethodChannel('com.misync.misync/channels');
@@ -81,8 +81,8 @@ class PlatformModule extends Module {
 
   Future<void> findWatch(bool start) async {
     findingWatch.value = start;
-    if (DeviceConnection.instance.connected.value) {
-      await DeviceConnection.instance.send(
+    if (DeviceModule.module.connection.connected.value) {
+      await DeviceModule.module.connection.send(
         type: CmdType.system,
         subtype: SystemSubtype.findWatch,
         builder: (cmd) =>

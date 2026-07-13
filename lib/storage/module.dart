@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:misync/screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../module.dart';
 import 'screen.dart';
 
 class StorageModule extends TabModule with ChangeNotifier {
@@ -12,10 +12,10 @@ class StorageModule extends TabModule with ChangeNotifier {
   IconData get icon => Icons.storage;
 
   @override
-  Widget get screen => const StorageScreen();
+  late final Screen screen = StorageScreen(this);
 
-  static final StorageModule _instance = StorageModule._();
-  static StorageModule get instance => _instance;
+  static final StorageModule _module = StorageModule._();
+  static StorageModule get module => _module;
   StorageModule._();
 
   late final SharedPreferences _preferences;

@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../module.dart';
+import 'package:misync/screen.dart';
 import '../device/module.dart';
-import '../device/connection.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
 import '../device/proto/constants.dart';
 import '../platform/module.dart';
@@ -17,15 +16,15 @@ class CalendarModule extends TabModule {
   IconData get icon => Icons.calendar_today;
 
   @override
-  Widget get screen => const CalendarScreen();
+  late final Screen screen = CalendarScreen(this);
 
-  static final CalendarModule _instance = CalendarModule._();
-  static CalendarModule get instance => _instance;
+  static final CalendarModule _module = CalendarModule._();
+  static CalendarModule get module => _module;
   CalendarModule._();
 
   @override
   Future<void> start() async {
-    DeviceModule.instance.register(this);
+    DeviceModule.module.register(this);
   }
 
   @override
@@ -34,7 +33,7 @@ class CalendarModule extends TabModule {
   }
 
   Future<void> _syncCalendar() async {
-    if (!DeviceConnection.instance.connected.value) {
+    if (!DeviceModule.module.connection.connected.value) {
       logger.info('skip sync (not connected)');
       return;
     }
@@ -42,7 +41,7 @@ class CalendarModule extends TabModule {
     final enabledIds = CalendarsBlob.enabledIds;
     if (enabledIds.isEmpty) {
       logger.info('clearing watch calendar events');
-      await DeviceConnection.instance.send(
+      await DeviceModule.module.connection.send(
         type: CmdType.calendar,
         subtype: CalendarSubtype.setCalendar,
         builder: (cmd) =>
@@ -53,10 +52,10 @@ class CalendarModule extends TabModule {
     }
 
     logger.info('syncing ${enabledIds.length} calendars');
-    final List<dynamic>? phoneEvents = await PlatformModule.instance
-        .invokeMethod('calendar.getUpcomingEvents', {
-          'calendarIds': enabledIds,
-        });
+    final List<dynamic>? phoneEvents = await PlatformModule.module.invokeMethod(
+      'calendar.getUpcomingEvents',
+      {'calendarIds': enabledIds},
+    );
 
     final List<pb.CalendarEvent> events = [];
     if (phoneEvents != null) {
@@ -79,7 +78,7 @@ class CalendarModule extends TabModule {
     }
 
     logger.info('syncing ${events.length} events');
-    await DeviceConnection.instance.send(
+    await DeviceModule.module.connection.send(
       type: CmdType.calendar,
       subtype: CalendarSubtype.setCalendar,
       builder: (cmd) =>
@@ -91,7 +90,7 @@ class CalendarModule extends TabModule {
   }
 
   Future<List<PhoneCalendar>> getCalendars() async {
-    final List<dynamic>? raw = await PlatformModule.instance.invokeMethod(
+    final List<dynamic>? raw = await PlatformModule.module.invokeMethod(
       'calendar.getCalendars',
     );
     if (raw == null) return [];
