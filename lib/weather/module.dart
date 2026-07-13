@@ -177,7 +177,11 @@ class WeatherModule extends TabModule {
     final int xiaomiCondition = _convertWmoToXiaomi(currentWmo);
 
     final useFahrenheit = WeatherBlob.fahrenheit;
-    final symbol = '℃';
+    final symbol = useFahrenheit ? '℉' : '℃';
+
+    int convertTemp(double celsius) {
+      return celsius.round();
+    }
 
     // Add Location
     final location = pb.WeatherLocation()
@@ -210,7 +214,7 @@ class WeatherModule extends TabModule {
     final pbCurrent = pb.WeatherCurrent()
       ..metadata = meta
       ..weatherCondition = xiaomiCondition
-      ..temperature = _buildUnitValue(currentTemp.round(), symbol)
+      ..temperature = _buildUnitValue(convertTemp(currentTemp), symbol)
       ..humidity = _buildUnitValue(currentHumidity, '%')
       ..wind = _buildUnitValue(
         _windSpeedToBeaufort(windSpeed),
@@ -240,8 +244,8 @@ class WeatherModule extends TabModule {
     for (int i = 0; i < days; i++) {
       final wmo = (codes[i] as num).round();
       final cond = _convertWmoToXiaomi(wmo);
-      final maxT = (maxTemps[i] as num).round();
-      final minT = (minTemps[i] as num).round();
+      final maxT = convertTemp((maxTemps[i] as num).toDouble());
+      final minT = convertTemp((minTemps[i] as num).toDouble());
       final sunriseStr = sunrises[i] as String;
       final sunsetStr = sunsets[i] as String;
 
@@ -281,7 +285,7 @@ class WeatherModule extends TabModule {
     for (int i = 0; i < hours; i++) {
       final hWmo = (hCodes[i] as num).round();
       final hCond = _convertWmoToXiaomi(hWmo);
-      final hTemp = (hTemps[i] as num).round();
+      final hTemp = convertTemp((hTemps[i] as num).toDouble());
       final hWind = (hWinds[i] as num).toDouble();
       final hDir = (hDirs[i] as num).round();
 
