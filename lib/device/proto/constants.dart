@@ -26,7 +26,15 @@ enum SystemSubtype implements ValuedEnum {
   dnd(11),
   findPhone(17),
   findWatch(18),
-  deviceState(78);
+  deviceState(78),
+  widgetV2Get(51),
+  widgetV2Set(52),
+  widgetV2SupportedList(53),
+  widgetV3Get(83),
+  widgetV3Set(84),
+  widgetV3SupportedList(85),
+  displayItemsGet(29),
+  displayItemsSet(39);
 
   @override
   final int value;

@@ -126,6 +126,11 @@ message System {
   // 2, 53
   optional WidgetParts widgetParts = 29;
 
+  // 2, 83 get | 2, 84 set
+  optional WidgetV3 widgetV3 = 53;
+  // 2, 85
+  optional WidgetV3SupportedList widgetV3SupportedList = 54;
+
   // 2, 14
   optional MiscSettingGet miscSettingGet = 34;
   // 2, 15
@@ -293,6 +298,27 @@ message WidgetPart {
   optional uint32 subType = 5; // usually 0 if no subtype
   optional string appId = 6; // "" on get
   optional string unknown7 = 7; // "" on get
+}
+
+message WidgetV3 {
+  repeated WidgetV3Item widgetV3Item = 1;
+  optional uint32 minCount = 2;
+  optional uint32 maxCount = 3;
+}
+
+message WidgetV3Item {
+  optional uint32 id = 1;
+  optional string appId = 2;
+}
+
+message WidgetV3SupportedList {
+  repeated WidgetV3SupportedGroup supportedGroup = 1;
+}
+
+message WidgetV3SupportedGroup {
+  optional uint32 id = 1;
+  optional string name = 2;
+  repeated WidgetV3Item items = 3;
 }
 
 message DoNotDisturb {

@@ -782,6 +782,8 @@ class System extends $pb.GeneratedMessage {
     VibrationPatternAck? vibrationPatternAck,
     BasicDeviceState? basicDeviceState,
     DeviceState? deviceState,
+    WidgetV3? widgetV3,
+    WidgetV3SupportedList? widgetV3SupportedList,
   }) {
     final result = create();
     if (power != null) result.power = power;
@@ -819,6 +821,9 @@ class System extends $pb.GeneratedMessage {
       result.vibrationPatternAck = vibrationPatternAck;
     if (basicDeviceState != null) result.basicDeviceState = basicDeviceState;
     if (deviceState != null) result.deviceState = deviceState;
+    if (widgetV3 != null) result.widgetV3 = widgetV3;
+    if (widgetV3SupportedList != null)
+      result.widgetV3SupportedList = widgetV3SupportedList;
     return result;
   }
 
@@ -895,7 +900,13 @@ class System extends $pb.GeneratedMessage {
     ..aOM<BasicDeviceState>(48, _omitFieldNames ? '' : 'basicDeviceState',
         protoName: 'basicDeviceState', subBuilder: BasicDeviceState.create)
     ..aOM<DeviceState>(49, _omitFieldNames ? '' : 'deviceState',
-        protoName: 'deviceState', subBuilder: DeviceState.create);
+        protoName: 'deviceState', subBuilder: DeviceState.create)
+    ..aOM<WidgetV3>(53, _omitFieldNames ? '' : 'widgetV3',
+        protoName: 'widgetV3', subBuilder: WidgetV3.create)
+    ..aOM<WidgetV3SupportedList>(
+        54, _omitFieldNames ? '' : 'widgetV3SupportedList',
+        protoName: 'widgetV3SupportedList',
+        subBuilder: WidgetV3SupportedList.create);
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
   System clone() => deepCopy();
@@ -1239,6 +1250,31 @@ class System extends $pb.GeneratedMessage {
   void clearDeviceState() => $_clearField(49);
   @$pb.TagNumber(49)
   DeviceState ensureDeviceState() => $_ensure(26);
+
+  /// 2, 83 get | 2, 84 set
+  @$pb.TagNumber(53)
+  WidgetV3 get widgetV3 => $_getN(27);
+  @$pb.TagNumber(53)
+  set widgetV3(WidgetV3 value) => $_setField(53, value);
+  @$pb.TagNumber(53)
+  $core.bool hasWidgetV3() => $_has(27);
+  @$pb.TagNumber(53)
+  void clearWidgetV3() => $_clearField(53);
+  @$pb.TagNumber(53)
+  WidgetV3 ensureWidgetV3() => $_ensure(27);
+
+  /// 2, 85
+  @$pb.TagNumber(54)
+  WidgetV3SupportedList get widgetV3SupportedList => $_getN(28);
+  @$pb.TagNumber(54)
+  set widgetV3SupportedList(WidgetV3SupportedList value) =>
+      $_setField(54, value);
+  @$pb.TagNumber(54)
+  $core.bool hasWidgetV3SupportedList() => $_has(28);
+  @$pb.TagNumber(54)
+  void clearWidgetV3SupportedList() => $_clearField(54);
+  @$pb.TagNumber(54)
+  WidgetV3SupportedList ensureWidgetV3SupportedList() => $_ensure(28);
 }
 
 class Power extends $pb.GeneratedMessage {
@@ -2912,6 +2948,270 @@ class WidgetPart extends $pb.GeneratedMessage {
   $core.bool hasUnknown7() => $_has(6);
   @$pb.TagNumber(7)
   void clearUnknown7() => $_clearField(7);
+}
+
+class WidgetV3 extends $pb.GeneratedMessage {
+  factory WidgetV3({
+    $core.Iterable<WidgetV3Item>? widgetV3Item,
+    $core.int? minCount,
+    $core.int? maxCount,
+  }) {
+    final result = create();
+    if (widgetV3Item != null) result.widgetV3Item.addAll(widgetV3Item);
+    if (minCount != null) result.minCount = minCount;
+    if (maxCount != null) result.maxCount = maxCount;
+    return result;
+  }
+
+  WidgetV3._();
+
+  factory WidgetV3.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory WidgetV3.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'WidgetV3',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..pPM<WidgetV3Item>(1, _omitFieldNames ? '' : 'widgetV3Item',
+        protoName: 'widgetV3Item', subBuilder: WidgetV3Item.create)
+    ..aI(2, _omitFieldNames ? '' : 'minCount',
+        protoName: 'minCount', fieldType: $pb.PbFieldType.OU3)
+    ..aI(3, _omitFieldNames ? '' : 'maxCount',
+        protoName: 'maxCount', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3 clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3 copyWith(void Function(WidgetV3) updates) =>
+      super.copyWith((message) => updates(message as WidgetV3)) as WidgetV3;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3 create() => WidgetV3._();
+  @$core.override
+  WidgetV3 createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3 getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<WidgetV3>(create);
+  static WidgetV3? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<WidgetV3Item> get widgetV3Item => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.int get minCount => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set minCount($core.int value) => $_setUnsignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMinCount() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMinCount() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get maxCount => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set maxCount($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMaxCount() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMaxCount() => $_clearField(3);
+}
+
+class WidgetV3Item extends $pb.GeneratedMessage {
+  factory WidgetV3Item({
+    $core.int? id,
+    $core.String? appId,
+  }) {
+    final result = create();
+    if (id != null) result.id = id;
+    if (appId != null) result.appId = appId;
+    return result;
+  }
+
+  WidgetV3Item._();
+
+  factory WidgetV3Item.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory WidgetV3Item.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'WidgetV3Item',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'id', fieldType: $pb.PbFieldType.OU3)
+    ..aOS(2, _omitFieldNames ? '' : 'appId', protoName: 'appId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3Item clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3Item copyWith(void Function(WidgetV3Item) updates) =>
+      super.copyWith((message) => updates(message as WidgetV3Item))
+          as WidgetV3Item;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3Item create() => WidgetV3Item._();
+  @$core.override
+  WidgetV3Item createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3Item getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<WidgetV3Item>(create);
+  static WidgetV3Item? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get id => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set id($core.int value) => $_setUnsignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get appId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set appId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasAppId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearAppId() => $_clearField(2);
+}
+
+class WidgetV3SupportedList extends $pb.GeneratedMessage {
+  factory WidgetV3SupportedList({
+    $core.Iterable<WidgetV3SupportedGroup>? supportedGroup,
+  }) {
+    final result = create();
+    if (supportedGroup != null) result.supportedGroup.addAll(supportedGroup);
+    return result;
+  }
+
+  WidgetV3SupportedList._();
+
+  factory WidgetV3SupportedList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory WidgetV3SupportedList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'WidgetV3SupportedList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..pPM<WidgetV3SupportedGroup>(1, _omitFieldNames ? '' : 'supportedGroup',
+        protoName: 'supportedGroup', subBuilder: WidgetV3SupportedGroup.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3SupportedList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3SupportedList copyWith(
+          void Function(WidgetV3SupportedList) updates) =>
+      super.copyWith((message) => updates(message as WidgetV3SupportedList))
+          as WidgetV3SupportedList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3SupportedList create() => WidgetV3SupportedList._();
+  @$core.override
+  WidgetV3SupportedList createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3SupportedList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<WidgetV3SupportedList>(create);
+  static WidgetV3SupportedList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<WidgetV3SupportedGroup> get supportedGroup => $_getList(0);
+}
+
+class WidgetV3SupportedGroup extends $pb.GeneratedMessage {
+  factory WidgetV3SupportedGroup({
+    $core.int? id,
+    $core.String? name,
+    $core.Iterable<WidgetV3Item>? items,
+  }) {
+    final result = create();
+    if (id != null) result.id = id;
+    if (name != null) result.name = name;
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  WidgetV3SupportedGroup._();
+
+  factory WidgetV3SupportedGroup.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory WidgetV3SupportedGroup.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'WidgetV3SupportedGroup',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'id', fieldType: $pb.PbFieldType.OU3)
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..pPM<WidgetV3Item>(3, _omitFieldNames ? '' : 'items',
+        subBuilder: WidgetV3Item.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3SupportedGroup clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WidgetV3SupportedGroup copyWith(
+          void Function(WidgetV3SupportedGroup) updates) =>
+      super.copyWith((message) => updates(message as WidgetV3SupportedGroup))
+          as WidgetV3SupportedGroup;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3SupportedGroup create() => WidgetV3SupportedGroup._();
+  @$core.override
+  WidgetV3SupportedGroup createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static WidgetV3SupportedGroup getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<WidgetV3SupportedGroup>(create);
+  static WidgetV3SupportedGroup? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get id => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set id($core.int value) => $_setUnsignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<WidgetV3Item> get items => $_getList(2);
 }
 
 class DoNotDisturb extends $pb.GeneratedMessage {

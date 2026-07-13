@@ -64,14 +64,7 @@ class AppsBlob extends Blob<Map<String, App>> {
     : super(
         module: 'apps',
         name: 'installed_hashes',
-        defaultValue: const {
-          'com.misync.messages': App(
-            enabled: true,
-            hash: '',
-            package: 'com.misync.messages',
-            external: false,
-          ),
-        },
+        defaultValue: const {},
       );
 
   static bool getEnabled(String package) {

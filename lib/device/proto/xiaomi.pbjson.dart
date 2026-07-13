@@ -381,6 +381,22 @@ const System$json = {
       '10': 'widgetParts'
     },
     {
+      '1': 'widgetV3',
+      '3': 53,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.WidgetV3',
+      '10': 'widgetV3'
+    },
+    {
+      '1': 'widgetV3SupportedList',
+      '3': 54,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.WidgetV3SupportedList',
+      '10': 'widgetV3SupportedList'
+    },
+    {
       '1': 'miscSettingGet',
       '3': 34,
       '4': 1,
@@ -488,22 +504,24 @@ final $typed_data.Uint8List systemDescriptor = $convert.base64Decode(
     'CHBhc3N3b3JkEiYKBmNhbWVyYRgPIAEoCzIOLnhpYW9taS5DYW1lcmFSBmNhbWVyYRIsCghsYW'
     '5ndWFnZRgUIAEoCzIQLnhpYW9taS5MYW5ndWFnZVIIbGFuZ3VhZ2USOwoNd2lkZ2V0U2NyZWVu'
     'cxgcIAEoCzIVLnhpYW9taS5XaWRnZXRTY3JlZW5zUg13aWRnZXRTY3JlZW5zEjUKC3dpZGdldF'
-    'BhcnRzGB0gASgLMhMueGlhb21pLldpZGdldFBhcnRzUgt3aWRnZXRQYXJ0cxI+Cg5taXNjU2V0'
-    'dGluZ0dldBgiIAEoCzIWLnhpYW9taS5NaXNjU2V0dGluZ0dldFIObWlzY1NldHRpbmdHZXQSPg'
-    'oObWlzY1NldHRpbmdTZXQYIyABKAsyFi54aWFvbWkuTWlzY1NldHRpbmdTZXRSDm1pc2NTZXR0'
-    'aW5nU2V0EkoKEnBob25lU2lsZW50TW9kZUdldBgkIAEoCzIaLnhpYW9taS5QaG9uZVNpbGVudE'
-    '1vZGVHZXRSEnBob25lU2lsZW50TW9kZUdldBJKChJwaG9uZVNpbGVudE1vZGVTZXQYJSABKAsy'
-    'Gi54aWFvbWkuUGhvbmVTaWxlbnRNb2RlU2V0UhJwaG9uZVNpbGVudE1vZGVTZXQSRwoRdmlicm'
-    'F0aW9uUGF0dGVybnMYJiABKAsyGS54aWFvbWkuVmlicmF0aW9uUGF0dGVybnNSEXZpYnJhdGlv'
-    'blBhdHRlcm5zElEKEnZpYnJhdGlvblNldFByZXNldBgnIAEoCzIhLnhpYW9taS5WaWJyYXRpb2'
-    '5Ob3RpZmljYXRpb25UeXBlUhJ2aWJyYXRpb25TZXRQcmVzZXQSVgoWdmlicmF0aW9uUGF0dGVy'
-    'bkNyZWF0ZRgoIAEoCzIeLnhpYW9taS5DdXN0b21WaWJyYXRpb25QYXR0ZXJuUhZ2aWJyYXRpb2'
-    '5QYXR0ZXJuQ3JlYXRlEkcKE3ZpYnJhdGlvblRlc3RDdXN0b20YKSABKAsyFS54aWFvbWkuVmli'
-    'cmF0aW9uVGVzdFITdmlicmF0aW9uVGVzdEN1c3RvbRJNChN2aWJyYXRpb25QYXR0ZXJuQWNrGC'
-    'sgASgLMhsueGlhb21pLlZpYnJhdGlvblBhdHRlcm5BY2tSE3ZpYnJhdGlvblBhdHRlcm5BY2sS'
-    'RAoQYmFzaWNEZXZpY2VTdGF0ZRgwIAEoCzIYLnhpYW9taS5CYXNpY0RldmljZVN0YXRlUhBiYX'
-    'NpY0RldmljZVN0YXRlEjUKC2RldmljZVN0YXRlGDEgASgLMhMueGlhb21pLkRldmljZVN0YXRl'
-    'UgtkZXZpY2VTdGF0ZQ==');
+    'BhcnRzGB0gASgLMhMueGlhb21pLldpZGdldFBhcnRzUgt3aWRnZXRQYXJ0cxIsCgh3aWRnZXRW'
+    'Mxg1IAEoCzIQLnhpYW9taS5XaWRnZXRWM1IId2lkZ2V0VjMSUwoVd2lkZ2V0VjNTdXBwb3J0ZW'
+    'RMaXN0GDYgASgLMh0ueGlhb21pLldpZGdldFYzU3VwcG9ydGVkTGlzdFIVd2lkZ2V0VjNTdXBw'
+    'b3J0ZWRMaXN0Ej4KDm1pc2NTZXR0aW5nR2V0GCIgASgLMhYueGlhb21pLk1pc2NTZXR0aW5nR2'
+    'V0Ug5taXNjU2V0dGluZ0dldBI+Cg5taXNjU2V0dGluZ1NldBgjIAEoCzIWLnhpYW9taS5NaXNj'
+    'U2V0dGluZ1NldFIObWlzY1NldHRpbmdTZXQSSgoScGhvbmVTaWxlbnRNb2RlR2V0GCQgASgLMh'
+    'oueGlhb21pLlBob25lU2lsZW50TW9kZUdldFIScGhvbmVTaWxlbnRNb2RlR2V0EkoKEnBob25l'
+    'U2lsZW50TW9kZVNldBglIAEoCzIaLnhpYW9taS5QaG9uZVNpbGVudE1vZGVTZXRSEnBob25lU2'
+    'lsZW50TW9kZVNldBJHChF2aWJyYXRpb25QYXR0ZXJucxgmIAEoCzIZLnhpYW9taS5WaWJyYXRp'
+    'b25QYXR0ZXJuc1IRdmlicmF0aW9uUGF0dGVybnMSUQoSdmlicmF0aW9uU2V0UHJlc2V0GCcgAS'
+    'gLMiEueGlhb21pLlZpYnJhdGlvbk5vdGlmaWNhdGlvblR5cGVSEnZpYnJhdGlvblNldFByZXNl'
+    'dBJWChZ2aWJyYXRpb25QYXR0ZXJuQ3JlYXRlGCggASgLMh4ueGlhb21pLkN1c3RvbVZpYnJhdG'
+    'lvblBhdHRlcm5SFnZpYnJhdGlvblBhdHRlcm5DcmVhdGUSRwoTdmlicmF0aW9uVGVzdEN1c3Rv'
+    'bRgpIAEoCzIVLnhpYW9taS5WaWJyYXRpb25UZXN0UhN2aWJyYXRpb25UZXN0Q3VzdG9tEk0KE3'
+    'ZpYnJhdGlvblBhdHRlcm5BY2sYKyABKAsyGy54aWFvbWkuVmlicmF0aW9uUGF0dGVybkFja1IT'
+    'dmlicmF0aW9uUGF0dGVybkFjaxJEChBiYXNpY0RldmljZVN0YXRlGDAgASgLMhgueGlhb21pLk'
+    'Jhc2ljRGV2aWNlU3RhdGVSEGJhc2ljRGV2aWNlU3RhdGUSNQoLZGV2aWNlU3RhdGUYMSABKAsy'
+    'Ey54aWFvbWkuRGV2aWNlU3RhdGVSC2RldmljZVN0YXRl');
 
 @$core.Deprecated('Use powerDescriptor instead')
 const Power$json = {
@@ -935,6 +953,85 @@ final $typed_data.Uint8List widgetPartDescriptor = $convert.base64Decode(
     'N0aW9uEg4KAmlkGAMgASgNUgJpZBIUCgV0aXRsZRgEIAEoCVIFdGl0bGUSGAoHc3ViVHlwZRgF'
     'IAEoDVIHc3ViVHlwZRIUCgVhcHBJZBgGIAEoCVIFYXBwSWQSGgoIdW5rbm93bjcYByABKAlSCH'
     'Vua25vd243');
+
+@$core.Deprecated('Use widgetV3Descriptor instead')
+const WidgetV3$json = {
+  '1': 'WidgetV3',
+  '2': [
+    {
+      '1': 'widgetV3Item',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.xiaomi.WidgetV3Item',
+      '10': 'widgetV3Item'
+    },
+    {'1': 'minCount', '3': 2, '4': 1, '5': 13, '10': 'minCount'},
+    {'1': 'maxCount', '3': 3, '4': 1, '5': 13, '10': 'maxCount'},
+  ],
+};
+
+/// Descriptor for `WidgetV3`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List widgetV3Descriptor = $convert.base64Decode(
+    'CghXaWRnZXRWMxI4Cgx3aWRnZXRWM0l0ZW0YASADKAsyFC54aWFvbWkuV2lkZ2V0VjNJdGVtUg'
+    'x3aWRnZXRWM0l0ZW0SGgoIbWluQ291bnQYAiABKA1SCG1pbkNvdW50EhoKCG1heENvdW50GAMg'
+    'ASgNUghtYXhDb3VudA==');
+
+@$core.Deprecated('Use widgetV3ItemDescriptor instead')
+const WidgetV3Item$json = {
+  '1': 'WidgetV3Item',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 13, '10': 'id'},
+    {'1': 'appId', '3': 2, '4': 1, '5': 9, '10': 'appId'},
+  ],
+};
+
+/// Descriptor for `WidgetV3Item`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List widgetV3ItemDescriptor = $convert.base64Decode(
+    'CgxXaWRnZXRWM0l0ZW0SDgoCaWQYASABKA1SAmlkEhQKBWFwcElkGAIgASgJUgVhcHBJZA==');
+
+@$core.Deprecated('Use widgetV3SupportedListDescriptor instead')
+const WidgetV3SupportedList$json = {
+  '1': 'WidgetV3SupportedList',
+  '2': [
+    {
+      '1': 'supportedGroup',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.xiaomi.WidgetV3SupportedGroup',
+      '10': 'supportedGroup'
+    },
+  ],
+};
+
+/// Descriptor for `WidgetV3SupportedList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List widgetV3SupportedListDescriptor = $convert.base64Decode(
+    'ChVXaWRnZXRWM1N1cHBvcnRlZExpc3QSRgoOc3VwcG9ydGVkR3JvdXAYASADKAsyHi54aWFvbW'
+    'kuV2lkZ2V0VjNTdXBwb3J0ZWRHcm91cFIOc3VwcG9ydGVkR3JvdXA=');
+
+@$core.Deprecated('Use widgetV3SupportedGroupDescriptor instead')
+const WidgetV3SupportedGroup$json = {
+  '1': 'WidgetV3SupportedGroup',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 13, '10': 'id'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {
+      '1': 'items',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.xiaomi.WidgetV3Item',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `WidgetV3SupportedGroup`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List widgetV3SupportedGroupDescriptor =
+    $convert.base64Decode(
+        'ChZXaWRnZXRWM1N1cHBvcnRlZEdyb3VwEg4KAmlkGAEgASgNUgJpZBISCgRuYW1lGAIgASgJUg'
+        'RuYW1lEioKBWl0ZW1zGAMgAygLMhQueGlhb21pLldpZGdldFYzSXRlbVIFaXRlbXM=');
 
 @$core.Deprecated('Use doNotDisturbDescriptor instead')
 const DoNotDisturb$json = {

@@ -37,6 +37,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
           package: result['package'] as String,
           uri: result['uri'] as String?,
           extras: result['extras'] as Map<String, String>?,
+          icon: result['icon'] as String,
         ),
       );
     }
@@ -59,6 +60,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
           package: result['package'] as String,
           uri: result['uri'] as String?,
           extras: result['extras'] as Map<String, String>?,
+          icon: result['icon'] as String,
         ),
       );
     }
@@ -123,6 +125,7 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
                     return MiItem(
                       title: action.name,
                       subtitle: action.intent,
+                      primaryIcon: Text(action.icon, style: const TextStyle(fontSize: 20)),
                       delete: connected ? () => _deleteAction(nameKey) : null,
                       clicked: connected ? () => _editAction(action) : null,
                       order: connected
@@ -165,6 +168,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
   late final TextEditingController _intentController;
   late final TextEditingController _packageController;
   late final TextEditingController _extrasController;
+  late final TextEditingController _iconController;
 
   int _typeSelection =
       0; // 0: Launch App, 1: Deep Link / URL, 2: Custom Intent / Tasker
@@ -176,6 +180,8 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
     super.initState();
     _nameController = TextEditingController(text: widget.action?.name ?? '');
     _nameController.addListener(_onNameChanged);
+    _iconController = TextEditingController(text: widget.action?.icon ?? '⚡');
+    _iconController.addListener(_onIconChanged);
     _uriController = TextEditingController(text: widget.action?.uri ?? '');
     _intentController = TextEditingController(
       text: widget.action?.intent ?? '',
@@ -210,10 +216,16 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
     setState(() {});
   }
 
+  void _onIconChanged() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
+    _iconController.removeListener(_onIconChanged);
+    _iconController.dispose();
     _uriController.dispose();
     _intentController.dispose();
     _packageController.dispose();
@@ -294,6 +306,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
       'package': package,
       'uri': uri,
       'extras': extras,
+      'icon': _iconController.text.trim().isNotEmpty ? _iconController.text.trim() : '⚡',
     });
   }
 
@@ -351,14 +364,9 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
               ),
               child: Column(
                 children: [
-                  Icon(
-                    _typeSelection == 0
-                        ? Icons.play_circle_outline
-                        : _typeSelection == 1
-                        ? Icons.link
-                        : Icons.bolt,
-                    color: const Color(0xFF00E5FF),
-                    size: 36,
+                  Text(
+                    _iconController.text.trim().isEmpty ? '⚡' : _iconController.text.trim(),
+                    style: const TextStyle(fontSize: 36),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -408,6 +416,36 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
               validator: (val) {
                 if (val == null || val.trim().isEmpty) {
                   return 'Please enter a name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _iconController,
+              maxLength: 4,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Emoji Icon (e.g. ⚙️, 📷, 📍)',
+                labelStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: const Color(0xFF141822),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF26324D)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF26324D)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+                ),
+              ),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Please enter an emoji icon';
                 }
                 return null;
               },

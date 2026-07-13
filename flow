@@ -11,9 +11,33 @@ GITEA_REPOSITORY="misync"
 
 build-watch() {
   info "Building all watch apps..."
-  (cd apps/messages && npm run build) || abort "Failed to build Messages watch app." 2
   mkdir -p assets/rpk
-  cp apps/messages/dist/com.misync.messages.debug.1.0.0.rpk assets/rpk/com.misync.messages.rpk || abort "Failed to copy RPK to assets." 2
+  for app_dir in apps/*; do
+    if [ -d "$app_dir" ] && [ -f "$app_dir/package.json" ]; then
+      local name
+      name=$(basename "$app_dir")
+      info "Building watch app: $name..."
+      (
+        cd "$app_dir" || exit 1
+        if [ ! -d "node_modules" ]; then
+          npm install || exit 1
+        fi
+        npm run build || exit 1
+        
+        local pkg="com.misync.$name"
+        
+        local rpk
+        rpk=$(find dist -maxdepth 1 -name "*.rpk" | head -n 1)
+        if [ -n "$rpk" ]; then
+          cp "$rpk" "../../assets/rpk/$pkg.rpk" || exit 1
+          success "Copied RPK: $pkg.rpk"
+        else
+          error "No RPK file found in dist/ for $name"
+          exit 1
+        fi
+      ) || abort "Failed to build $name watch app." 2
+    fi
+  done
 }
 
 build-proto() {

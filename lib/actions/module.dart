@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart' hide Action;
 import 'package:misync/screen.dart';
 import '../device/proto/xiaomi.pb.dart';
@@ -7,6 +9,7 @@ import '../platform/module.dart';
 import 'blobs/actions.dart';
 import 'screen.dart';
 import '../device/module.dart';
+import '../apps/blobs/apps.dart' as app_registry;
 
 class ActionsModule extends TabModule {
   @override
@@ -41,13 +44,55 @@ class ActionsModule extends TabModule {
 
   Future<void> _handleWatchMessage(Command cmd) async {
     final message = cmd.thirdPartyApp.message;
+    if (message.appInfo.packageName != 'com.misync.actions') {
+      return;
+    }
+
     final String text = utf8.decode(message.content);
-    logger.info('received message from watch app: $text');
+    logger.info('received message from watch Actions app: $text');
     final data = jsonDecode(text) as Map<String, dynamic>;
-    await _handleWatchAction(data);
+
+    final command = data['command']?.toString();
+    if (command == 'getActions') {
+      await _handleWatchGetActions();
+    } else if (command == 'launchAction') {
+      await _handleWatchLaunchAction(data);
+    }
   }
 
-  Future<void> _handleWatchAction(Map<String, dynamic> data) async {
+  Future<void> _handleWatchGetActions() async {
+    final List<Map<String, String>> actionList = ActionsBlob.map.values
+        .map((action) => {
+              'name': action.name,
+              'icon': action.icon,
+            })
+        .toList();
+
+    final actionsPayload = {'response': actionList};
+
+    final jsonPayload = jsonEncode(actionsPayload);
+    final appInfo = ThirdPartyAppInfo()..packageName = 'com.misync.actions';
+    final installed =
+        app_registry.AppsBlob.instance.value['com.misync.actions'];
+    if (installed != null && installed.fingerprint.isNotEmpty) {
+      appInfo.fingerprint = installed.fingerprint;
+    }
+
+    final appMessage = ThirdPartyAppMessage()
+      ..appInfo = appInfo
+      ..content = Uint8List.fromList(utf8.encode(jsonPayload));
+
+    logger.info('sending actions list to watch', actionsPayload);
+
+    await DeviceModule.module.connection.send(
+      type: CmdType.thirdPartyApp,
+      subtype: ThirdPartyAppSubtype.sendPhoneMessage,
+      builder: (replyCmd) =>
+          replyCmd.thirdPartyApp = (ThirdPartyApp()..message = appMessage),
+    );
+  }
+
+  Future<void> _handleWatchLaunchAction(Map<String, dynamic> data) async {
     // Check if the watch sends an action name: e.g. { "action": "Mute Phone" }
     final actionName = data['action']?.toString().trim();
     if (actionName == null || actionName.isEmpty) {

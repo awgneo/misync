@@ -34,6 +34,7 @@ abstract class Blob<T> extends ChangeNotifier {
       }
     } else {
       _value = defaultValue;
+      update(defaultValue);
     }
     notifyListeners();
   }
