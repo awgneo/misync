@@ -9,16 +9,73 @@ source ./flows/test
 GITEA_ORGANIZATION="cellular"
 GITEA_REPOSITORY="misync"
 
-build() {
+build-watch() {
   info "Building all watch apps..."
   (cd apps/messages && npm run build) || abort "Failed to build Messages watch app." 2
   mkdir -p assets/rpk
   cp apps/messages/dist/com.misync.messages.debug.1.0.0.rpk assets/rpk/com.misync.messages.rpk || abort "Failed to copy RPK to assets." 2
-  
+}
+
+build-proto() {
   info "Compiling Protocol Buffer schemas..."
   export PATH="$PATH:$HOME/.pub-cache/bin"
   protoc --dart_out=lib/device/proto -Iproto proto/xiaomi.proto || abort "Failed to compile protobuf schemas." 2
+}
+
+build-apk() {
+  local sources_dir=".sources"
+  local apk_path="$sources_dir/com.xiaomi.wear.apk"
+  local decompiled_dir="$sources_dir/mi_fitness_source"
+  local version_file="$sources_dir/version.txt"
   
+  mkdir -p "$sources_dir"
+
+  info "Checking for latest Chinese Mi Fitness APK..."
+  local latest_version
+  latest_version=$(curl -s -D - "https://hlth.io.mi.com/download?appId=mifitness" -o /dev/null | grep -i "location:" | awk -F'/' '{print $5}' | awk -F'?' '{print $1}')
+  
+  if [ -z "$latest_version" ]; then
+    warning "Could not fetch latest version name. Skipping download checks."
+  else
+    local current_version=""
+    [ -f "$version_file" ] && current_version=$(cat "$version_file")
+
+    if [ "$latest_version" != "$current_version" ] || [ ! -d "$decompiled_dir" ] || [ ! -f "$apk_path" ]; then
+      info "New version detected: $latest_version. Downloading APK..."
+      curl -L -o "$apk_path" "https://hlth.io.mi.com/download?appId=mifitness" || abort "Failed to download latest APK." 2
+      
+      # Clean up old decompiled directory if it exists
+      if [ -d "$decompiled_dir" ]; then
+        info "Cleaning up old decompiled folder..."
+        rm -rf "$decompiled_dir"
+      fi
+
+      info "Decompiling source files using jadx..."
+      # jadx can exit with non-zero codes on minor obfuscated class errors.
+      # We verify that the sources output directory was created successfully instead.
+      jadx --no-res -d "$decompiled_dir" "$apk_path"
+      if [ ! -d "$decompiled_dir/sources" ]; then
+        abort "Failed to decompile APK (sources directory not created)." 2
+      fi
+      
+      echo "$latest_version" > "$version_file"
+      success "Decompiled $latest_version successfully."
+    else
+      info "Local decompiled sources are up to date ($current_version)."
+    fi
+  fi
+}
+
+build-generate() {
+  info "Generating sport schemas..."
+  dart lib/health/generators/schemas.dart || abort "Failed to generate sport schemas." 2
+}
+
+build() {
+  build-apk || exit $?
+  build-generate || exit $?
+  build-watch || exit $?
+  build-proto || exit $?
   success "Build completed successfully."
 }
 
@@ -37,7 +94,11 @@ analyze() {
 }
 
 misync-usage() {
-  echo "build|Build watch applications and compile protobuf schemas."
+  echo "build|Build watch applications, APK schemas, and protobuf schemas."
+  echo "build-apk|Manage Chinese Mi Fitness APK version and extraction."
+  echo "build-generate|Regenerate sport schemas from extracted APK sources."
+  echo "build-watch|Build watch apps (Messages) and copy RPK to assets."
+  echo "build-proto|Compile Protocol Buffer schemas."
   echo "clean|Clean watch app and Flutter build artifacts."
   echo "analyze|Run static analysis checks."
 }
@@ -45,6 +106,10 @@ misync-usage() {
 misync-flow() {
   case "$1" in
     build) build; return $?;;
+    build-apk) build-apk; return $?;;
+    build-generate) build-generate; return $?;;
+    build-watch) build-watch; return $?;;
+    build-proto) build-proto; return $?;;
     clean) clean; return $?;;
     analyze) analyze; return $?;;
     *) return 127 ;;

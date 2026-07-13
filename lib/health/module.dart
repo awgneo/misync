@@ -9,7 +9,7 @@ import '../device/proto/constants.dart';
 import '../platform/module.dart';
 import 'blobs/health.dart';
 import 'screen.dart';
-import 'parser.dart';
+import 'parsers/parser.dart';
 
 class HealthModule extends TabModule {
   @override
@@ -20,6 +20,8 @@ class HealthModule extends TabModule {
 
   @override
   Widget get screen => const HealthScreen();
+
+  static const int batchSize = 50;
 
   static final HealthModule _instance = HealthModule._();
   static HealthModule get instance => _instance;
@@ -44,11 +46,11 @@ class HealthModule extends TabModule {
 
     logger.info('starting health logs sync...');
     // Automatically sync user profile demographics and goals to the watch on every sync pass
-    await _syncUserProfile();
-    await _syncHealthFiles();
+    await _syncUser();
+    await _syncFiles();
   }
 
-  Future<void> _syncUserProfile() async {
+  Future<void> _syncUser() async {
     logger.info('syncing user profile and goals to watch');
     final latest = await PlatformModule.instance
         .invokeMethod<Map<dynamic, dynamic>>('health.getLatestHeightAndWeight');
@@ -102,7 +104,7 @@ class HealthModule extends TabModule {
     });
   }
 
-  Future<void> _syncHealthFiles() async {
+  Future<void> _syncFiles() async {
     // Sync wear sport status first to commit standalone workout logs on the watch
     try {
       logger.info('syncing wear sport status');
@@ -116,10 +118,10 @@ class HealthModule extends TabModule {
       logger.error('failed to sync wear sport status', {'error': e.toString()});
     }
 
-    final todayList = await _getWatchFileIds(getToday: true);
-    final historyList = await _getWatchFileIds(getToday: false);
+    final todayList = await _getFileIds(getToday: true);
+    final historyList = await _getFileIds(getToday: false);
 
-    final allIds = <FitnessDataId>{};
+    final allIds = <Id>{};
     allIds.addAll(todayList);
     allIds.addAll(historyList);
 
@@ -151,12 +153,12 @@ class HealthModule extends TabModule {
       final idHex = id.toHexString();
       logger.info('downloading file', {'hex': idHex, 'id': id.toString()});
 
-      final fileData = await _downloadWatchFile(id);
+      final fileData = await _downloadFile(id);
       if (fileData != null) {
-        final success = await _syncHealthFile(id, fileData, workoutRanges);
+        final success = await _syncFile(id, fileData, workoutRanges);
         if (success) {
           newFilesSynced++;
-          await _sendWatchFileAck(id);
+          await _sendFileAck(id);
         }
       }
     }
@@ -164,7 +166,7 @@ class HealthModule extends TabModule {
     logger.info('health sync complete', {'newFilesSynced': newFilesSynced});
   }
 
-  Future<List<FitnessDataId>> _getWatchFileIds({required bool getToday}) async {
+  Future<List<Id>> _getFileIds({required bool getToday}) async {
     final cmd = pb.Command()
       ..type = CmdType.health.value
       ..subtype = getToday
@@ -190,12 +192,12 @@ class HealthModule extends TabModule {
     final bytes = response.health.activityRequestFileIds;
     if (bytes.isEmpty) return [];
 
-    final list = <FitnessDataId>[];
+    final list = <Id>[];
     for (int i = 0; i < bytes.length; i += 7) {
       if (i + 7 > bytes.length) break;
       try {
         final idBytes = Uint8List.fromList(bytes.sublist(i, i + 7));
-        list.add(FitnessDataId.fromBytes(idBytes));
+        list.add(Id.fromBytes(idBytes));
       } catch (e) {
         logger.error('failed to parse fitness data id', {
           'error': e.toString(),
@@ -205,7 +207,7 @@ class HealthModule extends TabModule {
     return list;
   }
 
-  Future<Uint8List?> _downloadWatchFile(FitnessDataId id) async {
+  Future<Uint8List?> _downloadFile(Id id) async {
     final cmd = pb.Command()
       ..type = CmdType.health.value
       ..subtype = HealthSubtype.requestSingleFitnessId.value
@@ -214,7 +216,7 @@ class HealthModule extends TabModule {
     return await DeviceConnection.instance.downloadData(cmd: cmd);
   }
 
-  Future<void> _sendWatchFileAck(FitnessDataId id) async {
+  Future<void> _sendFileAck(Id id) async {
     final cmd = pb.Command()
       ..type = CmdType.health.value
       ..subtype = HealthSubtype.confirmFitnessId.value
@@ -222,34 +224,28 @@ class HealthModule extends TabModule {
     await DeviceConnection.instance.send(cmd: cmd);
   }
 
-  Future<bool> _syncHealthFile(
-    FitnessDataId id,
+  Future<bool> _syncFile(
+    Id id,
     Uint8List fileData,
     List<Map<String, DateTime>> workoutRanges,
   ) async {
     try {
-      final rawHex = fileData
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .take(20)
-          .join(' ');
       logger.info('processing file', {
         'id': id.toHexString(),
         'size': fileData.length,
-        'hex': rawHex,
       });
 
-      if (fileData.length < 7) {
-        logger.error('file too short', {'length': fileData.length});
-        return false;
-      }
-
-      if (id.dataType == 0 && id.fileType == 0) {
-        return await _syncDailyActivity(id, fileData, workoutRanges);
-      } else if (id.dataType == 0 && (id.dailyType == 3 || id.dailyType == 2)) {
-        return await _syncSleepSession(id, fileData);
-      } else if (id.dataType == 1 && id.fileType == 1) {
-        return await _syncWorkoutSession(id, fileData, workoutRanges);
-      } else if (id.dataType == 1 && id.fileType == 0) {
+      if (id.dataType == Id.dataTypeDaily && id.fileType == Id.fileTypeDetail) {
+        return await _syncMericsFile(id, fileData, workoutRanges);
+      } else if (id.dataType == Id.dataTypeDaily &&
+          (id.dailyType == Id.dailyTypeSleepNight ||
+              id.dailyType == Id.dailyTypeSleepDay)) {
+        return await _syncSleepFile(id, fileData);
+      } else if (id.dataType == Id.dataTypeSport &&
+          id.fileType == Id.fileTypeSummary) {
+        return await _syncExerciseFile(id, fileData, workoutRanges);
+      } else if (id.dataType == Id.dataTypeSport &&
+          id.fileType == Id.fileTypeDetail) {
         logger.info('skipping detailed samples file for workout', {
           'id': id.toHexString(),
         });
@@ -267,26 +263,22 @@ class HealthModule extends TabModule {
     }
   }
 
-  Future<bool> _syncDailyActivity(
-    FitnessDataId id,
-    Uint8List fileData,
-    List<Map<String, DateTime>> workoutRanges,
+  Future<bool> _syncMericsFile(
+    Id id,
+    Uint8List data,
+    List<Map<String, DateTime>> exerciseRanges,
   ) async {
-    final records = HealthFileParser.parseDailyRecordFile(fileData, id);
+    final metrics = MetricsParser.parse(id, data);
     logger.info('parsed minute-by-minute daily logs', {
-      'count': records.length,
+      'count': metrics.length,
     });
 
     final futures = <Future<dynamic>>[];
-    final now = DateTime.now();
-    for (final r in records) {
-      var startTime = DateTime.fromMillisecondsSinceEpoch(r.timestamp * 1000);
-      if (startTime.isAfter(now)) {
-        startTime = now;
-      }
-      final endTime = startTime.add(const Duration(minutes: 1));
+    for (final r in metrics) {
+      final startTime = r.startTime;
+      final endTime = r.endTime;
 
-      final isOverlapping = workoutRanges.any((range) {
+      final isOverlapping = exerciseRanges.any((range) {
         return startTime.isBefore(range['end']!) &&
             endTime.isAfter(range['start']!);
       });
@@ -300,10 +292,8 @@ class HealthModule extends TabModule {
         } else {
           futures.add(
             PlatformModule.instance.invokeMethod('health.writeSteps', {
-              'startTime': startTime
-                  .subtract(const Duration(minutes: 1))
-                  .millisecondsSinceEpoch,
-              'endTime': startTime.millisecondsSinceEpoch,
+              'startTime': startTime.millisecondsSinceEpoch,
+              'endTime': endTime.millisecondsSinceEpoch,
               'count': r.steps!,
             }),
           );
@@ -312,7 +302,7 @@ class HealthModule extends TabModule {
       if (r.hr != null && r.hr! > 0) {
         futures.add(
           PlatformModule.instance.invokeMethod('health.writeHeartRate', {
-            'time': startTime.millisecondsSinceEpoch,
+            'time': endTime.millisecondsSinceEpoch,
             'bpm': r.hr!,
           }),
         );
@@ -320,27 +310,14 @@ class HealthModule extends TabModule {
       if (r.spo2 != null && r.spo2! > 0) {
         futures.add(
           PlatformModule.instance.invokeMethod('health.writeOxygenSaturation', {
-            'time': startTime.millisecondsSinceEpoch,
+            'time': endTime.millisecondsSinceEpoch,
             'percentage': r.spo2!.toDouble().clamp(0.0, 100.0),
           }),
         );
       }
     }
 
-    if (futures.isNotEmpty) {
-      logger.info('syncing data points to health connect', {
-        'count': futures.length,
-      });
-      await _executePlatformBatch(futures);
-      logger.info('health connect sync complete');
-    }
-    return true;
-  }
-
-  Future<void> _executePlatformBatch(
-    List<Future<dynamic>> futures, {
-    int batchSize = 50,
-  }) async {
+    // Run all futures
     for (int i = 0; i < futures.length; i += batchSize) {
       final end = (i + batchSize < futures.length)
           ? i + batchSize
@@ -348,35 +325,22 @@ class HealthModule extends TabModule {
       final batch = futures.sublist(i, end);
       await Future.wait(batch);
     }
+
+    logger.info('health connect sync complete');
+    return true;
   }
 
-  Future<bool> _syncSleepSession(FitnessDataId id, Uint8List fileData) async {
-    final sleep = HealthFileParser.parseSleepReportFile(fileData, id);
+  Future<bool> _syncSleepFile(Id id, Uint8List data) async {
+    final sleep = SleepParser.parse(id, data);
     logger.info('parsed sleep report', {
       'deep': sleep.deepDuration,
       'light': sleep.lightDuration,
     });
 
     if (sleep.stages.isNotEmpty) {
-      final minStartTime = sleep.stages
-          .map((s) => s.startTime)
-          .reduce((a, b) => a < b ? a : b);
-      final maxEndTime = sleep.stages
-          .map((s) => s.endTime)
-          .reduce((a, b) => a > b ? a : b);
-
-      final sessionStart = DateTime.fromMillisecondsSinceEpoch(
-        minStartTime * 1000,
-      );
-      final sessionEnd = DateTime.fromMillisecondsSinceEpoch(maxEndTime * 1000);
-
-      final stagesList = sleep.stages.map((stage) {
-        return {
-          'start': stage.startTime * 1000,
-          'end': stage.endTime * 1000,
-          'stage': stage.sleepState,
-        };
-      }).toList();
+      final sessionStart = sleep.startTime;
+      final sessionEnd = sleep.endTime;
+      final stagesList = sleep.formattedStages;
 
       try {
         await PlatformModule.instance.invokeMethod('health.writeSleepSession', {
@@ -396,42 +360,39 @@ class HealthModule extends TabModule {
     return true;
   }
 
-  Future<bool> _syncWorkoutSession(
-    FitnessDataId id,
-    Uint8List fileData,
-    List<Map<String, DateTime>> workoutRanges,
+  Future<bool> _syncExerciseFile(
+    Id id,
+    Uint8List data,
+    List<Map<String, DateTime>> exerciseRanges,
   ) async {
-    final workout = HealthFileParser.parseWorkoutReportFile(fileData, id);
+    final exercise = ExerciseParser.parse(id, data);
     logger.info('parsed workout report', {
-      'duration': workout.duration,
-      'distance': workout.distance,
-      'calories': workout.calories,
-      'steps': workout.steps,
-      'sportType': workout.sportType,
+      'duration': exercise.duration,
+      'distance': exercise.distance,
+      'calories': exercise.calories,
+      'steps': exercise.steps,
+      'sportType': exercise.sportType,
     });
 
-    if (workout.duration != null && workout.duration! > 0) {
-      final sTime = DateTime.fromMillisecondsSinceEpoch(
-        workout.timestamp * 1000,
-      );
-      final eTime = sTime.add(Duration(seconds: workout.duration!));
+    if (exercise.duration != null && exercise.duration! > 0) {
+      final sTime = exercise.startTime;
+      final eTime = exercise.endTime;
 
-      workoutRanges.add({'start': sTime, 'end': eTime});
+      exerciseRanges.add({'start': sTime, 'end': eTime});
 
-      final workoutTitle = _getWorkoutTitle(workout.sportType ?? 0);
       try {
         await PlatformModule.instance
             .invokeMethod('health.writeWorkoutSession', {
               'startTime': sTime.millisecondsSinceEpoch,
               'endTime': eTime.millisecondsSinceEpoch,
-              'sportType': workout.sportType ?? 0,
-              'title': workoutTitle,
-              'calories': workout.calories?.toDouble(),
-              'distance': workout.distance?.toDouble(),
-              'skipCount': workout.sportType == 14 ? workout.steps : null,
+              'sportType': exercise.sportType ?? 0,
+              'title': exercise.title,
+              'calories': exercise.calories?.toDouble(),
+              'distance': exercise.distance?.toDouble(),
+              'skipCount': exercise.sportType == 14 ? exercise.steps : null,
             });
         logger.info('synced native workout session', {
-          'title': workoutTitle,
+          'title': exercise.title,
           'start': sTime.toIso8601String(),
           'end': eTime.toIso8601String(),
         });
@@ -444,61 +405,10 @@ class HealthModule extends TabModule {
     return true;
   }
 
-  String _getWorkoutTitle(int sportType) {
-    switch (sportType) {
-      case 1:
-        return 'Outdoor run';
-      case 2:
-        return 'Outdoor walk';
-      case 3:
-        return 'Treadmill';
-      case 4:
-        return 'Indoor walk';
-      case 5:
-        return 'Cross country run';
-      case 6:
-        return 'Outdoor biking';
-      case 7:
-        return 'Indoor biking';
-      case 8:
-        return 'Free training';
-      case 9:
-        return 'Pool swimming';
-      case 10:
-        return 'Open water swimming';
-      case 11:
-        return 'Elliptical';
-      case 12:
-        return 'Yoga';
-      case 13:
-        return 'Rowing machine';
-      case 14:
-        return 'Jump rope';
-      case 15:
-        return 'Hiking';
-      case 16:
-        return 'HIIT';
-      case 19:
-        return 'Basketball';
-      case 20:
-        return 'Golf';
-      case 21:
-        return 'Skiing';
-      case 22:
-        return 'Outdoor step';
-      case 24:
-        return 'Rock climbing';
-      case 25:
-        return 'Scuba diving';
-      default:
-        return 'Workout';
-    }
-  }
-
   Future<void> saveHealth(Health settings) async {
     await HealthBlob.instance.update(settings);
     if (DeviceConnection.instance.connected.value) {
-      await _syncUserProfile();
+      await _syncUser();
     }
   }
 }

@@ -63,10 +63,6 @@ class PlatformModule extends Module {
   @override
   Future<void> sync() async {}
 
-  static Future<Map<String, App>> GetApps() async {
-    return const {};
-  }
-
   Future<Map<String, App>> getApps() async {
     final List<dynamic>? appsList = await invokeMethod<List<dynamic>>(
       'notifications.getApps',
