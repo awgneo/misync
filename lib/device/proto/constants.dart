@@ -8,6 +8,7 @@ enum CmdType implements ValuedEnum {
   health(8),
   weather(10),
   calendar(12),
+  location(16),
   schedule(17),
   music(18),
   thirdPartyApp(20),
@@ -54,11 +55,32 @@ enum HealthSubtype implements ValuedEnum {
   requestMultipleFitnessIds(3),
   requestSingleFitnessId(4),
   confirmFitnessId(5),
+  workoutStatus(26),
+  workoutOpen(30),
   getWearSportStatus(29);
 
   @override
   final int value;
   const HealthSubtype(this.value);
+}
+
+enum LocationSubtype implements ValuedEnum {
+  workoutLocation(2);
+
+  @override
+  final int value;
+  const LocationSubtype(this.value);
+}
+
+enum WorkoutStatus implements ValuedEnum {
+  started(0),
+  paused(1),
+  resumed(2),
+  finished(3);
+
+  @override
+  final int value;
+  const WorkoutStatus(this.value);
 }
 
 enum CalendarSubtype implements ValuedEnum {

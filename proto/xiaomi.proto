@@ -600,6 +600,7 @@ message VitalityScore {
 
 message WorkoutStatusWatch {
   optional uint32 timestamp = 1; // seconds
+  optional TimeZone timezone = 2;
   optional uint32 sport = 3;
   optional uint32 status = 4; // 0 started, 1 resumed, 2 paused, 3 finished
   optional bytes activityFileIds = 5;
@@ -611,7 +612,8 @@ message WorkoutOpenWatch {
   // This is only called when gps is needed?
   // 1 outdoor running, 2 walking, 3 hiking, 4 trekking, 5 trail run, 6 outdoor cycling
   optional uint32 sport = 1;
-  optional uint32 unknown2 = 2; // 2
+  optional uint32 action = 2; // e.g. 1 start, 2 resume
+  optional uint32 unknown3 = 3;
 }
 
 message WorkoutOpenReply {
@@ -621,9 +623,9 @@ message WorkoutOpenReply {
   // 0 * * when phone gps is working fine
   // 0 2 10
   // 0 2 2
-  optional uint32 unknown1 = 1;
-  optional uint32 unknown2 = 2; // always 2?
-  optional uint32 unknown3 = 3;
+  optional uint32 gpsStatus = 1;
+  optional uint32 signalRequest = 2; // statically 2
+  optional uint32 gpsState = 3;
 }
 
 message GoalsConfig {
@@ -640,7 +642,7 @@ message Goal {
 }
 
 message WorkoutLocation {
-  optional uint32 unknown1 = 1; // 10, sometimes 2?
+  optional uint32 gpsStatus = 1;
   optional uint32 timestamp = 2; // seconds
   optional double longitude = 3;
   optional double latitude = 4;

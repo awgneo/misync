@@ -170,6 +170,20 @@ class DeviceModule(
                 result.success(loc)
                 true
             }
+            "startLocationUpdates" -> {
+                val success = locationManager.startLocationUpdates { map ->
+                    activity.runOnUiThread {
+                        methodChannel?.invokeMethod("locationUpdate", map)
+                    }
+                }
+                result.success(success)
+                true
+            }
+            "stopLocationUpdates" -> {
+                locationManager.stopLocationUpdates()
+                result.success(true)
+                true
+            }
             else -> false
         }
     }

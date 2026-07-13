@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:misync/screen.dart';
 import '../device/module.dart';
 import '../device/proto/xiaomi.pb.dart' as pb;
@@ -29,6 +29,98 @@ class HealthModule extends TabModule {
   @override
   Future<void> start() async {
     DeviceModule.module.register(this);
+    DeviceModule.module.connection.listen(_receiveWatchCommand);
+    PlatformModule.module.register(_receivePhoneMethod);
+  }
+
+  void _receiveWatchCommand(pb.Command cmd) {
+    if (cmd.type == CmdType.health.value) {
+      if (cmd.subtype == HealthSubtype.workoutOpen.value) {
+        _handleWorkoutOpenWatch(cmd);
+      } else if (cmd.subtype == HealthSubtype.workoutStatus.value) {
+        _handleWorkoutStatusWatch(cmd);
+      }
+    }
+  }
+
+  Future<void> _handleWorkoutOpenWatch(pb.Command cmd) async {
+    if (!cmd.health.hasWorkoutOpenWatch()) return;
+    final workout = cmd.health.workoutOpenWatch;
+    logger.info('watch started outdoor workout: sport=${workout.sport}');
+
+    // 1. Reply to WorkoutOpenWatch with WorkoutOpenReply (Type 8, Subtype 30)
+    // gpsStatus = 0, gpsState = 2 tells the watch the phone's GPS is ready!
+    await DeviceModule.module.connection.send(
+      type: CmdType.health,
+      subtype: HealthSubtype.workoutOpen,
+      builder: (cmd) =>
+          cmd.health = (pb.Health()
+            ..workoutOpenReply = (pb.WorkoutOpenReply()
+              ..gpsStatus = 0
+              ..signalRequest = 2
+              ..gpsState = 2)),
+    );
+
+    // 2. Start location updates on the phone
+    logger.info('starting phone GPS location updates for workout');
+    final success =
+        await PlatformModule.module.invokeMethod(
+          'device.startLocationUpdates',
+        ) ??
+        false;
+    logger.info('phone GPS updates started: $success');
+  }
+
+  Future<void> _handleWorkoutStatusWatch(pb.Command cmd) async {
+    if (!cmd.health.hasWorkoutStatusWatch()) return;
+    final status = cmd.health.workoutStatusWatch;
+    logger.info('received workout status update: status=${status.status}');
+
+    // Stop updates when the workout is finished
+    if (status.status == WorkoutStatus.finished.value) {
+      logger.info('workout finished, stopping phone GPS updates');
+      await PlatformModule.module.invokeMethod('device.stopLocationUpdates');
+    }
+  }
+
+  Future<dynamic> _receivePhoneMethod(MethodCall call) async {
+    if (call.method == 'locationUpdate') {
+      await _handlePhoneLocationUpdate(call.arguments);
+    }
+  }
+
+  Future<void> _handlePhoneLocationUpdate(dynamic arguments) async {
+    if (!DeviceModule.module.connection.connected.value) return;
+    if (arguments == null) return;
+
+    final data = Map<String, dynamic>.from(arguments);
+    final double lat = (data['latitude'] as num).toDouble();
+    final double lon = (data['longitude'] as num).toDouble();
+    final double alt = (data['altitude'] as num).toDouble();
+    final double speed = (data['speed'] as num).toDouble();
+    final double bearing = (data['bearing'] as num).toDouble();
+    final double horizAcc = (data['horizontalAccuracy'] as num).toDouble();
+    final double vertAcc = (data['verticalAccuracy'] as num).toDouble();
+
+    logger.info('sending location update to watch: lat=$lat, lon=$lon');
+
+    // Send coordinates via WorkoutLocation (CmdType 16, Subtype 2)
+    await DeviceModule.module.connection.send(
+      type: CmdType.location,
+      subtype: LocationSubtype.workoutLocation,
+      builder: (cmd) =>
+          cmd.health = (pb.Health()
+            ..workoutLocation = (pb.WorkoutLocation()
+              ..gpsStatus = 2
+              ..timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000
+              ..longitude = lon
+              ..latitude = lat
+              ..altitude = alt
+              ..speed = speed
+              ..bearing = bearing
+              ..horizontalAccuracy = horizAcc
+              ..verticalAccuracy = vertAcc)),
+    );
   }
 
   @override

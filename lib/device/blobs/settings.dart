@@ -25,10 +25,10 @@ class SettingsBlob extends Blob<Settings> {
         module: 'device',
         name: 'settings',
         defaultValue: const Settings(
-          authKeyHex: '0e11f584d16c128ce9437a8a3838d665',
-          watchMac: '2C:0D:CF:6E:E6:D4',
-          deviceId: '2198524676',
-          deviceModel: 'miwear.watch.p67cn',
+          authKeyHex: '',
+          watchMac: '',
+          deviceId: '',
+          deviceModel: '',
           syncIntervalMinutes: 15,
         ),
       );
@@ -43,10 +43,10 @@ class SettingsBlob extends Blob<Settings> {
   Settings parse(dynamic json) {
     final map = Map<String, dynamic>.from(json ?? {});
     return Settings(
-      authKeyHex: map['authKeyHex'] ?? '0e11f584d16c128ce9437a8a3838d665',
-      watchMac: map['watchMac'] ?? '2C:0D:CF:6E:E6:D4',
-      deviceId: map['deviceId'] ?? '2198524676',
-      deviceModel: map['deviceModel'] ?? 'miwear.watch.p67cn',
+      authKeyHex: map['authKeyHex'] ?? '',
+      watchMac: map['watchMac'] ?? '',
+      deviceId: map['deviceId'] ?? '',
+      deviceModel: map['deviceModel'] ?? '',
       syncIntervalMinutes: map['syncIntervalMinutes'] ?? 15,
     );
   }

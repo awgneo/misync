@@ -37,33 +37,33 @@ class Extractor {
     final modelRegex = RegExp(r'"model"\s*:\s*"([^"]+)"', caseSensitive: false);
     final fullMacRegex = RegExp(r'([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})');
 
-    // Extract Auth Key
-    final encryptKeyMatch = encryptKeyRegex.firstMatch(content);
-    if (encryptKeyMatch != null) {
-      authKey = encryptKeyMatch.group(1);
+    // Extract Auth Key (take the last one as it's the most recent pairing)
+    final encryptKeyMatches = encryptKeyRegex.allMatches(content);
+    if (encryptKeyMatches.isNotEmpty) {
+      authKey = encryptKeyMatches.last.group(1);
     } else {
-      final tokenMatch = tokenRegex.firstMatch(content);
-      if (tokenMatch != null) {
-        authKey = tokenMatch.group(1);
+      final tokenMatches = tokenRegex.allMatches(content);
+      if (tokenMatches.isNotEmpty) {
+        authKey = tokenMatches.last.group(1);
       }
     }
 
-    // Extract MAC Suffix
-    final macSuffixMatch = macSuffixRegex.firstMatch(content);
-    if (macSuffixMatch != null) {
-      macSuffix = macSuffixMatch.group(1);
+    // Extract MAC Suffix (take the last one)
+    final macSuffixMatches = macSuffixRegex.allMatches(content);
+    if (macSuffixMatches.isNotEmpty) {
+      macSuffix = macSuffixMatches.last.group(1);
     }
 
-    // Extract DID
-    final didMatch = didRegex.firstMatch(content);
-    if (didMatch != null) {
-      deviceId = didMatch.group(1);
+    // Extract DID (take the last one)
+    final didMatches = didRegex.allMatches(content);
+    if (didMatches.isNotEmpty) {
+      deviceId = didMatches.last.group(1);
     }
 
-    // Extract Model
-    final modelMatch = modelRegex.firstMatch(content);
-    if (modelMatch != null) {
-      model = modelMatch.group(1);
+    // Extract Model (take the last one)
+    final modelMatches = modelRegex.allMatches(content);
+    if (modelMatches.isNotEmpty) {
+      model = modelMatches.last.group(1);
     }
 
     // Collect all full MAC addresses
@@ -105,16 +105,36 @@ class Extractor {
   }
 
   static XiaomiDeviceCredentials? extractFromBytes(Uint8List bytes, String filename) {
-    if (filename.toLowerCase().endsWith('.zip')) {
+    return _extract(bytes, filename, 0);
+  }
+
+  static XiaomiDeviceCredentials? _extract(Uint8List bytes, String filename, int depth) {
+    if (depth > 3) return null; // Prevent deep recursion or circular zips
+
+    final lowerFilename = filename.toLowerCase();
+    if (lowerFilename.endsWith('.zip')) {
       try {
         final archive = ZipDecoder().decodeBytes(bytes);
         for (final file in archive) {
           if (!file.isFile) continue;
-          if (!file.name.endsWith('.log') && !file.name.endsWith('.txt')) continue;
           final fileBytes = file.content as List<int>;
-          final content = utf8.decode(fileBytes, allowMalformed: true);
-          final creds = extractFromContent(content);
-          if (creds != null) return creds;
+          final u8bytes = Uint8List.fromList(fileBytes);
+
+          if (file.name.toLowerCase().endsWith('.zip')) {
+            final creds = _extract(u8bytes, file.name, depth + 1);
+            if (creds != null) return creds;
+          } else {
+            final lowerName = file.name.toLowerCase();
+            final isLogFile = lowerName.contains('.log') ||
+                lowerName.contains('.txt') ||
+                lowerName.contains('log_') ||
+                lowerName.contains('device_log');
+            if (isLogFile && file.size <= 15 * 1024 * 1024) {
+              final content = utf8.decode(fileBytes, allowMalformed: true);
+              final creds = extractFromContent(content);
+              if (creds != null) return creds;
+            }
+          }
         }
       } catch (_) {}
     } else {

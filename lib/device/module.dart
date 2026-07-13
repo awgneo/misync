@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter/services.dart';
 import 'package:misync/screen.dart';
@@ -117,14 +118,10 @@ class DeviceModule extends TabModule {
     );
 
     DeviceBlob.instance.update(
-      DeviceInfoState(
+      current.copyWith(
         serialNumber: info.serialNumber,
         firmwareVersion: info.firmware,
         model: info.model,
-        batteryLevel: current.batteryLevel,
-        isCharging: current.isCharging,
-        isWorn: current.isWorn,
-        isUserAsleep: current.isUserAsleep,
       ),
     );
   }
@@ -139,14 +136,9 @@ class DeviceModule extends TabModule {
     );
 
     DeviceBlob.instance.update(
-      DeviceInfoState(
-        serialNumber: current.serialNumber,
-        firmwareVersion: current.firmwareVersion,
-        model: current.model,
+      current.copyWith(
         batteryLevel: battery.level,
         isCharging: battery.state == 1 || battery.state == 3,
-        isWorn: current.isWorn,
-        isUserAsleep: current.isUserAsleep,
       ),
     );
   }
@@ -161,10 +153,7 @@ class DeviceModule extends TabModule {
     );
 
     DeviceBlob.instance.update(
-      DeviceInfoState(
-        serialNumber: current.serialNumber,
-        firmwareVersion: current.firmwareVersion,
-        model: current.model,
+      current.copyWith(
         batteryLevel: state.hasBatteryLevel()
             ? state.batteryLevel
             : current.batteryLevel,
@@ -216,8 +205,52 @@ class DeviceModule extends TabModule {
     logger.info('starting device sync pass');
     await _syncDevice();
     await _syncModules();
+    await _syncGps();
     logger.info('device sync pass completed');
     _syncing = false;
+  }
+
+  Future<void> _syncGps() async {
+    final now = DateTime.now();
+    final lastSyncMs = DeviceBlob.infoState.lastAgpsSyncMs;
+    if (lastSyncMs > 0) {
+      final lastSyncTime = DateTime.fromMillisecondsSinceEpoch(lastSyncMs);
+      if (now.difference(lastSyncTime).inHours < 24) {
+        return; // Silent check
+      }
+    }
+
+    logger.info('syncing GPS helper data...');
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(
+        Uri.parse('http://epodownload.mediatek.com/EPO.DAT'),
+      );
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final bytesBuilder = BytesBuilder();
+        await for (final chunk in response) {
+          bytesBuilder.add(chunk);
+        }
+        final bytes = bytesBuilder.takeBytes();
+
+        final success = await connection.uploadData(type: 1, bytes: bytes);
+        if (success) {
+          logger.info('GPS sync completed');
+          await DeviceBlob.instance.update(
+            DeviceBlob.infoState.copyWith(lastAgpsSyncMs: now.millisecondsSinceEpoch),
+          );
+        } else {
+          logger.error('failed to upload GPS data');
+        }
+      } else {
+        logger.error('failed to fetch GPS data: HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      logger.error('GPS sync error: $e');
+    } finally {
+      client.close();
+    }
   }
 
   Future<void> _syncDevice() async {
@@ -265,7 +298,7 @@ class DeviceModule extends TabModule {
     }
 
     await DeviceBlob.instance.update(
-      DeviceInfoState(
+      DeviceBlob.infoState.copyWith(
         serialNumber: serial,
         firmwareVersion: firmware,
         model: model,

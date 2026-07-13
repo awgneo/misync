@@ -326,8 +326,17 @@ class DeviceConnection extends ChangeNotifier {
         logger.info('handshake successful: secure channel is active');
         notifyListeners();
       } else if (_protocol!.state == ProtocolState.authFailed) {
-        logger.error('handshake failed: auth key is invalid');
+        logger.error('handshake failed: auth key is invalid. Clearing pairing credentials.');
         disconnect();
+        await SettingsBlob.instance.update(
+          const Settings(
+            authKeyHex: '',
+            watchMac: '',
+            deviceId: '',
+            deviceModel: '',
+            syncIntervalMinutes: 15,
+          ),
+        );
       } else {
         notifyListeners();
       }

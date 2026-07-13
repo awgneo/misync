@@ -3,11 +3,15 @@ package com.misync.misync.device
 import android.content.Context
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationListener
+import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import java.util.Locale
 
 class LocationManager(private val context: Context) {
     private val TAG = "LocationManager"
+    private var locationListener: LocationListener? = null
 
     fun getLocation(): Map<String, Any>? {
         Log.d(TAG, "getLocation: querying LocationManager")
@@ -47,4 +51,78 @@ class LocationManager(private val context: Context) {
         Log.w(TAG, "getLocation: no last known location found")
         return null
     }
+
+    fun startLocationUpdates(onLocationChanged: (Map<String, Any>) -> Unit): Boolean {
+        Log.d(TAG, "startLocationUpdates: starting updates")
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        
+        if (locationListener != null) {
+            stopLocationUpdates()
+        }
+
+        locationListener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                Log.d(TAG, "locationUpdate: lat=${location.latitude}, lon=${location.longitude}")
+                val verticalAccuracy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    location.verticalAccuracyMeters
+                } else {
+                    0.0f
+                }
+                val map = mapOf(
+                    "latitude" to location.latitude,
+                    "longitude" to location.longitude,
+                    "altitude" to location.altitude,
+                    "speed" to location.speed,
+                    "bearing" to location.bearing,
+                    "horizontalAccuracy" to location.accuracy,
+                    "verticalAccuracy" to verticalAccuracy
+                )
+                onLocationChanged(map)
+            }
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {}
+        }
+
+        var started = false
+        try {
+            if (locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                locationManager.requestLocationUpdates(
+                    android.location.LocationManager.GPS_PROVIDER,
+                    2000L,
+                    1.0f,
+                    locationListener!!
+                )
+                started = true
+            }
+            if (locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
+                locationManager.requestLocationUpdates(
+                    android.location.LocationManager.NETWORK_PROVIDER,
+                    2000L,
+                    1.0f,
+                    locationListener!!
+                )
+                started = true
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "startLocationUpdates: permission not granted", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "startLocationUpdates: error requesting updates", e)
+        }
+
+        return started
+    }
+
+    fun stopLocationUpdates() {
+        Log.d(TAG, "stopLocationUpdates: stopping updates")
+        val listener = locationListener ?: return
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        try {
+            locationManager.removeUpdates(listener)
+        } catch (e: Exception) {
+            Log.e(TAG, "stopLocationUpdates: error removing updates", e)
+        }
+        locationListener = null
+    }
 }
+

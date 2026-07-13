@@ -1932,6 +1932,14 @@ const WorkoutStatusWatch$json = {
   '1': 'WorkoutStatusWatch',
   '2': [
     {'1': 'timestamp', '3': 1, '4': 1, '5': 13, '10': 'timestamp'},
+    {
+      '1': 'timezone',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.TimeZone',
+      '10': 'timezone'
+    },
     {'1': 'sport', '3': 3, '4': 1, '5': 13, '10': 'sport'},
     {'1': 'status', '3': 4, '4': 1, '5': 13, '10': 'status'},
     {'1': 'activityFileIds', '3': 5, '4': 1, '5': 12, '10': 'activityFileIds'},
@@ -1942,39 +1950,42 @@ const WorkoutStatusWatch$json = {
 
 /// Descriptor for `WorkoutStatusWatch`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List workoutStatusWatchDescriptor = $convert.base64Decode(
-    'ChJXb3Jrb3V0U3RhdHVzV2F0Y2gSHAoJdGltZXN0YW1wGAEgASgNUgl0aW1lc3RhbXASFAoFc3'
-    'BvcnQYAyABKA1SBXNwb3J0EhYKBnN0YXR1cxgEIAEoDVIGc3RhdHVzEigKD2FjdGl2aXR5Rmls'
-    'ZUlkcxgFIAEoDFIPYWN0aXZpdHlGaWxlSWRzEhoKCHVua25vd242GAYgASgNUgh1bmtub3duNh'
-    'IcCgl1bmtub3duMTAYCiABKA1SCXVua25vd24xMA==');
+    'ChJXb3Jrb3V0U3RhdHVzV2F0Y2gSHAoJdGltZXN0YW1wGAEgASgNUgl0aW1lc3RhbXASLAoIdG'
+    'ltZXpvbmUYAiABKAsyEC54aWFvbWkuVGltZVpvbmVSCHRpbWV6b25lEhQKBXNwb3J0GAMgASgN'
+    'UgVzcG9ydBIWCgZzdGF0dXMYBCABKA1SBnN0YXR1cxIoCg9hY3Rpdml0eUZpbGVJZHMYBSABKA'
+    'xSD2FjdGl2aXR5RmlsZUlkcxIaCgh1bmtub3duNhgGIAEoDVIIdW5rbm93bjYSHAoJdW5rbm93'
+    'bjEwGAogASgNUgl1bmtub3duMTA=');
 
 @$core.Deprecated('Use workoutOpenWatchDescriptor instead')
 const WorkoutOpenWatch$json = {
   '1': 'WorkoutOpenWatch',
   '2': [
     {'1': 'sport', '3': 1, '4': 1, '5': 13, '10': 'sport'},
-    {'1': 'unknown2', '3': 2, '4': 1, '5': 13, '10': 'unknown2'},
+    {'1': 'action', '3': 2, '4': 1, '5': 13, '10': 'action'},
+    {'1': 'unknown3', '3': 3, '4': 1, '5': 13, '10': 'unknown3'},
   ],
 };
 
 /// Descriptor for `WorkoutOpenWatch`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List workoutOpenWatchDescriptor = $convert.base64Decode(
-    'ChBXb3Jrb3V0T3BlbldhdGNoEhQKBXNwb3J0GAEgASgNUgVzcG9ydBIaCgh1bmtub3duMhgCIA'
-    'EoDVIIdW5rbm93bjI=');
+    'ChBXb3Jrb3V0T3BlbldhdGNoEhQKBXNwb3J0GAEgASgNUgVzcG9ydBIWCgZhY3Rpb24YAiABKA'
+    '1SBmFjdGlvbhIaCgh1bmtub3duMxgDIAEoDVIIdW5rbm93bjM=');
 
 @$core.Deprecated('Use workoutOpenReplyDescriptor instead')
 const WorkoutOpenReply$json = {
   '1': 'WorkoutOpenReply',
   '2': [
-    {'1': 'unknown1', '3': 1, '4': 1, '5': 13, '10': 'unknown1'},
-    {'1': 'unknown2', '3': 2, '4': 1, '5': 13, '10': 'unknown2'},
-    {'1': 'unknown3', '3': 3, '4': 1, '5': 13, '10': 'unknown3'},
+    {'1': 'gpsStatus', '3': 1, '4': 1, '5': 13, '10': 'gpsStatus'},
+    {'1': 'signalRequest', '3': 2, '4': 1, '5': 13, '10': 'signalRequest'},
+    {'1': 'gpsState', '3': 3, '4': 1, '5': 13, '10': 'gpsState'},
   ],
 };
 
 /// Descriptor for `WorkoutOpenReply`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List workoutOpenReplyDescriptor = $convert.base64Decode(
-    'ChBXb3Jrb3V0T3BlblJlcGx5EhoKCHVua25vd24xGAEgASgNUgh1bmtub3duMRIaCgh1bmtub3'
-    'duMhgCIAEoDVIIdW5rbm93bjISGgoIdW5rbm93bjMYAyABKA1SCHVua25vd24z');
+    'ChBXb3Jrb3V0T3BlblJlcGx5EhwKCWdwc1N0YXR1cxgBIAEoDVIJZ3BzU3RhdHVzEiQKDXNpZ2'
+    '5hbFJlcXVlc3QYAiABKA1SDXNpZ25hbFJlcXVlc3QSGgoIZ3BzU3RhdGUYAyABKA1SCGdwc1N0'
+    'YXRl');
 
 @$core.Deprecated('Use goalsConfigDescriptor instead')
 const GoalsConfig$json = {
@@ -2021,7 +2032,7 @@ final $typed_data.Uint8List goalDescriptor =
 const WorkoutLocation$json = {
   '1': 'WorkoutLocation',
   '2': [
-    {'1': 'unknown1', '3': 1, '4': 1, '5': 13, '10': 'unknown1'},
+    {'1': 'gpsStatus', '3': 1, '4': 1, '5': 13, '10': 'gpsStatus'},
     {'1': 'timestamp', '3': 2, '4': 1, '5': 13, '10': 'timestamp'},
     {'1': 'longitude', '3': 3, '4': 1, '5': 1, '10': 'longitude'},
     {'1': 'latitude', '3': 4, '4': 1, '5': 1, '10': 'latitude'},
@@ -2041,12 +2052,12 @@ const WorkoutLocation$json = {
 
 /// Descriptor for `WorkoutLocation`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List workoutLocationDescriptor = $convert.base64Decode(
-    'Cg9Xb3Jrb3V0TG9jYXRpb24SGgoIdW5rbm93bjEYASABKA1SCHVua25vd24xEhwKCXRpbWVzdG'
-    'FtcBgCIAEoDVIJdGltZXN0YW1wEhwKCWxvbmdpdHVkZRgDIAEoAVIJbG9uZ2l0dWRlEhoKCGxh'
-    'dGl0dWRlGAQgASgBUghsYXRpdHVkZRIaCghhbHRpdHVkZRgFIAEoAVIIYWx0aXR1ZGUSFAoFc3'
-    'BlZWQYBiABKAJSBXNwZWVkEhgKB2JlYXJpbmcYByABKAJSB2JlYXJpbmcSLgoSaG9yaXpvbnRh'
-    'bEFjY3VyYWN5GAggASgCUhJob3Jpem9udGFsQWNjdXJhY3kSKgoQdmVydGljYWxBY2N1cmFjeR'
-    'gJIAEoAlIQdmVydGljYWxBY2N1cmFjeQ==');
+    'Cg9Xb3Jrb3V0TG9jYXRpb24SHAoJZ3BzU3RhdHVzGAEgASgNUglncHNTdGF0dXMSHAoJdGltZX'
+    'N0YW1wGAIgASgNUgl0aW1lc3RhbXASHAoJbG9uZ2l0dWRlGAMgASgBUglsb25naXR1ZGUSGgoI'
+    'bGF0aXR1ZGUYBCABKAFSCGxhdGl0dWRlEhoKCGFsdGl0dWRlGAUgASgBUghhbHRpdHVkZRIUCg'
+    'VzcGVlZBgGIAEoAlIFc3BlZWQSGAoHYmVhcmluZxgHIAEoAlIHYmVhcmluZxIuChJob3Jpem9u'
+    'dGFsQWNjdXJhY3kYCCABKAJSEmhvcml6b250YWxBY2N1cmFjeRIqChB2ZXJ0aWNhbEFjY3VyYW'
+    'N5GAkgASgCUhB2ZXJ0aWNhbEFjY3VyYWN5');
 
 @$core.Deprecated('Use realTimeStatsDescriptor instead')
 const RealTimeStats$json = {

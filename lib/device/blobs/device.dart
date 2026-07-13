@@ -9,6 +9,7 @@ class DeviceInfoState {
   final bool isCharging;
   final bool isWorn;
   final bool isUserAsleep;
+  final int lastAgpsSyncMs;
 
   const DeviceInfoState({
     required this.serialNumber,
@@ -18,7 +19,30 @@ class DeviceInfoState {
     required this.isCharging,
     required this.isWorn,
     required this.isUserAsleep,
+    required this.lastAgpsSyncMs,
   });
+
+  DeviceInfoState copyWith({
+    String? serialNumber,
+    String? firmwareVersion,
+    String? model,
+    int? batteryLevel,
+    bool? isCharging,
+    bool? isWorn,
+    bool? isUserAsleep,
+    int? lastAgpsSyncMs,
+  }) {
+    return DeviceInfoState(
+      serialNumber: serialNumber ?? this.serialNumber,
+      firmwareVersion: firmwareVersion ?? this.firmwareVersion,
+      model: model ?? this.model,
+      batteryLevel: batteryLevel ?? this.batteryLevel,
+      isCharging: isCharging ?? this.isCharging,
+      isWorn: isWorn ?? this.isWorn,
+      isUserAsleep: isUserAsleep ?? this.isUserAsleep,
+      lastAgpsSyncMs: lastAgpsSyncMs ?? this.lastAgpsSyncMs,
+    );
+  }
 }
 
 class DeviceBlob extends Blob<DeviceInfoState> {
@@ -37,6 +61,7 @@ class DeviceBlob extends Blob<DeviceInfoState> {
           isCharging: false,
           isWorn: false,
           isUserAsleep: false,
+          lastAgpsSyncMs: 0,
         ),
       );
 
@@ -53,6 +78,7 @@ class DeviceBlob extends Blob<DeviceInfoState> {
       isCharging: map['isCharging'] ?? false,
       isWorn: map['isWorn'] ?? false,
       isUserAsleep: map['isUserAsleep'] ?? false,
+      lastAgpsSyncMs: map['lastAgpsSyncMs'] ?? 0,
     );
   }
 
@@ -65,5 +91,6 @@ class DeviceBlob extends Blob<DeviceInfoState> {
     'isCharging': value.isCharging,
     'isWorn': value.isWorn,
     'isUserAsleep': value.isUserAsleep,
+    'lastAgpsSyncMs': value.lastAgpsSyncMs,
   };
 }

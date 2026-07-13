@@ -6448,6 +6448,7 @@ class VitalityScore extends $pb.GeneratedMessage {
 class WorkoutStatusWatch extends $pb.GeneratedMessage {
   factory WorkoutStatusWatch({
     $core.int? timestamp,
+    TimeZone? timezone,
     $core.int? sport,
     $core.int? status,
     $core.List<$core.int>? activityFileIds,
@@ -6456,6 +6457,7 @@ class WorkoutStatusWatch extends $pb.GeneratedMessage {
   }) {
     final result = create();
     if (timestamp != null) result.timestamp = timestamp;
+    if (timezone != null) result.timezone = timezone;
     if (sport != null) result.sport = sport;
     if (status != null) result.status = status;
     if (activityFileIds != null) result.activityFileIds = activityFileIds;
@@ -6478,14 +6480,16 @@ class WorkoutStatusWatch extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
     ..aI(1, _omitFieldNames ? '' : 'timestamp', fieldType: $pb.PbFieldType.OU3)
+    ..aOM<TimeZone>(2, _omitFieldNames ? '' : 'timezone',
+        subBuilder: TimeZone.create)
     ..aI(3, _omitFieldNames ? '' : 'sport', fieldType: $pb.PbFieldType.OU3)
     ..aI(4, _omitFieldNames ? '' : 'status', fieldType: $pb.PbFieldType.OU3)
     ..a<$core.List<$core.int>>(
         5, _omitFieldNames ? '' : 'activityFileIds', $pb.PbFieldType.OY,
         protoName: 'activityFileIds')
     ..aI(6, _omitFieldNames ? '' : 'unknown6', fieldType: $pb.PbFieldType.OU3)
-    ..aI(10, _omitFieldNames ? '' : 'unknown10', fieldType: $pb.PbFieldType.OU3)
-    ..hasRequiredFields = false;
+    ..aI(10, _omitFieldNames ? '' : 'unknown10',
+        fieldType: $pb.PbFieldType.OU3);
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
   WorkoutStatusWatch clone() => deepCopy();
@@ -6515,48 +6519,59 @@ class WorkoutStatusWatch extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   void clearTimestamp() => $_clearField(1);
 
+  @$pb.TagNumber(2)
+  TimeZone get timezone => $_getN(1);
+  @$pb.TagNumber(2)
+  set timezone(TimeZone value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTimezone() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTimezone() => $_clearField(2);
+  @$pb.TagNumber(2)
+  TimeZone ensureTimezone() => $_ensure(1);
+
   @$pb.TagNumber(3)
-  $core.int get sport => $_getIZ(1);
+  $core.int get sport => $_getIZ(2);
   @$pb.TagNumber(3)
-  set sport($core.int value) => $_setUnsignedInt32(1, value);
+  set sport($core.int value) => $_setUnsignedInt32(2, value);
   @$pb.TagNumber(3)
-  $core.bool hasSport() => $_has(1);
+  $core.bool hasSport() => $_has(2);
   @$pb.TagNumber(3)
   void clearSport() => $_clearField(3);
 
   @$pb.TagNumber(4)
-  $core.int get status => $_getIZ(2);
+  $core.int get status => $_getIZ(3);
   @$pb.TagNumber(4)
-  set status($core.int value) => $_setUnsignedInt32(2, value);
+  set status($core.int value) => $_setUnsignedInt32(3, value);
   @$pb.TagNumber(4)
-  $core.bool hasStatus() => $_has(2);
+  $core.bool hasStatus() => $_has(3);
   @$pb.TagNumber(4)
   void clearStatus() => $_clearField(4);
 
   @$pb.TagNumber(5)
-  $core.List<$core.int> get activityFileIds => $_getN(3);
+  $core.List<$core.int> get activityFileIds => $_getN(4);
   @$pb.TagNumber(5)
-  set activityFileIds($core.List<$core.int> value) => $_setBytes(3, value);
+  set activityFileIds($core.List<$core.int> value) => $_setBytes(4, value);
   @$pb.TagNumber(5)
-  $core.bool hasActivityFileIds() => $_has(3);
+  $core.bool hasActivityFileIds() => $_has(4);
   @$pb.TagNumber(5)
   void clearActivityFileIds() => $_clearField(5);
 
   @$pb.TagNumber(6)
-  $core.int get unknown6 => $_getIZ(4);
+  $core.int get unknown6 => $_getIZ(5);
   @$pb.TagNumber(6)
-  set unknown6($core.int value) => $_setUnsignedInt32(4, value);
+  set unknown6($core.int value) => $_setUnsignedInt32(5, value);
   @$pb.TagNumber(6)
-  $core.bool hasUnknown6() => $_has(4);
+  $core.bool hasUnknown6() => $_has(5);
   @$pb.TagNumber(6)
   void clearUnknown6() => $_clearField(6);
 
   @$pb.TagNumber(10)
-  $core.int get unknown10 => $_getIZ(5);
+  $core.int get unknown10 => $_getIZ(6);
   @$pb.TagNumber(10)
-  set unknown10($core.int value) => $_setUnsignedInt32(5, value);
+  set unknown10($core.int value) => $_setUnsignedInt32(6, value);
   @$pb.TagNumber(10)
-  $core.bool hasUnknown10() => $_has(5);
+  $core.bool hasUnknown10() => $_has(6);
   @$pb.TagNumber(10)
   void clearUnknown10() => $_clearField(10);
 }
@@ -6564,11 +6579,13 @@ class WorkoutStatusWatch extends $pb.GeneratedMessage {
 class WorkoutOpenWatch extends $pb.GeneratedMessage {
   factory WorkoutOpenWatch({
     $core.int? sport,
-    $core.int? unknown2,
+    $core.int? action,
+    $core.int? unknown3,
   }) {
     final result = create();
     if (sport != null) result.sport = sport;
-    if (unknown2 != null) result.unknown2 = unknown2;
+    if (action != null) result.action = action;
+    if (unknown3 != null) result.unknown3 = unknown3;
     return result;
   }
 
@@ -6586,7 +6603,8 @@ class WorkoutOpenWatch extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
     ..aI(1, _omitFieldNames ? '' : 'sport', fieldType: $pb.PbFieldType.OU3)
-    ..aI(2, _omitFieldNames ? '' : 'unknown2', fieldType: $pb.PbFieldType.OU3)
+    ..aI(2, _omitFieldNames ? '' : 'action', fieldType: $pb.PbFieldType.OU3)
+    ..aI(3, _omitFieldNames ? '' : 'unknown3', fieldType: $pb.PbFieldType.OU3)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6620,25 +6638,34 @@ class WorkoutOpenWatch extends $pb.GeneratedMessage {
   void clearSport() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get unknown2 => $_getIZ(1);
+  $core.int get action => $_getIZ(1);
   @$pb.TagNumber(2)
-  set unknown2($core.int value) => $_setUnsignedInt32(1, value);
+  set action($core.int value) => $_setUnsignedInt32(1, value);
   @$pb.TagNumber(2)
-  $core.bool hasUnknown2() => $_has(1);
+  $core.bool hasAction() => $_has(1);
   @$pb.TagNumber(2)
-  void clearUnknown2() => $_clearField(2);
+  void clearAction() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get unknown3 => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set unknown3($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUnknown3() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUnknown3() => $_clearField(3);
 }
 
 class WorkoutOpenReply extends $pb.GeneratedMessage {
   factory WorkoutOpenReply({
-    $core.int? unknown1,
-    $core.int? unknown2,
-    $core.int? unknown3,
+    $core.int? gpsStatus,
+    $core.int? signalRequest,
+    $core.int? gpsState,
   }) {
     final result = create();
-    if (unknown1 != null) result.unknown1 = unknown1;
-    if (unknown2 != null) result.unknown2 = unknown2;
-    if (unknown3 != null) result.unknown3 = unknown3;
+    if (gpsStatus != null) result.gpsStatus = gpsStatus;
+    if (signalRequest != null) result.signalRequest = signalRequest;
+    if (gpsState != null) result.gpsState = gpsState;
     return result;
   }
 
@@ -6655,9 +6682,12 @@ class WorkoutOpenReply extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'WorkoutOpenReply',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
-    ..aI(1, _omitFieldNames ? '' : 'unknown1', fieldType: $pb.PbFieldType.OU3)
-    ..aI(2, _omitFieldNames ? '' : 'unknown2', fieldType: $pb.PbFieldType.OU3)
-    ..aI(3, _omitFieldNames ? '' : 'unknown3', fieldType: $pb.PbFieldType.OU3)
+    ..aI(1, _omitFieldNames ? '' : 'gpsStatus',
+        protoName: 'gpsStatus', fieldType: $pb.PbFieldType.OU3)
+    ..aI(2, _omitFieldNames ? '' : 'signalRequest',
+        protoName: 'signalRequest', fieldType: $pb.PbFieldType.OU3)
+    ..aI(3, _omitFieldNames ? '' : 'gpsState',
+        protoName: 'gpsState', fieldType: $pb.PbFieldType.OU3)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6686,31 +6716,31 @@ class WorkoutOpenReply extends $pb.GeneratedMessage {
   /// 0 2 10
   /// 0 2 2
   @$pb.TagNumber(1)
-  $core.int get unknown1 => $_getIZ(0);
+  $core.int get gpsStatus => $_getIZ(0);
   @$pb.TagNumber(1)
-  set unknown1($core.int value) => $_setUnsignedInt32(0, value);
+  set gpsStatus($core.int value) => $_setUnsignedInt32(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasUnknown1() => $_has(0);
+  $core.bool hasGpsStatus() => $_has(0);
   @$pb.TagNumber(1)
-  void clearUnknown1() => $_clearField(1);
+  void clearGpsStatus() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get unknown2 => $_getIZ(1);
+  $core.int get signalRequest => $_getIZ(1);
   @$pb.TagNumber(2)
-  set unknown2($core.int value) => $_setUnsignedInt32(1, value);
+  set signalRequest($core.int value) => $_setUnsignedInt32(1, value);
   @$pb.TagNumber(2)
-  $core.bool hasUnknown2() => $_has(1);
+  $core.bool hasSignalRequest() => $_has(1);
   @$pb.TagNumber(2)
-  void clearUnknown2() => $_clearField(2);
+  void clearSignalRequest() => $_clearField(2);
 
   @$pb.TagNumber(3)
-  $core.int get unknown3 => $_getIZ(2);
+  $core.int get gpsState => $_getIZ(2);
   @$pb.TagNumber(3)
-  set unknown3($core.int value) => $_setUnsignedInt32(2, value);
+  set gpsState($core.int value) => $_setUnsignedInt32(2, value);
   @$pb.TagNumber(3)
-  $core.bool hasUnknown3() => $_has(2);
+  $core.bool hasGpsState() => $_has(2);
   @$pb.TagNumber(3)
-  void clearUnknown3() => $_clearField(3);
+  void clearGpsState() => $_clearField(3);
 }
 
 class GoalsConfig extends $pb.GeneratedMessage {
@@ -6828,7 +6858,7 @@ class Goal extends $pb.GeneratedMessage {
 
 class WorkoutLocation extends $pb.GeneratedMessage {
   factory WorkoutLocation({
-    $core.int? unknown1,
+    $core.int? gpsStatus,
     $core.int? timestamp,
     $core.double? longitude,
     $core.double? latitude,
@@ -6839,7 +6869,7 @@ class WorkoutLocation extends $pb.GeneratedMessage {
     $core.double? verticalAccuracy,
   }) {
     final result = create();
-    if (unknown1 != null) result.unknown1 = unknown1;
+    if (gpsStatus != null) result.gpsStatus = gpsStatus;
     if (timestamp != null) result.timestamp = timestamp;
     if (longitude != null) result.longitude = longitude;
     if (latitude != null) result.latitude = latitude;
@@ -6865,7 +6895,8 @@ class WorkoutLocation extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'WorkoutLocation',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
-    ..aI(1, _omitFieldNames ? '' : 'unknown1', fieldType: $pb.PbFieldType.OU3)
+    ..aI(1, _omitFieldNames ? '' : 'gpsStatus',
+        protoName: 'gpsStatus', fieldType: $pb.PbFieldType.OU3)
     ..aI(2, _omitFieldNames ? '' : 'timestamp', fieldType: $pb.PbFieldType.OU3)
     ..aD(3, _omitFieldNames ? '' : 'longitude')
     ..aD(4, _omitFieldNames ? '' : 'latitude')
@@ -6898,13 +6929,13 @@ class WorkoutLocation extends $pb.GeneratedMessage {
   static WorkoutLocation? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get unknown1 => $_getIZ(0);
+  $core.int get gpsStatus => $_getIZ(0);
   @$pb.TagNumber(1)
-  set unknown1($core.int value) => $_setUnsignedInt32(0, value);
+  set gpsStatus($core.int value) => $_setUnsignedInt32(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasUnknown1() => $_has(0);
+  $core.bool hasGpsStatus() => $_has(0);
   @$pb.TagNumber(1)
-  void clearUnknown1() => $_clearField(1);
+  void clearGpsStatus() => $_clearField(1);
 
   @$pb.TagNumber(2)
   $core.int get timestamp => $_getIZ(1);

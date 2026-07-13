@@ -53,7 +53,7 @@ build-apk() {
       info "Decompiling source files using jadx..."
       # jadx can exit with non-zero codes on minor obfuscated class errors.
       # We verify that the sources output directory was created successfully instead.
-      jadx --no-res -d "$decompiled_dir" "$apk_path"
+      jadx -d "$decompiled_dir" "$apk_path"
       if [ ! -d "$decompiled_dir/sources" ]; then
         abort "Failed to decompile APK (sources directory not created)." 2
       fi
