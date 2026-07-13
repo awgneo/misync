@@ -23,7 +23,7 @@ build-proto() {
 }
 
 build-apk() {
-  local sources_dir=".sources"
+  local sources_dir=".apks"
   local apk_path="$sources_dir/com.xiaomi.wear.apk"
   local decompiled_dir="$sources_dir/mi_fitness_source"
   local version_file="$sources_dir/version.txt"

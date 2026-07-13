@@ -3,7 +3,7 @@
 import 'dart:io';
 
 void main() {
-  final apkSourcesDir = '.sources/mi_fitness_source';
+  final apkSourcesDir = '.apks/mi_fitness_source';
 
   // 1. Resolve ReportType constants from SportReportBaseParser.java
   final reportTypeConstants = <String, String>{};

@@ -44,11 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-/apks
-/gadgetbridge_src
 /logs
 
 # Local Environment & Test Outputs
 .env
 .test/
-.sources/
+.apks/
