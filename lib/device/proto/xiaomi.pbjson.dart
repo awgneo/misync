@@ -2264,13 +2264,203 @@ const Music$json = {
       '6': '.xiaomi.MediaKey',
       '10': 'mediaKey'
     },
+    {
+      '1': 'recordList',
+      '3': 14,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordList',
+      '10': 'recordList'
+    },
+    {
+      '1': 'recordIdList',
+      '3': 16,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordIdList',
+      '10': 'recordIdList'
+    },
+    {
+      '1': 'recordId',
+      '3': 15,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordId',
+      '10': 'recordId'
+    },
+    {
+      '1': 'recordStatus',
+      '3': 19,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordStatus',
+      '10': 'recordStatus'
+    },
   ],
 };
 
 /// Descriptor for `Music`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List musicDescriptor = $convert.base64Decode(
     'CgVNdXNpYxIvCgltdXNpY0luZm8YASABKAsyES54aWFvbWkuTXVzaWNJbmZvUgltdXNpY0luZm'
-    '8SLAoIbWVkaWFLZXkYAiABKAsyEC54aWFvbWkuTWVkaWFLZXlSCG1lZGlhS2V5');
+    '8SLAoIbWVkaWFLZXkYAiABKAsyEC54aWFvbWkuTWVkaWFLZXlSCG1lZGlhS2V5EjcKCnJlY29y'
+    'ZExpc3QYDiABKAsyFy54aWFvbWkuU291bmRSZWNvcmRMaXN0UgpyZWNvcmRMaXN0Ej0KDHJlY2'
+    '9yZElkTGlzdBgQIAEoCzIZLnhpYW9taS5Tb3VuZFJlY29yZElkTGlzdFIMcmVjb3JkSWRMaXN0'
+    'EjEKCHJlY29yZElkGA8gASgLMhUueGlhb21pLlNvdW5kUmVjb3JkSWRSCHJlY29yZElkEj0KDH'
+    'JlY29yZFN0YXR1cxgTIAEoCzIZLnhpYW9taS5Tb3VuZFJlY29yZFN0YXR1c1IMcmVjb3JkU3Rh'
+    'dHVz');
+
+@$core.Deprecated('Use soundRecordIdDescriptor instead')
+const SoundRecordId$json = {
+  '1': 'SoundRecordId',
+  '2': [
+    {'1': 'id', '3': 1, '4': 2, '5': 9, '10': 'id'},
+    {'1': 'synced', '3': 2, '4': 1, '5': 8, '10': 'synced'},
+  ],
+};
+
+/// Descriptor for `SoundRecordId`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordIdDescriptor = $convert.base64Decode(
+    'Cg1Tb3VuZFJlY29yZElkEg4KAmlkGAEgAigJUgJpZBIWCgZzeW5jZWQYAiABKAhSBnN5bmNlZA'
+    '==');
+
+@$core.Deprecated('Use soundRecordDescriptor instead')
+const SoundRecord$json = {
+  '1': 'SoundRecord',
+  '2': [
+    {
+      '1': 'info',
+      '3': 1,
+      '4': 2,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordId',
+      '10': 'info'
+    },
+    {'1': 'format', '3': 2, '4': 1, '5': 13, '10': 'format'},
+    {'1': 'size', '3': 3, '4': 1, '5': 13, '10': 'size'},
+    {'1': 'timestamp', '3': 4, '4': 1, '5': 4, '10': 'timestamp'},
+    {'1': 'duration', '3': 5, '4': 1, '5': 13, '10': 'duration'},
+  ],
+};
+
+/// Descriptor for `SoundRecord`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordDescriptor = $convert.base64Decode(
+    'CgtTb3VuZFJlY29yZBIpCgRpbmZvGAEgAigLMhUueGlhb21pLlNvdW5kUmVjb3JkSWRSBGluZm'
+    '8SFgoGZm9ybWF0GAIgASgNUgZmb3JtYXQSEgoEc2l6ZRgDIAEoDVIEc2l6ZRIcCgl0aW1lc3Rh'
+    'bXAYBCABKARSCXRpbWVzdGFtcBIaCghkdXJhdGlvbhgFIAEoDVIIZHVyYXRpb24=');
+
+@$core.Deprecated('Use soundRecordListDescriptor instead')
+const SoundRecordList$json = {
+  '1': 'SoundRecordList',
+  '2': [
+    {
+      '1': 'records',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.xiaomi.SoundRecord',
+      '10': 'records'
+    },
+  ],
+};
+
+/// Descriptor for `SoundRecordList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordListDescriptor = $convert.base64Decode(
+    'Cg9Tb3VuZFJlY29yZExpc3QSLQoHcmVjb3JkcxgBIAMoCzITLnhpYW9taS5Tb3VuZFJlY29yZF'
+    'IHcmVjb3Jkcw==');
+
+@$core.Deprecated('Use soundRecordIdListDescriptor instead')
+const SoundRecordIdList$json = {
+  '1': 'SoundRecordIdList',
+  '2': [
+    {
+      '1': 'ids',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordId',
+      '10': 'ids'
+    },
+  ],
+};
+
+/// Descriptor for `SoundRecordIdList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordIdListDescriptor = $convert.base64Decode(
+    'ChFTb3VuZFJlY29yZElkTGlzdBInCgNpZHMYASADKAsyFS54aWFvbWkuU291bmRSZWNvcmRJZF'
+    'IDaWRz');
+
+@$core.Deprecated('Use soundRecordStatusFieldDescriptor instead')
+const SoundRecordStatusField$json = {
+  '1': 'SoundRecordStatusField',
+  '2': [
+    {'1': 'value1', '3': 1, '4': 1, '5': 13, '10': 'value1'},
+    {'1': 'value2', '3': 2, '4': 1, '5': 13, '10': 'value2'},
+  ],
+};
+
+/// Descriptor for `SoundRecordStatusField`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordStatusFieldDescriptor =
+    $convert.base64Decode(
+        'ChZTb3VuZFJlY29yZFN0YXR1c0ZpZWxkEhYKBnZhbHVlMRgBIAEoDVIGdmFsdWUxEhYKBnZhbH'
+        'VlMhgCIAEoDVIGdmFsdWUy');
+
+@$core.Deprecated('Use soundRecordStatusItemDescriptor instead')
+const SoundRecordStatusItem$json = {
+  '1': 'SoundRecordStatusItem',
+  '2': [
+    {
+      '1': 'record',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecord',
+      '10': 'record'
+    },
+    {'1': 'status', '3': 2, '4': 1, '5': 13, '10': 'status'},
+  ],
+};
+
+/// Descriptor for `SoundRecordStatusItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordStatusItemDescriptor = $convert.base64Decode(
+    'ChVTb3VuZFJlY29yZFN0YXR1c0l0ZW0SKwoGcmVjb3JkGAEgASgLMhMueGlhb21pLlNvdW5kUm'
+    'Vjb3JkUgZyZWNvcmQSFgoGc3RhdHVzGAIgASgNUgZzdGF0dXM=');
+
+@$core.Deprecated('Use soundRecordStatusDescriptor instead')
+const SoundRecordStatus$json = {
+  '1': 'SoundRecordStatus',
+  '2': [
+    {
+      '1': 'field1',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordStatusField',
+      '10': 'field1'
+    },
+    {
+      '1': 'field2',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordStatusField',
+      '10': 'field2'
+    },
+    {
+      '1': 'item',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.SoundRecordStatusItem',
+      '10': 'item'
+    },
+  ],
+};
+
+/// Descriptor for `SoundRecordStatus`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List soundRecordStatusDescriptor = $convert.base64Decode(
+    'ChFTb3VuZFJlY29yZFN0YXR1cxI2CgZmaWVsZDEYASABKAsyHi54aWFvbWkuU291bmRSZWNvcm'
+    'RTdGF0dXNGaWVsZFIGZmllbGQxEjYKBmZpZWxkMhgCIAEoCzIeLnhpYW9taS5Tb3VuZFJlY29y'
+    'ZFN0YXR1c0ZpZWxkUgZmaWVsZDISMQoEaXRlbRgDIAEoCzIdLnhpYW9taS5Tb3VuZFJlY29yZF'
+    'N0YXR1c0l0ZW1SBGl0ZW0=');
 
 @$core.Deprecated('Use musicInfoDescriptor instead')
 const MusicInfo$json = {

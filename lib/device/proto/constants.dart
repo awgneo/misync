@@ -156,7 +156,11 @@ enum DataUploadSubtype implements ValuedEnum {
 
 enum MusicSubtype implements ValuedEnum {
   info(1),
-  mediaKey(2);
+  mediaKey(2),
+  getRecordingsList(15),
+  getRecordingsListResponse(16),
+  downloadRecordings(18),
+  confirmRecordingReceived(19);
 
   @override
   final int value;

@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../screen.dart';
@@ -6,6 +9,7 @@ import '../device/module.dart';
 import '../device/proto/constants.dart';
 import '../device/proto/xiaomi.pb.dart';
 import '../platform/module.dart';
+import '../crc32.dart';
 import 'blobs/media.dart';
 import 'screen.dart';
 
@@ -32,6 +36,8 @@ class MediaModule extends TabModule {
     'state': 0, // 0 stopped, 1 playing, 2 paused
     'volume': 0, // 0 to 100
   });
+
+  ValueNotifier<Map<String, dynamic>> get nowPlaying => _nowPlaying;
 
   @override
   Future<void> start() async {
@@ -61,6 +67,8 @@ class MediaModule extends TabModule {
     if (cmd.type == CmdType.music.value) {
       if (cmd.subtype == MusicSubtype.mediaKey.value) {
         _handleWatchMediaKey(cmd);
+      } else if (cmd.subtype == MusicSubtype.getRecordingsListResponse.value) {
+        _handleWatchRecordingsListResponse(cmd);
       }
     }
   }
@@ -75,7 +83,7 @@ class MediaModule extends TabModule {
       'Received media control command from watch: key=$key, volume=$volume',
     );
 
-    if (!MediaBlob.enabled) {
+    if (!MediaBlob.current.nowPlayingEnabled) {
       logger.info('Media sync is disabled, ignoring watch command');
       return;
     }
@@ -93,9 +101,97 @@ class MediaModule extends TabModule {
     }
   }
 
+  Future<void> _handleWatchRecordingsListResponse(Command cmd) async {
+    if (!cmd.hasMusic() || !cmd.music.hasRecordList()) {
+      logger.info('No recordings list returned in watch response');
+      return;
+    }
+
+    final records = cmd.music.recordList.records;
+    if (records.isEmpty) {
+      logger.info('Watch recordings list is empty');
+      return;
+    }
+
+    logger.info('Found ${records.length} recordings on watch. Syncing...');
+
+    try {
+      // Ensure recordings directory exists on the phone
+      final dir = Directory('/storage/emulated/0/Recordings');
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      for (final record in records) {
+        final id = record.info.id;
+        logger.info('Downloading recording memo: $id');
+
+        final requestCmd = Command()
+          ..type = CmdType.music.value
+          ..subtype = MusicSubtype.downloadRecordings.value
+          ..music = (Music()
+            ..recordIdList = (SoundRecordIdList()..ids.add(record.info)));
+
+        final fileBytes = await DeviceModule.module.connection.downloadData(
+          cmd: requestCmd,
+        );
+        if (fileBytes == null || fileBytes.isEmpty) {
+          logger.error('Failed to download memo: $id (empty bytes payload)');
+          continue;
+        }
+
+        // 1. Verify CRC32 checksum
+        final dataBytes = fileBytes.sublist(0, fileBytes.length - 4);
+        final expectedCrc = Crc32.calculate(dataBytes);
+        final receivedCrc = ByteData.sublistView(
+          fileBytes,
+          fileBytes.length - 4,
+        ).getUint32(0, Endian.little);
+        if (expectedCrc != receivedCrc) {
+          logger.error(
+            'CRC32 checksum mismatch for memo $id: expected $expectedCrc, received $receivedCrc',
+          );
+          continue;
+        }
+
+        // 2. Parse file segments
+        final idLength = dataBytes[0];
+        final idString = utf8.decode(dataBytes.sublist(1, 1 + idLength));
+        final audioBytes = dataBytes.sublist(1 + idLength + 5);
+
+        // 3. Save to phone's public Recordings directory
+        final filename = idString.split('/').last;
+        final file = File('/storage/emulated/0/Recordings/$filename');
+        await file.writeAsBytes(audioBytes);
+        logger.info('Successfully saved synced memo to: ${file.path}');
+
+        // 4. Send acknowledgment back to watch (clears it from watch memory)
+        final confirmCmd = Command()
+          ..type = CmdType.music.value
+          ..subtype = MusicSubtype.confirmRecordingReceived.value
+          ..music = (Music()
+            ..recordId = (SoundRecordId()
+              ..id = idString
+              ..synced = false));
+        await DeviceModule.module.connection.send(cmd: confirmCmd);
+        logger.info('Sent sync confirmation for memo: $idString');
+      }
+    } catch (e, stackTrace) {
+      logger.error('Error during watch recordings download: $e\n$stackTrace');
+    }
+  }
+
   @override
   Future<void> sync() async {
-    await _syncNowPlaying();
+    final mediaSettings = MediaBlob.current;
+
+    if (mediaSettings.nowPlayingEnabled) {
+      await _syncNowPlaying();
+    }
+
+    if (mediaSettings.recordingsEnabled) {
+      await _syncWatchRecordings();
+    }
   }
 
   void _settingsChanged() {
@@ -103,7 +199,7 @@ class MediaModule extends TabModule {
   }
 
   Future<void> _syncNowPlaying() async {
-    if (!MediaBlob.enabled) return;
+    if (!MediaBlob.current.nowPlayingEnabled) return;
     if (!DeviceModule.module.connection.connected.value) return;
 
     final state = _nowPlaying.value;
@@ -138,6 +234,20 @@ class MediaModule extends TabModule {
         'error': e.toString(),
         'stackTrace': stackTrace.toString(),
       });
+    }
+  }
+
+  Future<void> _syncWatchRecordings() async {
+    if (!DeviceModule.module.connection.connected.value) return;
+
+    try {
+      logger.info('Querying watch recordings list (type=18, subtype=15)');
+      await DeviceModule.module.connection.send(
+        type: CmdType.music,
+        subtype: MusicSubtype.getRecordingsList,
+      );
+    } catch (e, stackTrace) {
+      logger.error('Error querying watch recordings: $e\n$stackTrace');
     }
   }
 }

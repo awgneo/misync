@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart' hide Action;
 import 'package:misync/screen.dart';
 import '../device/proto/xiaomi.pb.dart';

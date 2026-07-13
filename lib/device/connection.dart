@@ -249,12 +249,12 @@ class DeviceConnection extends ChangeNotifier {
       if (packet.payload.isEmpty) return;
       final channel = packet.payload[0];
 
-      if (channel == 2 || channel == 5) {
-        // CHANNEL_DATA = 2 or 5
+      if (channel == 2 || channel == 5 || channel == 104) {
+        // CHANNEL_DATA = 2, 5 or 104
         final data = packet.payload.sublist(1);
         if (data.isEmpty) return;
         final decrypted = _protocol!.decryptDataPayload(data);
-        _handleIncomingDataChunk(decrypted);
+        _handleIncomingDataChunk(decrypted, channel);
         return;
       }
 
@@ -274,20 +274,33 @@ class DeviceConnection extends ChangeNotifier {
     }
   }
 
-  void _handleIncomingDataChunk(Uint8List chunkBytes) {
+  void _handleIncomingDataChunk(Uint8List chunkBytes, int channel) {
     if (_downloader == null) return;
 
-    if (chunkBytes.length < 4) {
-      logger.error('received invalid chunk payload: too short');
-      return;
+    final int totalParts;
+    final int currentPart;
+    final Uint8List chunkData;
+
+    // Check if the payload starts with the 6-byte BigData header format:
+    // chunkBytes[0] == version (0) and chunkBytes[1] == subcmd (132)
+    if (chunkBytes.length >= 6 && chunkBytes[0] == 0 && chunkBytes[1] == 132) {
+      final byteData = ByteData.sublistView(chunkBytes, 2);
+      totalParts = byteData.getUint16(0, Endian.little);
+      currentPart = byteData.getUint16(2, Endian.little);
+      chunkData = chunkBytes.sublist(6);
+    } else {
+      if (chunkBytes.length < 4) {
+        logger.error('received invalid chunk payload: too short');
+        return;
+      }
+      final byteData = ByteData.sublistView(chunkBytes);
+      totalParts = byteData.getUint16(0, Endian.little);
+      currentPart = byteData.getUint16(2, Endian.little);
+      chunkData = chunkBytes.sublist(4);
     }
-    final byteData = ByteData.sublistView(chunkBytes);
-    final totalParts = byteData.getUint16(0, Endian.little);
-    final currentPart = byteData.getUint16(2, Endian.little);
-    final chunkData = chunkBytes.sublist(4);
 
     logger.debug(
-      '← received file chunk: $currentPart/$totalParts, bytes=${chunkData.length}',
+      '← received file chunk (channel $channel): $currentPart/$totalParts, bytes=${chunkData.length}',
     );
 
     _chunks[currentPart] = chunkData;
@@ -305,7 +318,7 @@ class DeviceConnection extends ChangeNotifier {
       }
       final fileBytes = builder.takeBytes();
       logger.info(
-        'File reassembly complete: total size=${fileBytes.length} bytes',
+        'File reassembly complete (channel $channel): total size=${fileBytes.length} bytes',
       );
       _chunks.clear();
       if (!_downloader!.isCompleted) {

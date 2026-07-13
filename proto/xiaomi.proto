@@ -720,6 +720,51 @@ message Music {
   optional MusicInfo musicInfo = 1;
   // 18, 2
   optional MediaKey mediaKey = 2;
+  // 18, 15
+  optional SoundRecordList recordList = 14;
+  // 18, 18
+  optional SoundRecordIdList recordIdList = 16;
+  // 18, 19
+  optional SoundRecordId recordId = 15;
+  // 18, status
+  optional SoundRecordStatus recordStatus = 19;
+}
+
+message SoundRecordId {
+  required string id = 1;
+  optional bool synced = 2;
+}
+
+message SoundRecord {
+  required SoundRecordId info = 1;
+  optional uint32 format = 2;
+  optional uint32 size = 3;
+  optional uint64 timestamp = 4;
+  optional uint32 duration = 5;
+}
+
+message SoundRecordList {
+  repeated SoundRecord records = 1;
+}
+
+message SoundRecordIdList {
+  repeated SoundRecordId ids = 1;
+}
+
+message SoundRecordStatusField {
+  optional uint32 value1 = 1;
+  optional uint32 value2 = 2;
+}
+
+message SoundRecordStatusItem {
+  optional SoundRecord record = 1;
+  optional uint32 status = 2;
+}
+
+message SoundRecordStatus {
+  optional SoundRecordStatusField field1 = 1;
+  optional SoundRecordStatusField field2 = 2;
+  optional SoundRecordStatusItem item = 3;
 }
 
 message MusicInfo {

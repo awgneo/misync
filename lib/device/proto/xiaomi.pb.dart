@@ -12,6 +12,7 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -7675,10 +7676,18 @@ class Music extends $pb.GeneratedMessage {
   factory Music({
     MusicInfo? musicInfo,
     MediaKey? mediaKey,
+    SoundRecordList? recordList,
+    SoundRecordId? recordId,
+    SoundRecordIdList? recordIdList,
+    SoundRecordStatus? recordStatus,
   }) {
     final result = create();
     if (musicInfo != null) result.musicInfo = musicInfo;
     if (mediaKey != null) result.mediaKey = mediaKey;
+    if (recordList != null) result.recordList = recordList;
+    if (recordId != null) result.recordId = recordId;
+    if (recordIdList != null) result.recordIdList = recordIdList;
+    if (recordStatus != null) result.recordStatus = recordStatus;
     return result;
   }
 
@@ -7698,7 +7707,15 @@ class Music extends $pb.GeneratedMessage {
     ..aOM<MusicInfo>(1, _omitFieldNames ? '' : 'musicInfo',
         protoName: 'musicInfo', subBuilder: MusicInfo.create)
     ..aOM<MediaKey>(2, _omitFieldNames ? '' : 'mediaKey',
-        protoName: 'mediaKey', subBuilder: MediaKey.create);
+        protoName: 'mediaKey', subBuilder: MediaKey.create)
+    ..aOM<SoundRecordList>(14, _omitFieldNames ? '' : 'recordList',
+        protoName: 'recordList', subBuilder: SoundRecordList.create)
+    ..aOM<SoundRecordId>(15, _omitFieldNames ? '' : 'recordId',
+        protoName: 'recordId', subBuilder: SoundRecordId.create)
+    ..aOM<SoundRecordIdList>(16, _omitFieldNames ? '' : 'recordIdList',
+        protoName: 'recordIdList', subBuilder: SoundRecordIdList.create)
+    ..aOM<SoundRecordStatus>(19, _omitFieldNames ? '' : 'recordStatus',
+        protoName: 'recordStatus', subBuilder: SoundRecordStatus.create);
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
   Music clone() => deepCopy();
@@ -7741,6 +7758,543 @@ class Music extends $pb.GeneratedMessage {
   void clearMediaKey() => $_clearField(2);
   @$pb.TagNumber(2)
   MediaKey ensureMediaKey() => $_ensure(1);
+
+  /// 18, 15
+  @$pb.TagNumber(14)
+  SoundRecordList get recordList => $_getN(2);
+  @$pb.TagNumber(14)
+  set recordList(SoundRecordList value) => $_setField(14, value);
+  @$pb.TagNumber(14)
+  $core.bool hasRecordList() => $_has(2);
+  @$pb.TagNumber(14)
+  void clearRecordList() => $_clearField(14);
+  @$pb.TagNumber(14)
+  SoundRecordList ensureRecordList() => $_ensure(2);
+
+  /// 18, 19
+  @$pb.TagNumber(15)
+  SoundRecordId get recordId => $_getN(3);
+  @$pb.TagNumber(15)
+  set recordId(SoundRecordId value) => $_setField(15, value);
+  @$pb.TagNumber(15)
+  $core.bool hasRecordId() => $_has(3);
+  @$pb.TagNumber(15)
+  void clearRecordId() => $_clearField(15);
+  @$pb.TagNumber(15)
+  SoundRecordId ensureRecordId() => $_ensure(3);
+
+  /// 18, 18
+  @$pb.TagNumber(16)
+  SoundRecordIdList get recordIdList => $_getN(4);
+  @$pb.TagNumber(16)
+  set recordIdList(SoundRecordIdList value) => $_setField(16, value);
+  @$pb.TagNumber(16)
+  $core.bool hasRecordIdList() => $_has(4);
+  @$pb.TagNumber(16)
+  void clearRecordIdList() => $_clearField(16);
+  @$pb.TagNumber(16)
+  SoundRecordIdList ensureRecordIdList() => $_ensure(4);
+
+  /// 18, status
+  @$pb.TagNumber(19)
+  SoundRecordStatus get recordStatus => $_getN(5);
+  @$pb.TagNumber(19)
+  set recordStatus(SoundRecordStatus value) => $_setField(19, value);
+  @$pb.TagNumber(19)
+  $core.bool hasRecordStatus() => $_has(5);
+  @$pb.TagNumber(19)
+  void clearRecordStatus() => $_clearField(19);
+  @$pb.TagNumber(19)
+  SoundRecordStatus ensureRecordStatus() => $_ensure(5);
+}
+
+class SoundRecordId extends $pb.GeneratedMessage {
+  factory SoundRecordId({
+    $core.String? id,
+    $core.bool? synced,
+  }) {
+    final result = create();
+    if (id != null) result.id = id;
+    if (synced != null) result.synced = synced;
+    return result;
+  }
+
+  SoundRecordId._();
+
+  factory SoundRecordId.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecordId.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecordId',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aQS(1, _omitFieldNames ? '' : 'id')
+    ..aOB(2, _omitFieldNames ? '' : 'synced');
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordId clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordId copyWith(void Function(SoundRecordId) updates) =>
+      super.copyWith((message) => updates(message as SoundRecordId))
+          as SoundRecordId;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordId create() => SoundRecordId._();
+  @$core.override
+  SoundRecordId createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordId getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecordId>(create);
+  static SoundRecordId? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get synced => $_getBF(1);
+  @$pb.TagNumber(2)
+  set synced($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSynced() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSynced() => $_clearField(2);
+}
+
+class SoundRecord extends $pb.GeneratedMessage {
+  factory SoundRecord({
+    SoundRecordId? info,
+    $core.int? format,
+    $core.int? size,
+    $fixnum.Int64? timestamp,
+    $core.int? duration,
+  }) {
+    final result = create();
+    if (info != null) result.info = info;
+    if (format != null) result.format = format;
+    if (size != null) result.size = size;
+    if (timestamp != null) result.timestamp = timestamp;
+    if (duration != null) result.duration = duration;
+    return result;
+  }
+
+  SoundRecord._();
+
+  factory SoundRecord.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecord.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecord',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aQM<SoundRecordId>(1, _omitFieldNames ? '' : 'info',
+        subBuilder: SoundRecordId.create)
+    ..aI(2, _omitFieldNames ? '' : 'format', fieldType: $pb.PbFieldType.OU3)
+    ..aI(3, _omitFieldNames ? '' : 'size', fieldType: $pb.PbFieldType.OU3)
+    ..a<$fixnum.Int64>(
+        4, _omitFieldNames ? '' : 'timestamp', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aI(5, _omitFieldNames ? '' : 'duration', fieldType: $pb.PbFieldType.OU3);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecord clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecord copyWith(void Function(SoundRecord) updates) =>
+      super.copyWith((message) => updates(message as SoundRecord))
+          as SoundRecord;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecord create() => SoundRecord._();
+  @$core.override
+  SoundRecord createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecord getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecord>(create);
+  static SoundRecord? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SoundRecordId get info => $_getN(0);
+  @$pb.TagNumber(1)
+  set info(SoundRecordId value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasInfo() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearInfo() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SoundRecordId ensureInfo() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.int get format => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set format($core.int value) => $_setUnsignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasFormat() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFormat() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get size => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set size($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSize() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSize() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get timestamp => $_getI64(3);
+  @$pb.TagNumber(4)
+  set timestamp($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTimestamp() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTimestamp() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get duration => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set duration($core.int value) => $_setUnsignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasDuration() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearDuration() => $_clearField(5);
+}
+
+class SoundRecordList extends $pb.GeneratedMessage {
+  factory SoundRecordList({
+    $core.Iterable<SoundRecord>? records,
+  }) {
+    final result = create();
+    if (records != null) result.records.addAll(records);
+    return result;
+  }
+
+  SoundRecordList._();
+
+  factory SoundRecordList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecordList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecordList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..pPM<SoundRecord>(1, _omitFieldNames ? '' : 'records',
+        subBuilder: SoundRecord.create);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordList copyWith(void Function(SoundRecordList) updates) =>
+      super.copyWith((message) => updates(message as SoundRecordList))
+          as SoundRecordList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordList create() => SoundRecordList._();
+  @$core.override
+  SoundRecordList createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecordList>(create);
+  static SoundRecordList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SoundRecord> get records => $_getList(0);
+}
+
+class SoundRecordIdList extends $pb.GeneratedMessage {
+  factory SoundRecordIdList({
+    $core.Iterable<SoundRecordId>? ids,
+  }) {
+    final result = create();
+    if (ids != null) result.ids.addAll(ids);
+    return result;
+  }
+
+  SoundRecordIdList._();
+
+  factory SoundRecordIdList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecordIdList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecordIdList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..pPM<SoundRecordId>(1, _omitFieldNames ? '' : 'ids',
+        subBuilder: SoundRecordId.create);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordIdList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordIdList copyWith(void Function(SoundRecordIdList) updates) =>
+      super.copyWith((message) => updates(message as SoundRecordIdList))
+          as SoundRecordIdList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordIdList create() => SoundRecordIdList._();
+  @$core.override
+  SoundRecordIdList createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordIdList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecordIdList>(create);
+  static SoundRecordIdList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SoundRecordId> get ids => $_getList(0);
+}
+
+class SoundRecordStatusField extends $pb.GeneratedMessage {
+  factory SoundRecordStatusField({
+    $core.int? value1,
+    $core.int? value2,
+  }) {
+    final result = create();
+    if (value1 != null) result.value1 = value1;
+    if (value2 != null) result.value2 = value2;
+    return result;
+  }
+
+  SoundRecordStatusField._();
+
+  factory SoundRecordStatusField.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecordStatusField.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecordStatusField',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'value1', fieldType: $pb.PbFieldType.OU3)
+    ..aI(2, _omitFieldNames ? '' : 'value2', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordStatusField clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordStatusField copyWith(
+          void Function(SoundRecordStatusField) updates) =>
+      super.copyWith((message) => updates(message as SoundRecordStatusField))
+          as SoundRecordStatusField;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordStatusField create() => SoundRecordStatusField._();
+  @$core.override
+  SoundRecordStatusField createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordStatusField getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecordStatusField>(create);
+  static SoundRecordStatusField? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get value1 => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set value1($core.int value) => $_setUnsignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasValue1() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearValue1() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get value2 => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set value2($core.int value) => $_setUnsignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasValue2() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearValue2() => $_clearField(2);
+}
+
+class SoundRecordStatusItem extends $pb.GeneratedMessage {
+  factory SoundRecordStatusItem({
+    SoundRecord? record,
+    $core.int? status,
+  }) {
+    final result = create();
+    if (record != null) result.record = record;
+    if (status != null) result.status = status;
+    return result;
+  }
+
+  SoundRecordStatusItem._();
+
+  factory SoundRecordStatusItem.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecordStatusItem.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecordStatusItem',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aOM<SoundRecord>(1, _omitFieldNames ? '' : 'record',
+        subBuilder: SoundRecord.create)
+    ..aI(2, _omitFieldNames ? '' : 'status', fieldType: $pb.PbFieldType.OU3);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordStatusItem clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordStatusItem copyWith(
+          void Function(SoundRecordStatusItem) updates) =>
+      super.copyWith((message) => updates(message as SoundRecordStatusItem))
+          as SoundRecordStatusItem;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordStatusItem create() => SoundRecordStatusItem._();
+  @$core.override
+  SoundRecordStatusItem createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordStatusItem getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecordStatusItem>(create);
+  static SoundRecordStatusItem? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SoundRecord get record => $_getN(0);
+  @$pb.TagNumber(1)
+  set record(SoundRecord value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRecord() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRecord() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SoundRecord ensureRecord() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.int get status => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set status($core.int value) => $_setUnsignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasStatus() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStatus() => $_clearField(2);
+}
+
+class SoundRecordStatus extends $pb.GeneratedMessage {
+  factory SoundRecordStatus({
+    SoundRecordStatusField? field1,
+    SoundRecordStatusField? field2,
+    SoundRecordStatusItem? item,
+  }) {
+    final result = create();
+    if (field1 != null) result.field1 = field1;
+    if (field2 != null) result.field2 = field2;
+    if (item != null) result.item = item;
+    return result;
+  }
+
+  SoundRecordStatus._();
+
+  factory SoundRecordStatus.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SoundRecordStatus.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SoundRecordStatus',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aOM<SoundRecordStatusField>(1, _omitFieldNames ? '' : 'field1',
+        subBuilder: SoundRecordStatusField.create)
+    ..aOM<SoundRecordStatusField>(2, _omitFieldNames ? '' : 'field2',
+        subBuilder: SoundRecordStatusField.create)
+    ..aOM<SoundRecordStatusItem>(3, _omitFieldNames ? '' : 'item',
+        subBuilder: SoundRecordStatusItem.create);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordStatus clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SoundRecordStatus copyWith(void Function(SoundRecordStatus) updates) =>
+      super.copyWith((message) => updates(message as SoundRecordStatus))
+          as SoundRecordStatus;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordStatus create() => SoundRecordStatus._();
+  @$core.override
+  SoundRecordStatus createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SoundRecordStatus getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SoundRecordStatus>(create);
+  static SoundRecordStatus? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SoundRecordStatusField get field1 => $_getN(0);
+  @$pb.TagNumber(1)
+  set field1(SoundRecordStatusField value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasField1() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearField1() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SoundRecordStatusField ensureField1() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  SoundRecordStatusField get field2 => $_getN(1);
+  @$pb.TagNumber(2)
+  set field2(SoundRecordStatusField value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasField2() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearField2() => $_clearField(2);
+  @$pb.TagNumber(2)
+  SoundRecordStatusField ensureField2() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  SoundRecordStatusItem get item => $_getN(2);
+  @$pb.TagNumber(3)
+  set item(SoundRecordStatusItem value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasItem() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearItem() => $_clearField(3);
+  @$pb.TagNumber(3)
+  SoundRecordStatusItem ensureItem() => $_ensure(2);
 }
 
 class MusicInfo extends $pb.GeneratedMessage {
