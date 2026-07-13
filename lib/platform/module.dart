@@ -14,7 +14,7 @@ class PlatformModule extends Module {
   static PlatformModule get module => _module;
   PlatformModule._();
 
-  static const _channel = MethodChannel('com.misync.misync/channels');
+  static const _channel = MethodChannel('com.misync/channels');
 
   final List<Future<dynamic> Function(MethodCall call)> _handlers = [];
   final ValueNotifier<bool> findingWatch = ValueNotifier<bool>(false);

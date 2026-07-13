@@ -4,11 +4,18 @@ import 'button.dart';
 class MiPanel extends StatelessWidget {
   final Widget child;
   final MiButtons? buttons;
+  final bool scrollable;
 
-  const MiPanel({super.key, required this.child, this.buttons});
+  const MiPanel({
+    super.key,
+    required this.child,
+    this.buttons,
+    this.scrollable = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    const padding = EdgeInsets.all(24);
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -16,16 +23,13 @@ class MiPanel extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(
-                24,
-                24,
-                24,
-                buttons != null ? 100 : 24,
-              ),
-              child: child,
-            ),
+            child: scrollable
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: padding,
+                    child: child,
+                  )
+                : Padding(padding: padding, child: child),
           ),
           if (buttons != null)
             Positioned(right: 16, bottom: 16, child: buttons!),

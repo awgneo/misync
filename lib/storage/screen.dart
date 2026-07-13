@@ -1,10 +1,13 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../screen.dart';
 import 'module.dart';
 import '../widgets/panel.dart';
 import '../widgets/items.dart';
 import '../widgets/item.dart';
 import '../widgets/modal.dart';
+import '../widgets/button.dart';
 
 class StorageScreen extends Screen<StorageModule> {
   const StorageScreen(super.module, {super.key});
@@ -44,9 +47,55 @@ class _StorageScreenState extends ScreenState<StorageScreen> {
     }
   }
 
+  void _backup() async {
+    try {
+      final bytes = widget.module.backup();
+      final path = await FilePicker.saveFile(
+        dialogTitle: 'Save Backup File',
+        fileName: 'misync_backup.json',
+        type: FileType.any,
+        bytes: bytes,
+      );
+
+      if (path == null) return;
+    } catch (_) {
+      if (!mounted) return;
+      await showMiModal<bool>(
+        context: context,
+        title: 'Backup Failed',
+        body: 'Failed to create backup.',
+        confirm: 'OK',
+      );
+    }
+  }
+
+  void _restore() async {
+    final result = await FilePicker.pickFiles(type: FileType.any);
+
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.first.path;
+    if (path == null) return;
+
+    final success = await widget.module.restore(path);
+    if (!success && mounted) {
+      await showMiModal<bool>(
+        context: context,
+        title: 'Restore Failed',
+        body: 'Failed to restore backup.',
+        confirm: 'OK',
+      );
+    }
+  }
+
   @override
   Widget buildScreen(BuildContext context, bool connected) {
     return MiPanel(
+      buttons: MiButtons(
+        children: [
+          MiButton(label: 'Backup', icon: Icons.backup, pressed: _backup),
+          MiButton(label: 'Restore', icon: Icons.restore, pressed: _restore),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

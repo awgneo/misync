@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:misync/screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,11 +31,11 @@ class StorageModule extends TabModule with ChangeNotifier {
 
   void _startCache() {
     for (final key in _preferences.getKeys()) {
-      if (key.startsWith('blob.')) {
+      if (key.startsWith('misync.')) {
         final data = _preferences.getString(key);
         if (data != null) {
           try {
-            final cleanKey = key.replaceFirst('blob.', '');
+            final cleanKey = key.replaceFirst('misync.', '');
             _cache[cleanKey] = jsonDecode(data);
           } catch (_) {}
         }
@@ -58,7 +60,7 @@ class StorageModule extends TabModule with ChangeNotifier {
   Future<void> save(String module, String name, dynamic json) async {
     final cacheKey = '$module.$name';
     _cache[cacheKey] = json;
-    await _preferences.setString('blob.$cacheKey', jsonEncode(json));
+    await _preferences.setString('misync.$cacheKey', jsonEncode(json));
     notifyListeners();
   }
 
@@ -82,7 +84,7 @@ class StorageModule extends TabModule with ChangeNotifier {
     if (name != null) {
       final cacheKey = '$module.$name';
       _cache.remove(cacheKey);
-      await _preferences.remove('blob.$cacheKey');
+      await _preferences.remove('misync.$cacheKey');
     } else {
       final prefix = '$module.';
       final keysToRemove = _cache.keys
@@ -90,7 +92,7 @@ class StorageModule extends TabModule with ChangeNotifier {
           .toList();
       for (final k in keysToRemove) {
         _cache.remove(k);
-        await _preferences.remove('blob.$k');
+        await _preferences.remove('misync.$k');
       }
     }
     notifyListeners();
@@ -99,11 +101,49 @@ class StorageModule extends TabModule with ChangeNotifier {
   Future<void> clearAll() async {
     final keys = _preferences.getKeys();
     for (final key in keys) {
-      if (key.startsWith('blob.')) {
+      if (key.startsWith('misync.')) {
         await _preferences.remove(key);
       }
     }
     _cache.clear();
     notifyListeners();
+  }
+
+  Uint8List backup() {
+    final backupData = <String, Map<String, dynamic>>{};
+    for (final entry in _cache.entries) {
+      final parts = entry.key.split('.');
+      final module = parts.first;
+      final name = parts.skip(1).join('.');
+      backupData.putIfAbsent(module, () => {})[name] = entry.value;
+    }
+    return Uint8List.fromList(utf8.encode(jsonEncode(backupData)));
+  }
+
+  Future<bool> restore(String path) async {
+    try {
+      final file = File(path);
+      final jsonString = await file.readAsString();
+      final dynamic data = jsonDecode(jsonString);
+      if (data is! Map<String, dynamic>) {
+        return false;
+      }
+      await clearAll();
+      for (final moduleEntry in data.entries) {
+        final module = moduleEntry.key;
+        final blobs = moduleEntry.value;
+        if (blobs is Map<String, dynamic>) {
+          for (final blobEntry in blobs.entries) {
+            final name = blobEntry.key;
+            final value = blobEntry.value;
+            await save(module, name, value);
+          }
+        }
+      }
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

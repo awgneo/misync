@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../screen.dart';
 import 'logger.dart';
 import 'module.dart';
+import '../widgets/panel.dart';
+import '../widgets/items.dart';
+import '../widgets/item.dart';
+import 'blobs/debug.dart';
 
 class DebugScreen extends Screen<DebugModule> {
   const DebugScreen(super.module, {super.key});
@@ -10,153 +14,176 @@ class DebugScreen extends Screen<DebugModule> {
   State<DebugScreen> createState() => _DebugScreenState();
 }
 
-class _DebugScreenState extends State<DebugScreen> {
-  final ScrollController _scrollController = ScrollController();
-  final Logger _logger = Logger();
+class _DebugScreenState extends ScreenState<DebugScreen> {
+  final Set<String> _selectedLevels = {'INFO', 'DEBUG', 'ERROR'};
 
-  @override
-  void initState() {
-    super.initState();
-    _logger.addListener(_onLogsChanged);
-    // Scroll to bottom initially
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _scrollToBottom(animated: false),
-    );
-  }
-
-  @override
-  void dispose() {
-    _logger.removeListener(_onLogsChanged);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onLogsChanged() {
-    debugPrint(
-      'DebugScreen: _onLogsChanged called. Log count: ${_logger.logs.length}',
-    );
-    if (mounted) {
-      setState(() {});
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _scrollToBottom(animated: true),
-      );
-    }
-  }
-
-  void _scrollToBottom({bool animated = true}) {
-    if (_scrollController.hasClients) {
-      final pos = _scrollController.position;
-      final isNearBottom = pos.maxScrollExtent - pos.pixels < 100;
-      if (isNearBottom || !animated) {
-        final target = pos.maxScrollExtent;
-        if (animated) {
-          _scrollController.animateTo(
-            target,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        } else {
-          _scrollController.jumpTo(target);
+  Widget _buildFilterChips() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: ['INFO', 'DEBUG', 'ERROR'].map((level) {
+        final isSelected = _selectedLevels.contains(level);
+        final Color activeColor;
+        switch (level) {
+          case 'INFO':
+            activeColor = Colors.greenAccent;
+            break;
+          case 'DEBUG':
+            activeColor = Colors.grey;
+            break;
+          case 'ERROR':
+            activeColor = Colors.redAccent;
+            break;
+          default:
+            activeColor = Colors.cyan;
         }
-      }
-    }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _scrollToBottom(animated: false),
-    );
-    final logs = _logger.logs;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'CONSOLE',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                if (_selectedLevels.length > 1) {
+                  _selectedLevels.remove(level);
+                }
+              } else {
+                _selectedLevels.add(level);
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? activeColor.withOpacity(0.15)
+                  : const Color(0xFF141822),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? activeColor : const Color(0xFF26324D),
+                width: 1.5,
               ),
-              TextButton.icon(
-                onPressed: () => _logger.clear(),
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 16,
-                  color: Color(0xFF00E5FF),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSelected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  size: 14,
+                  color: isSelected ? activeColor : Colors.grey,
                 ),
-                label: const Text(
-                  'Clear',
+                const SizedBox(width: 6),
+                Text(
+                  level,
                   style: TextStyle(
-                    color: Color(0xFF00E5FF),
+                    color: isSelected ? Colors.white : Colors.grey,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF26324D)),
+              ],
             ),
-            child: logs.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No logs captured yet. Pair the device or perform actions to begin logging.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: logs.length,
-                    itemBuilder: (context, index) {
-                      final log = logs[index];
-                      Color color = Colors.green;
-                      if (log.contains('← raw') || log.contains('← RAW')) {
-                        color = Colors.cyan;
-                      }
-                      if (log.contains('→ write') ||
-                          log.contains('→ send') ||
-                          log.contains('→ SEND')) {
-                        color = Colors.yellowAccent;
-                      }
-                      if (log.contains('ERROR') || log.contains('failed')) {
-                        color = Colors.redAccent;
-                      }
-                      if (log.contains('***')) {
-                        color = Colors.purpleAccent;
-                      }
+          ),
+        );
+      }).toList(),
+    );
+  }
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Text(
-                          log,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            color: color,
-                          ),
-                        ),
-                      );
+  Widget _buildConsoleList() {
+    return Expanded(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF26324D)),
+        ),
+        child: ListenableBuilder(
+          listenable: Logger.global,
+          builder: (context, _) {
+            final filteredLogs = Logger.global.logs
+                .where((l) => _selectedLevels.contains(l.level))
+                .toList()
+                .reversed
+                .toList();
+
+            if (filteredLogs.isEmpty) {
+              return const Center(
+                child: Text(
+                  'No logs match the selected filters.',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              reverse: true,
+              itemCount: filteredLogs.length,
+              itemBuilder: (context, index) {
+                final record = filteredLogs[index];
+                Color color = Colors.white;
+                switch (record.level) {
+                  case 'INFO':
+                    color = Colors.greenAccent;
+                    break;
+                  case 'DEBUG':
+                    color = Colors.grey;
+                    break;
+                  case 'ERROR':
+                    color = Colors.redAccent;
+                    break;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Text(
+                    record.toString(),
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      color: color,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget buildScreen(BuildContext context, bool connected) {
+    return MiPanel(
+      scrollable: false,
+      child: Column(
+        children: [
+          ListenableBuilder(
+            listenable: DebugBlob.instance,
+            builder: (context, _) {
+              return MiItems(
+                children: [
+                  MiItem(
+                    title: 'Enable Logging',
+                    subtitle: 'Capture logs from all modules',
+                    primaryIcon: Icons.bug_report,
+                    enabled: DebugBlob.enabled,
+                    toggled: (value) {
+                      DebugBlob.enabled = value;
                     },
                   ),
+                ],
+              );
+            },
           ),
-        ),
-        const SizedBox(height: 16),
-      ],
+          const SizedBox(height: 16),
+          _buildFilterChips(),
+          const SizedBox(height: 16),
+          _buildConsoleList(),
+        ],
+      ),
     );
   }
 }
