@@ -269,3 +269,43 @@ Use `DeviceModule.instance.connection.uploadData` to package and upload raw file
 final bool success = await DeviceModule.instance.connection.uploadData(type: fileTypeInt, bytes: payloadBytes);
 ```
 - **Mechanism**: Initiates a chunked file handshake with the watch. It sends an MD5 checksum of the data payload to start, splits the byte stream into structured parts (framed with index metadata), handles individual packet acknowledgments to guarantee receipt, and transmits a finish transaction command. Useful for watch face RPK installations and large asset pushes.
+
+---
+
+## 11. Real-time Workout GPS Streaming
+
+When outdoor workouts are initiated on the watch, it requests GPS assist data from the phone's companion app. This follows a structured handshake and real-time streaming workflow:
+
+### Sequence of Operation
+
+```mermaid
+sequenceDiagram
+    participant Watch
+    participant Dart as HealthModule (Dart)
+    participant Kotlin as DeviceModule (Kotlin)
+    participant LM as LocationManager (Kotlin)
+
+    Watch->>Dart: WorkoutOpenWatch (Type 8, Subtype 30, tag 25)
+    Dart->>Kotlin: startLocationUpdates (MethodChannel)
+    Kotlin->>LM: startLocationUpdates (Requests system GPS/Network)
+    Dart->>Watch: WorkoutOpenReply (Type 8, Subtype 30, tag 26)
+    Note over Dart,Watch: Reply sends gpsStatus=0, signalRequest=2, gpsState=2 (Ready)
+    
+    loop Real-time Updates
+        LM-->>Kotlin: onLocationChanged (Raw coordinates)
+        Kotlin-->>Dart: locationUpdate (MethodChannel yielding Map)
+        Dart->>Watch: WorkoutLocation (Type 16, Subtype 2, tag 40)
+    end
+
+    Watch->>Dart: WorkoutStatusWatch (Type 8, Subtype 26, tag 20, status=3/Finished)
+    Dart->>Kotlin: stopLocationUpdates (MethodChannel)
+    Kotlin->>LM: stopLocationUpdates (Unregisters provider listeners)
+```
+
+### Key Protocol and Implementation Specs
+- **Workout status checks**: Handled in `HealthModule._receiveWatchCommand` under command `type = 8` (Health).
+  - Subtype `30` matches `workoutOpen` operations.
+  - Subtype `26` matches `workoutStatus` updates.
+- **Finished state**: Defined in `WorkoutStatus.finished` (value `3`). Once received, the application invokes the native MethodChannel method `device.stopLocationUpdates` to unregister location listeners and save the phone's battery.
+- **Field serialization**: The native `LocationManager` is strictly responsible for packaging lat, lon, speed, bearing, and accuracy into a serializable `Map<String, Any>` (including fetching vertical accuracy for APIs $\ge 26$), while `DeviceModule.kt` acts simply as a channel dispatcher.
+
