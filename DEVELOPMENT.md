@@ -58,30 +58,43 @@ final Map? latest = await PlatformModule.module.invokeMethod<Map>('health.getLat
 ```
 Platform channel routing prefixes method calls with the module name (e.g. `'health.getLatestHeightAndWeight'`, `'calendar.syncEvents'`) to resolve target handlers.
 
+### Method Channel Naming Conventions
+
+* **Events (Native-to-Flutter Callbacks)**: All callbacks dispatched from the native Android Kotlin layer to the Dart layer are named as simple events (typically in camelCase or past-tense/state-describing names) and **must not** contain prefix namespaces or "on" headers.
+  * *Correct*: `"mediaChanged"`, `"notificationReceived"`, `"dndChanged"`, `"alarmFired"`
+  * *Incorrect*: `"media.onMediaChanged"`, `"onNotificationReceived"`, `"onDndChanged"`
+* **API Functions (Flutter-to-Native Commands)**: All methods invoked by Dart targeting native platform APIs are namespaced with the module prefix and use camelCase. Public module methods should generally start with verbs like `get` (e.g., `getSomething`) or `do`/action verbs (e.g., `doSomethingSpecial`). Namespace syntax like `media.control` is standard.
+
 ### Kotlin Side
-On the Android native layer, the project implements self-contained module handlers:
-1. **`BaseModule` (`android/.../base/BaseModule.kt`)**: An abstract class representing a native feature handler with predefined methods for checking permissions, requesting permissions, and handling platform calls:
+On the Android native layer, the project enforces a strict **Module-to-Manager concern separation**:
+
+1. **`BaseModule` (`android/.../base/BaseModule.kt`)**: An abstract class representing a native feature handler with predefined methods for checking permissions, requesting permissions, registering listeners, and routing platform MethodCalls:
    ```kotlin
    abstract class BaseModule(val name: String) {
+       open fun onCreate() {}
+       open fun onDestroy() {}
+       open fun register(channel: MethodChannel) { this.methodChannel = channel }
        abstract fun checkPermissions(): Boolean
        abstract fun requestPermissions(activity: Activity)
        abstract fun onMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean
    }
    ```
-2. **Concrete Feature Modules**: Files like `HealthModule.kt`, `CalendarModule.kt`, and `DeviceModule.kt` subclass `BaseModule`. They construct their helper managers internally using the passed `Context` and define concrete actions:
-   ```kotlin
-   class HealthModule(private val context: Context) : BaseModule("health") {
-       private val healthManager = HealthManager(context)
-       // Checks and requests permissions, handles "getLatestHeightAndWeight", "writeSteps", etc.
-   }
-   ```
-3. **Module Registration in MainActivity**: Avoid adding ad-hoc platform channel handlers inside `MainActivity.kt`. Instead, instantiate and add your custom Kotlin modules to the registration loop inside `configureFlutterEngine()`:
+2. **Concrete Feature Modules**: Subclasses of `BaseModule` (e.g., `NotificationsModule.kt`, `MediaModule.kt`, `DeviceModule.kt`). These modules:
+   * **Must not** implement business logic or query system APIs directly.
+   * Are strictly responsible for MethodChannel method routing, checking/requesting runtime permissions, and forwarding requests to their respective `*Manager` instances.
+3. **Manager Classes**: Encapsulate all native platform APIs, system interactions, listeners, and geocoders (e.g., `CompanionManager`, `LocationManager`, `SettingsManager`, `NotificationsManager`, `MediaManager`). 
+   * Handlers and calculations belong exclusively in a `Manager` to ensure readability and decopling from Flutter method routing.
+4. **Module Registration in MainActivity**: Avoid adding ad-hoc platform channel handlers inside `MainActivity.kt`. Instead, instantiate and add your custom Kotlin modules to the registration loop inside `configureFlutterEngine()`:
    ```kotlin
    // MainActivity.kt
    private val modules = listOf(
+       DeviceModule(this),
        HealthModule(this),
+       NotificationsModule(this),
        CalendarModule(this),
-       DeviceModule(this)
+       ClockModule(this),
+       MediaModule(this),
+       ActionsModule(this)
    )
    ```
    The engine automatically binds MethodChannel requests and executes matching callbacks.

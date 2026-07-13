@@ -69,7 +69,7 @@ class NotificationModule extends TabModule {
     }
 
     final String? defaultSmsPkg = await PlatformModule.module
-        .invokeMethod<String>('device.getDefaultSmsPackage');
+        .invokeMethod<String>('notifications.getDefaultSmsPackage');
     final bool sms = defaultSmsPkg != null && package == defaultSmsPkg;
     final bool call = category == 'call';
 
@@ -422,7 +422,7 @@ class NotificationModule extends TabModule {
         'message': text,
       });
 
-      await PlatformModule.module.invokeMethod<bool>('device.sendSms', {
+      await PlatformModule.module.invokeMethod<bool>('notifications.sendSms', {
         'phoneNumber': phoneNumber,
         'message': text,
       });

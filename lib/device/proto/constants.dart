@@ -9,6 +9,7 @@ enum CmdType implements ValuedEnum {
   weather(10),
   calendar(12),
   schedule(17),
+  music(18),
   thirdPartyApp(20),
   dataUpload(22);
 
@@ -121,4 +122,13 @@ enum DataUploadSubtype implements ValuedEnum {
   @override
   final int value;
   const DataUploadSubtype(this.value);
+}
+
+enum MusicSubtype implements ValuedEnum {
+  info(1),
+  mediaKey(2);
+
+  @override
+  final int value;
+  const MusicSubtype(this.value);
 }

@@ -1,28 +1,25 @@
 package com.misync.misync.device
 
 import android.app.Activity
-import android.companion.AssociationRequest
-import android.companion.CompanionDeviceManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.IntentSender
-import android.content.pm.PackageManager
-import android.location.Geocoder
 import android.os.Build
 import android.provider.Settings
-import android.service.quicksettings.TileService
 import android.util.Log
 import com.misync.misync.base.BaseModule
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import java.util.Locale
 
 class DeviceModule(
     private val context: Context
 ) : BaseModule("device") {
     private val TAG = "DeviceModule"
+
+    private val companionManager = CompanionManager(context)
+    private val locationManager = LocationManager(context)
+    private val settingsManager = SettingsManager(context)
     private val findPhoneManager = FindPhoneManager(context)
 
     private val dndReceiver = object : BroadcastReceiver() {
@@ -96,7 +93,7 @@ class DeviceModule(
         } else {
             true
         }
-        return isDeviceAssociated() &&
+        return companionManager.isDeviceAssociated() &&
                hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) &&
                hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) &&
                backgroundLocationGranted &&
@@ -105,8 +102,8 @@ class DeviceModule(
 
     override fun requestPermissions(activity: Activity) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        if (!isDeviceAssociated()) {
-            associateDevice(activity)
+        if (!companionManager.isDeviceAssociated()) {
+            companionManager.associateDevice(activity)
         }
         val hasFine = hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
         val hasCoarse = hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -127,32 +124,24 @@ class DeviceModule(
     }
 
     override fun onMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         return when (method) {
             "getDeviceAssociated" -> {
-                result.success(isDeviceAssociated())
+                result.success(companionManager.isDeviceAssociated())
                 true
             }
             "requestCompanionAssociation" -> {
-                associateDevice(activity)
+                companionManager.associateDevice(activity)
                 result.success(true)
                 true
             }
             "observeDevicePresence" -> {
-                observeDevicePresence()
+                companionManager.observeDevicePresence()
                 result.success(true)
                 true
             }
             "updateFindWatchState" -> {
                 val enabled = call.arguments as? Boolean ?: false
-                val prefs = context.getSharedPreferences("misync_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("finding_watch", enabled).apply()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    TileService.requestListeningState(
-                        context,
-                        android.content.ComponentName(context, FindWatchService::class.java)
-                    )
-                }
+                settingsManager.updateFindWatchTile(enabled)
                 result.success(true)
                 true
             }
@@ -167,94 +156,17 @@ class DeviceModule(
                 true
             }
             "getDnd" -> {
-                val filter = notificationManager.currentInterruptionFilter
-                val isDnd = filter == android.app.NotificationManager.INTERRUPTION_FILTER_NONE ||
-                            filter == android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
-                            filter == android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS
-                result.success(isDnd)
+                result.success(settingsManager.getDnd())
                 true
             }
             "setDnd" -> {
                 val enabled = call.argument<Boolean>("enabled") ?: false
-                if (notificationManager.isNotificationPolicyAccessGranted) {
-                    val filter = if (enabled) {
-                        android.app.NotificationManager.INTERRUPTION_FILTER_NONE
-                    } else {
-                        android.app.NotificationManager.INTERRUPTION_FILTER_ALL
-                    }
-                    notificationManager.setInterruptionFilter(filter)
-                    result.success(true)
-                } else {
-                    result.success(false)
-                }
-                true
-            }
-            "launchAction" -> {
-                val intentAction = call.argument<String>("intent") ?: ""
-                val packageName = call.argument<String>("package")
-                val uriString = call.argument<String>("uri")
-                val extras = call.argument<Map<String, String>>("extras")
-                Log.d(TAG, "launchAction: intent=$intentAction, package=$packageName, uri=$uriString, extras=$extras")
-                try {
-                    val intent = Intent(intentAction)
-                    if (packageName != null && packageName.isNotEmpty()) {
-                        intent.setPackage(packageName)
-                    }
-                    if (uriString != null && uriString.isNotEmpty()) {
-                        intent.data = android.net.Uri.parse(uriString)
-                    }
-                    extras?.forEach { (key, value) ->
-                        intent.putExtra(key, value)
-                    }
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-                    if (intentAction == "net.dinglisch.android.taskerm.ACTION_TASK") {
-                        context.sendBroadcast(intent)
-                    } else {
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            context.sendBroadcast(intent)
-                        }
-                    }
-                    result.success(true)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to launch action: $intentAction", e)
-                    result.success(false)
-                }
-                true
-            }
-            "sendSms" -> {
-                val phoneNumber = call.argument<String>("phoneNumber")
-                val message = call.argument<String>("message") ?: ""
-                val success = if (phoneNumber != null && phoneNumber.isNotEmpty()) {
-                    try {
-                        val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            context.getSystemService(android.telephony.SmsManager::class.java)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            android.telephony.SmsManager.getDefault()
-                        }
-                        smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-                        Log.d(TAG, "SMS sent to $phoneNumber successfully")
-                        true
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to send SMS to $phoneNumber", e)
-                        false
-                    }
-                } else {
-                    false
-                }
+                val success = settingsManager.setDnd(enabled)
                 result.success(success)
                 true
             }
-            "getDefaultSmsPackage" -> {
-                val defaultSmsPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(context)
-                result.success(defaultSmsPackage)
-                true
-            }
             "getLocation" -> {
-                val loc = getLocation()
+                val loc = locationManager.getLocation()
                 result.success(loc)
                 true
             }
@@ -262,118 +174,8 @@ class DeviceModule(
         }
     }
 
-    private fun isDeviceAssociated(): Boolean {
-        val deviceManager = context.getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            deviceManager.myAssociations.isNotEmpty()
-        } else {
-            @Suppress("DEPRECATION")
-            deviceManager.associations.isNotEmpty()
-        }
-    }
-
-    private fun associateDevice(activity: Activity) {
-        val deviceManager = context.getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
-        val request = AssociationRequest.Builder()
-            .setSingleDevice(true)
-            .setDeviceProfile(AssociationRequest.DEVICE_PROFILE_WATCH)
-            .build()
-
-        Log.d(TAG, "Requesting Companion device association...")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            deviceManager.associate(request, activity.mainExecutor, object : CompanionDeviceManager.Callback() {
-                override fun onAssociationPending(intentSender: IntentSender) {
-                    try {
-                        activity.startIntentSenderForResult(intentSender, 1001, null, 0, 0, 0)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to start association chooser", e)
-                    }
-                }
-
-                override fun onFailure(error: CharSequence?) {
-                    Log.e(TAG, "Association request failed: $error")
-                }
-            })
-        } else {
-            @Suppress("DEPRECATION")
-            deviceManager.associate(request, object : CompanionDeviceManager.Callback() {
-                override fun onDeviceFound(chooserLauncher: IntentSender) {
-                    try {
-                        activity.startIntentSenderForResult(chooserLauncher, 1001, null, 0, 0, 0)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to start association chooser", e)
-                    }
-                }
-
-                override fun onFailure(error: CharSequence?) {
-                    Log.e(TAG, "Association request failed: $error")
-                }
-            }, null)
-        }
-    }
-
-    private fun observeDevicePresence() {
-        val deviceManager = context.getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val associations = deviceManager.myAssociations
-            for (assoc in associations) {
-                try {
-                    val mac = assoc.deviceMacAddress?.toString()
-                    if (mac != null) {
-                        Log.d(TAG, "Starting presence observation for: $mac")
-                        deviceManager.startObservingDevicePresence(mac)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to start presence observation", e)
-                }
-            }
-        }
-    }
-
-    private fun getLocation(): Map<String, Any>? {
-        Log.d(TAG, "getLocation: querying LocationManager")
-        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-        val providers = locationManager.getProviders(true)
-        var bestLocation: android.location.Location? = null
-        for (provider in providers) {
-            try {
-                val loc = locationManager.getLastKnownLocation(provider) ?: continue
-                if (bestLocation == null || loc.accuracy < bestLocation.accuracy) {
-                    bestLocation = loc
-                }
-            } catch (e: SecurityException) {
-                Log.e(TAG, "Location permission not granted for provider $provider", e)
-            }
-        }
-        if (bestLocation != null) {
-            var cityName = "Current Location"
-            try {
-                val geocoder = Geocoder(context, Locale.getDefault())
-                val addresses = geocoder.getFromLocation(bestLocation.latitude, bestLocation.longitude, 1)
-                if (!addresses.isNullOrEmpty()) {
-                    val address = addresses[0]
-                    cityName = address.locality ?: address.subAdminArea ?: address.adminArea ?: "Current Location"
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Geocoder failed to get city name", e)
-            }
-            Log.d(TAG, "getLocation: found lat=${bestLocation.latitude}, lon=${bestLocation.longitude}, city=$cityName")
-            return mapOf(
-                "latitude" to bestLocation.latitude,
-                "longitude" to bestLocation.longitude,
-                "cityName" to cityName
-            )
-        }
-        Log.w(TAG, "getLocation: no last known location found")
-        return null
-    }
-
     private fun sendDndUpdate() {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        val filter = notificationManager.currentInterruptionFilter
-        val isDnd = filter == android.app.NotificationManager.INTERRUPTION_FILTER_NONE ||
-                filter == android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
-                filter == android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS
+        val isDnd = settingsManager.getDnd()
         methodChannel?.invokeMethod("dndChanged", isDnd)
     }
 }

@@ -9,10 +9,12 @@ import io.flutter.plugin.common.MethodChannel
 import com.misync.misync.base.BaseModule
 import com.misync.misync.device.DeviceModule
 import com.misync.misync.health.HealthModule
-import com.misync.misync.notifications.NotificationModule
-import com.misync.misync.notifications.NotificationService
+import com.misync.misync.notifications.NotificationsModule
+import com.misync.misync.notifications.NotificationsService
 import com.misync.misync.calendar.CalendarModule
 import com.misync.misync.clock.ClockModule
+import com.misync.misync.media.MediaModule
+import com.misync.misync.actions.ActionsModule
 
 class MainActivity : FlutterActivity() {
     private val TAG = "MainActivity"
@@ -29,9 +31,11 @@ class MainActivity : FlutterActivity() {
         modules = listOf(
             DeviceModule(this),
             HealthModule(this),
-            NotificationModule(this),
+            NotificationsModule(this),
             CalendarModule(this),
-            ClockModule(this)
+            ClockModule(this),
+            MediaModule(this),
+            ActionsModule(this)
         )
 
         // Register method channel with all modules
@@ -67,7 +71,7 @@ class MainActivity : FlutterActivity() {
 
         // Force Android to rebind NotificationListenerService by toggling its component state
         try {
-            val componentName = android.content.ComponentName(applicationContext, NotificationService::class.java)
+            val componentName = android.content.ComponentName(applicationContext, NotificationsService::class.java)
             val packageManager = applicationContext.packageManager
             packageManager.setComponentEnabledSetting(
                 componentName,
@@ -79,9 +83,9 @@ class MainActivity : FlutterActivity() {
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP
             )
-            Log.d(TAG, "Force reset NotificationService component enabled setting successfully")
+            Log.d(TAG, "Force reset NotificationsService component enabled setting successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to force reset NotificationService component: ", e)
+            Log.e(TAG, "Failed to force reset NotificationsService component: ", e)
         }
     }
 

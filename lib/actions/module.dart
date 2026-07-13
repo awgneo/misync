@@ -80,7 +80,7 @@ class ActionsModule extends TabModule {
     }
 
     final bool? success = await PlatformModule.module.invokeMethod<bool>(
-      'device.launchAction',
+      'actions.launchAction',
       {
         'intent': intent,
         'package': package,

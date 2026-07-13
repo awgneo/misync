@@ -8,10 +8,9 @@ import android.os.Build
 import android.app.RemoteInput
 import android.app.Notification
 import android.util.Log
-import android.content.Context
 
-class NotificationService : NotificationListenerService() {
-    private val TAG = "NotificationService"
+class NotificationsService : NotificationListenerService() {
+    private val TAG = "NotificationsService"
 
     companion object {
         const val ACTION_NOTIFICATION = "com.misync.misync.NOTIFICATION_RECEIVED"
@@ -23,19 +22,19 @@ class NotificationService : NotificationListenerService() {
         const val EXTRA_KEY = "key"
         const val EXTRA_APP_NAME = "appName"
 
-        var instance: NotificationService? = null
+        var instance: NotificationsService? = null
             private set
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-        Log.d(TAG, "NotificationService created")
+        Log.d(TAG, "NotificationsService created")
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        Log.d(TAG, "NotificationService connected")
+        Log.d(TAG, "NotificationsService connected")
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -146,7 +145,7 @@ class NotificationService : NotificationListenerService() {
             putExtra(EXTRA_APP_NAME, appName)
             putExtra("category", category)
             putExtra("phoneNumber", phoneNumber)
-            setPackage(this@NotificationService.packageName)
+            setPackage(this@NotificationsService.packageName)
         }
         sendBroadcast(intent)
     }
@@ -165,7 +164,7 @@ class NotificationService : NotificationListenerService() {
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, key)
             putExtra("category", category)
-            setPackage(this@NotificationService.packageName)
+            setPackage(this@NotificationsService.packageName)
         }
         sendBroadcast(intent)
     }
@@ -173,7 +172,7 @@ class NotificationService : NotificationListenerService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
-        Log.d(TAG, "NotificationService destroyed")
+        Log.d(TAG, "NotificationsService destroyed")
     }
 
     // Function to send a quick reply back to the notification sender

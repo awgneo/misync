@@ -23,7 +23,7 @@ class WeatherModule extends TabModule {
   static WeatherModule get module => _module;
   WeatherModule._();
 
-  bool _syncingWeather = false;
+  int? _lastSentScale;
 
   @override
   Future<void> start() async {
@@ -66,12 +66,6 @@ class WeatherModule extends TabModule {
       return;
     }
 
-    if (_syncingWeather) {
-      logger.info('weather sync already in progress, skipping concurrent call');
-      return;
-    }
-    _syncingWeather = true;
-
     try {
       final loc = await PlatformModule.module.invokeMethod(
         'device.getLocation',
@@ -107,8 +101,6 @@ class WeatherModule extends TabModule {
       await _syncWeatherToWatch(weatherData, targetCode, targetName, aqi);
     } catch (e) {
       logger.error('error during weather sync: $e');
-    } finally {
-      _syncingWeather = false;
     }
   }
 
@@ -186,14 +178,6 @@ class WeatherModule extends TabModule {
 
     final useFahrenheit = WeatherBlob.fahrenheit;
     final symbol = '℃';
-
-    // Set weather preferences
-    final prefs = pb.WeatherPrefs()..temperatureScale = useFahrenheit ? 2 : 1;
-    await DeviceModule.module.connection.send(
-      type: CmdType.weather,
-      subtype: WeatherSubtype.setWeatherPrefs,
-      builder: (cmd) => cmd.weather = (pb.Weather()..prefs = prefs),
-    );
 
     // Add Location
     final location = pb.WeatherLocation()
@@ -322,6 +306,18 @@ class WeatherModule extends TabModule {
       builder: (cmd) =>
           cmd.weather = (pb.Weather()..forecast = pbHourlyForecast),
     );
+
+    // Set weather preferences last, and only if changed
+    final targetScale = useFahrenheit ? 2 : 1;
+    if (_lastSentScale != targetScale) {
+      final prefs = pb.WeatherPrefs()..temperatureScale = targetScale;
+      await DeviceModule.module.connection.send(
+        type: CmdType.weather,
+        subtype: WeatherSubtype.setWeatherPrefs,
+        builder: (cmd) => cmd.weather = (pb.Weather()..prefs = prefs),
+      );
+      _lastSentScale = targetScale;
+    }
   }
 
   String _getAqiDescription(int aqi) {

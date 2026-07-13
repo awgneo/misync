@@ -59,7 +59,7 @@
         </service>
 
         <!-- Notification Listener Service -->
-        <service android:name=".notifications.NotificationService"
+        <service android:name=".notifications.NotificationsService"
                  android:label="MiSync Notification Listener"
                  android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
                  android:exported="true">
