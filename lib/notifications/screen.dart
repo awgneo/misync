@@ -318,8 +318,8 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
         MiItems(
           children: [
             MiItem(
-              title: 'Do Not Disturb (DND)',
-              subtitle: 'Sync phone status with the band',
+              title: 'Do Not Disturb Sync',
+              subtitle: 'Mirror DND status with the watch',
               primaryIcon: Icons.do_not_disturb,
               enabled: dndEnabled,
               toggled: widget.module.saveDndEnabled,
