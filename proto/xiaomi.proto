@@ -162,6 +162,9 @@ message System {
 
   // 2, 79
   optional DeviceState deviceState = 49;
+
+  // 2, 110
+  optional ZenRuleList zenRuleList = 71;
 }
 
 message Power {
@@ -1137,4 +1140,24 @@ message ThirdPartyAppMessage {
 message ThirdPartyAppLaunch {
   optional ThirdPartyAppInfo appInfo = 1;
   optional string uri = 2;
+}
+
+// HyperOS Focus Mode / Zen Rules Sync
+message ZenRuleList {
+  repeated ZenRule rules = 1;
+}
+
+message ZenRule {
+  optional bool isManualRule = 1;
+  optional string name = 2;
+  optional uint32 state = 3;
+  optional uint32 conditionOverride = 4;
+  optional uint32 lastActivationTime = 5;
+  optional ZenRuleSchedule schedule = 6;
+}
+
+message ZenRuleSchedule {
+  optional Time startTime = 1;
+  optional Time endTime = 2;
+  optional uint32 repeatDays = 3;
 }

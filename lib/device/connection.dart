@@ -339,7 +339,9 @@ class DeviceConnection extends ChangeNotifier {
         logger.info('handshake successful: secure channel is active');
         notifyListeners();
       } else if (_protocol!.state == ProtocolState.authFailed) {
-        logger.error('handshake failed: auth key is invalid. Clearing pairing credentials.');
+        logger.error(
+          'handshake failed: auth key is invalid. Clearing pairing credentials.',
+        );
         disconnect();
         await SettingsBlob.instance.update(
           const Settings(
@@ -397,7 +399,7 @@ class DeviceConnection extends ChangeNotifier {
     CmdType? type,
     ValuedEnum? subtype,
     void Function(Command)? builder,
-    bool expectResponse = false,
+    bool response = false,
     Duration timeout = const Duration(seconds: 5),
   }) async {
     if (!_connected) {
@@ -423,7 +425,7 @@ class DeviceConnection extends ChangeNotifier {
 
       Completer<Command>? completer;
       String? key;
-      if (expectResponse) {
+      if (response) {
         key = '${targetCmd.type}:${targetCmd.subtype}';
         completer = Completer<Command>();
         _requests.putIfAbsent(key, () => []).add(completer);
@@ -435,7 +437,7 @@ class DeviceConnection extends ChangeNotifier {
       );
       await _write(framed);
 
-      if (expectResponse && completer != null) {
+      if (response && completer != null) {
         try {
           return await completer.future.timeout(timeout);
         } catch (e) {
@@ -489,7 +491,7 @@ class DeviceConnection extends ChangeNotifier {
                 ..type = type
                 ..md5sum = md5Sum
                 ..size = bytes.length)),
-        expectResponse: true,
+        response: true,
       );
 
       if (uploadResponse == null ||

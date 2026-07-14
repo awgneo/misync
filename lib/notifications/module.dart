@@ -26,6 +26,8 @@ class NotificationModule extends TabModule {
   String? _lastMessageKey;
   DateTime _lastCallTime = DateTime.fromMillisecondsSinceEpoch(0);
   String? _lastCallNumber;
+  int _lastPhoneDndChange = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  final Map<String, String> _lastNotification = {};
 
   @override
   late final Screen screen = NotificationsScreen(this);
@@ -85,6 +87,14 @@ class NotificationModule extends TabModule {
     final String body = data['body'] ?? '';
     final int id = data['id'] ?? 0;
     final String key = data['key'] ?? '';
+
+    // Prevent duplicate alerts on status updates / sibling dismissals
+    if (_lastNotification[key] == body) {
+      return;
+    }
+
+    _lastNotification[key] = body;
+
     final String appName =
         data['appName'] != null && (data['appName'] as String).isNotEmpty
         ? data['appName']
@@ -153,6 +163,8 @@ class NotificationModule extends TabModule {
     final String key = data['key'] ?? '';
     final int id = data['id'] ?? 0;
 
+    _lastNotification.remove(key);
+
     logger.info('sending dismiss command to watch', {
       'package': package,
       'category': category,
@@ -176,22 +188,12 @@ class NotificationModule extends TabModule {
   }
 
   void _handlePhoneDndChanged(bool dnd) {
-    logger.info('phone DND state updated', {'enabled': dnd});
-    _setWatchDnd(dnd);
-  }
-
-  Future<void> _setWatchDnd(bool dnd) async {
-    if (!DndBlob.enabled) return;
-
-    logger.info('sending DND update to watch', {'enabled': dnd});
-
-    await DeviceModule.module.connection.send(
-      type: CmdType.system,
-      subtype: SystemSubtype.dnd,
-      builder: (cmd) =>
-          cmd.system = (System()
-            ..dndStatus = (DoNotDisturb()..status = dnd ? 1 : 0)),
-    );
+    _lastPhoneDndChange = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    logger.info('phone DND state updated', {
+      'enabled': dnd,
+      'timestamp': _lastPhoneDndChange,
+    });
+    _syncDnd();
   }
 
   Future<void> _receiveWatchCommand(Command cmd) async {
@@ -203,10 +205,6 @@ class NotificationModule extends TabModule {
       }
     } else if (cmd.type == CmdType.thirdPartyApp.value) {
       await _handleWatchAppCommand(cmd);
-    } else if (cmd.type == CmdType.system.value) {
-      if (cmd.subtype == SystemSubtype.dnd.value) {
-        _handleWatchDndChange(cmd);
-      }
     }
   }
 
@@ -457,33 +455,10 @@ class NotificationModule extends TabModule {
     }
   }
 
-  void _handleWatchDndChange(Command cmd) async {
-    if (!cmd.system.hasDndStatus()) return;
-
-    final status = cmd.system.dndStatus.status;
-    final bool dnd = (status == 1 || status == 2);
-    logger.info('received DND status update from watch', {
-      'status': status,
-      'dndEnabled': dnd,
-    });
-
-    await setPhoneDnd(dnd);
-  }
-
-  Future<void> setPhoneDnd(bool dnd) async {
-    if (!DndBlob.enabled) return;
-
-    final currentPhoneDnd = await _getPhoneDnd();
-    if (currentPhoneDnd != dnd) {
-      await PlatformModule.module.invokeMethod('device.setDnd', {
-        'enabled': dnd,
-      });
-    }
-  }
-
   @override
   Future<void> sync() async {
     if (!DeviceModule.module.connection.connected.value) return;
+
     await _syncDnd();
     await _syncContact();
   }
@@ -491,13 +466,89 @@ class NotificationModule extends TabModule {
   Future<void> _syncDnd() async {
     if (!DndBlob.enabled) return;
 
-    final dnd = await _getPhoneDnd();
-    await _setWatchDnd(dnd);
-  }
+    // Fetch current rules list from the watch for startup sync/conflict check
+    try {
+      final res = await DeviceModule.module.connection.send(
+        type: CmdType.system,
+        subtype: SystemSubtype.zenRuleGet,
+        response: true,
+      );
 
-  Future<bool> _getPhoneDnd() async {
-    final dnd = await PlatformModule.module.invokeMethod<bool>('device.getDnd');
-    return dnd ?? false;
+      if (res != null && res.hasSystem() && res.system.hasZenRuleList()) {
+        final rules = res.system.zenRuleList.rules;
+        logger.info('fetched watch rules for startup sync', {
+          'rules': rules.map((r) => r.toProto3Json()).toList(),
+        });
+
+        // Find watch manual rule
+        final manualRule = rules.firstWhere(
+          (r) => r.name == 'watch_manual',
+          orElse: () => ZenRule(),
+        );
+
+        if (manualRule.hasState()) {
+          final watchTime = manualRule.lastActivationTime.toInt();
+          final phoneDnd = await _getPhoneDnd();
+
+          logger.info('DND Sync conflict check', {
+            'phoneTime': _lastPhoneDndChange,
+            'watchTime': watchTime,
+            'phoneDnd': phoneDnd,
+            'watchDnd': manualRule.state == 1,
+          });
+
+          if (watchTime > _lastPhoneDndChange) {
+            // Watch DND is newer! Watch wins.
+            final bool dnd = manualRule.state == 1;
+            logger.info('watch DND is newer than phone, watch wins', {
+              'dndEnabled': dnd,
+            });
+            await setPhoneDnd(dnd);
+            // Sync our local tracking timestamp
+            _lastPhoneDndChange = watchTime;
+          } else {
+            // Phone DND is newer or equal! Phone wins.
+            logger.info('phone DND is newer or equal, phone wins', {
+              'dndEnabled': phoneDnd,
+            });
+            // Update watch rules to match phone DND
+            final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+            // Find or create 'watch_manual' rule
+            int watchManualIdx = rules.indexWhere(
+              (r) => r.name == 'watch_manual',
+            );
+            if (watchManualIdx != -1) {
+              rules[watchManualIdx].state = phoneDnd ? 1 : 0;
+              rules[watchManualIdx].lastActivationTime = timestamp;
+            } else {
+              rules.add(
+                ZenRule()
+                  ..name = 'watch_manual'
+                  ..isManualRule = true
+                  ..state = phoneDnd ? 1 : 0
+                  ..lastActivationTime = timestamp,
+              );
+            }
+
+            // Clean up manual_zen_rule to avoid watch rejection
+            rules.removeWhere((r) => r.name == 'manual_zen_rule');
+
+            await DeviceModule.module.connection.send(
+              type: CmdType.system,
+              subtype: SystemSubtype.zenRuleSet,
+              builder: (cmd) =>
+                  cmd.system = (System()
+                    ..zenRuleList = (ZenRuleList()..rules.addAll(rules))),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      logger.error('failed to perform startup DND sync', <String, dynamic>{
+        'error': e.toString(),
+      });
+    }
   }
 
   Future<void> _syncContact() async {
@@ -508,6 +559,24 @@ class NotificationModule extends TabModule {
     }
   }
 
+  Future<void> setPhoneDnd(bool dnd) async {
+    if (!DndBlob.enabled) return;
+
+    final currentPhoneDnd = await _getPhoneDnd();
+    if (currentPhoneDnd != dnd) {
+      await PlatformModule.module.invokeMethod('notifications.setDnd', {
+        'enabled': dnd,
+      });
+    }
+  }
+
+  Future<bool> _getPhoneDnd() async {
+    final dnd = await PlatformModule.module.invokeMethod<bool>(
+      'notifications.getDnd',
+    );
+    return dnd ?? false;
+  }
+
   Future<void> saveContactEnabled(bool enabled) async {
     ContactBlob.enabled = enabled;
     await _syncContact();
@@ -515,7 +584,6 @@ class NotificationModule extends TabModule {
   }
 
   Future<void> saveDndEnabled(bool enabled) async {
-    DndBlob.enabled = enabled;
     await _syncDnd();
     logger.info('dnd sync state updated', {'enabled': enabled});
   }

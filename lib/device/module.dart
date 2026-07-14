@@ -238,7 +238,9 @@ class DeviceModule extends TabModule {
         if (success) {
           logger.info('GPS sync completed');
           await DeviceBlob.instance.update(
-            DeviceBlob.infoState.copyWith(lastAgpsSyncMs: now.millisecondsSinceEpoch),
+            DeviceBlob.infoState.copyWith(
+              lastAgpsSyncMs: now.millisecondsSinceEpoch,
+            ),
           );
         } else {
           logger.error('failed to upload GPS data');
@@ -258,12 +260,12 @@ class DeviceModule extends TabModule {
       connection.send(
         type: CmdType.system,
         subtype: SystemSubtype.deviceInfo,
-        expectResponse: true,
+        response: true,
       ),
       connection.send(
         type: CmdType.system,
         subtype: SystemSubtype.battery,
-        expectResponse: true,
+        response: true,
       ),
     ];
 

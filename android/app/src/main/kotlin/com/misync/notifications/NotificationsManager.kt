@@ -11,10 +11,34 @@ import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.util.Log
+import android.app.NotificationManager
 import java.io.ByteArrayOutputStream
 
 class NotificationsManager(private val context: Context) {
     private val TAG = "NotificationsManager"
+
+    fun getDnd(): Boolean {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val filter = notificationManager.currentInterruptionFilter
+        return filter == NotificationManager.INTERRUPTION_FILTER_NONE ||
+               filter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+               filter == NotificationManager.INTERRUPTION_FILTER_ALARMS
+    }
+
+    fun setDnd(enabled: Boolean): Boolean {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return if (notificationManager.isNotificationPolicyAccessGranted) {
+            val filter = if (enabled) {
+                NotificationManager.INTERRUPTION_FILTER_NONE
+            } else {
+                NotificationManager.INTERRUPTION_FILTER_ALL
+            }
+            notificationManager.setInterruptionFilter(filter)
+            true
+        } else {
+            false
+        }
+    }
 
     fun replyToNotification(key: String?, id: Int?, message: String): Boolean {
         return if (key != null && key.isNotEmpty()) {

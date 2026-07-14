@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import android.app.NotificationManager
 import com.misync.base.BaseModule
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -15,6 +16,14 @@ import io.flutter.plugin.common.MethodChannel
 class NotificationsModule(private val context: Context) : BaseModule("notifications") {
     private val TAG = "NotificationsModule"
     private val notificationsManager = NotificationsManager(context)
+
+    private val dndReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) {
+                sendDndUpdate()
+            }
+        }
+    }
 
     private val notificationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -66,6 +75,13 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
         } else {
             context.registerReceiver(notificationReceiver, filter)
         }
+
+        val dndFilter = IntentFilter(android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(dndReceiver, dndFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(dndReceiver, dndFilter)
+        }
     }
 
     override fun onDestroy() {
@@ -74,15 +90,23 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
         } catch (e: Exception) {
             // Ignored
         }
+        try {
+            context.unregisterReceiver(dndReceiver)
+        } catch (e: Exception) {
+            // Ignored
+        }
     }
 
     override fun checkPermissions(): Boolean {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         return isNotificationServiceEnabled() &&
                hasRuntimePermission(context, android.Manifest.permission.SEND_SMS) &&
-               hasRuntimePermission(context, android.Manifest.permission.READ_CONTACTS)
+               hasRuntimePermission(context, android.Manifest.permission.READ_CONTACTS) &&
+               notificationManager.isNotificationPolicyAccessGranted
     }
 
     override fun requestPermissions(activity: Activity) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (!isNotificationServiceEnabled()) {
             activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
@@ -96,6 +120,9 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
         if (perms.isNotEmpty()) {
             activity.requestPermissions(perms.toTypedArray(), 102)
         }
+        if (!notificationManager.isNotificationPolicyAccessGranted) {
+            activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        }
     }
 
     override fun onMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean {
@@ -105,6 +132,16 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 val id = call.argument<Int>("id")
                 val message = call.argument<String>("message") ?: ""
                 val success = notificationsManager.replyToNotification(key, id, message)
+                result.success(success)
+                true
+            }
+            "getDnd" -> {
+                result.success(notificationsManager.getDnd())
+                true
+            }
+            "setDnd" -> {
+                val enabled = call.argument<Boolean>("enabled") ?: false
+                val success = notificationsManager.setDnd(enabled)
                 result.success(success)
                 true
             }
@@ -166,5 +203,9 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
             }
         }
         return false
+    }
+    private fun sendDndUpdate() {
+        val isDnd = notificationsManager.getDnd()
+        methodChannel?.invokeMethod("dndChanged", isDnd)
     }
 }

@@ -24,7 +24,9 @@ enum SystemSubtype implements ValuedEnum {
   battery(1),
   deviceInfo(2),
   clockSync(3),
-  dnd(11),
+  dnd(23),
+  miscSettingGet(14),
+  miscSettingSet(15),
   findPhone(17),
   findWatch(18),
   deviceState(78),
@@ -35,7 +37,9 @@ enum SystemSubtype implements ValuedEnum {
   widgetV3Set(84),
   widgetV3SupportedList(85),
   displayItemsGet(29),
-  displayItemsSet(39);
+  displayItemsSet(39),
+  zenRuleGet(109),
+  zenRuleSet(110);
 
   @override
   final int value;

@@ -19,16 +19,9 @@ class DeviceModule(
 
     private val companionManager = CompanionManager(context)
     private val locationManager = LocationManager(context)
-    private val settingsManager = SettingsManager(context)
+    private val findWatchManager = FindWatchManager(context)
     private val findPhoneManager = FindPhoneManager(context)
 
-    private val dndReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) {
-                sendDndUpdate()
-            }
-        }
-    }
 
     private val stopFindPhoneReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -49,14 +42,6 @@ class DeviceModule(
     }
 
     override fun onCreate() {
-        // Register dnd changes
-        val dndFilter = IntentFilter(android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(dndReceiver, dndFilter, Context.RECEIVER_EXPORTED)
-        } else {
-            context.registerReceiver(dndReceiver, dndFilter)
-        }
-
         // Register stop find phone
         val stopFilter = IntentFilter("com.misync.STOP_FIND_PHONE")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -76,100 +61,95 @@ class DeviceModule(
 
     override fun onDestroy() {
         try {
-            context.unregisterReceiver(dndReceiver)
-        } catch (e: Exception) {}
-        try {
             context.unregisterReceiver(stopFindPhoneReceiver)
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+        }
         try {
             context.unregisterReceiver(findWatchReceiver)
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+        }
     }
 
     override fun checkPermissions(): Boolean {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         val backgroundLocationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             hasRuntimePermission(context, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         } else {
             true
         }
         return companionManager.isDeviceAssociated() &&
-               hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) &&
-               hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) &&
-               backgroundLocationGranted &&
-               notificationManager.isNotificationPolicyAccessGranted
+                hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) &&
+                hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) &&
+                backgroundLocationGranted
     }
 
     override fun requestPermissions(activity: Activity) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         if (!companionManager.isDeviceAssociated()) {
             companionManager.associateDevice(activity)
         }
         val hasFine = hasRuntimePermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
         val hasCoarse = hasRuntimePermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
-        
+
         if (!hasFine || !hasCoarse) {
             val perms = mutableListOf<String>()
             if (!hasFine) perms.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
             if (!hasCoarse) perms.add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
             activity.requestPermissions(perms.toTypedArray(), 102)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                   !hasRuntimePermission(context, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+            !hasRuntimePermission(context, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        ) {
             activity.requestPermissions(arrayOf(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION), 103)
-        }
-        
-        if (!notificationManager.isNotificationPolicyAccessGranted) {
-            activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
         }
     }
 
-    override fun onMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean {
+    override fun onMethodCall(
+        activity: Activity,
+        method: String,
+        call: MethodCall,
+        result: MethodChannel.Result
+    ): Boolean {
         return when (method) {
             "getDeviceAssociated" -> {
                 result.success(companionManager.isDeviceAssociated())
                 true
             }
+
             "requestCompanionAssociation" -> {
                 companionManager.associateDevice(activity)
                 result.success(true)
                 true
             }
+
             "observeDevicePresence" -> {
                 companionManager.observeDevicePresence()
                 result.success(true)
                 true
             }
+
             "updateFindWatchState" -> {
                 val enabled = call.arguments as? Boolean ?: false
-                settingsManager.updateFindWatchTile(enabled)
+                findWatchManager.updateFindWatchTile(enabled)
                 result.success(true)
                 true
             }
+
             "startFindPhone" -> {
                 findPhoneManager.start()
                 result.success(true)
                 true
             }
+
             "stopFindPhone" -> {
                 findPhoneManager.stop()
                 result.success(true)
                 true
             }
-            "getDnd" -> {
-                result.success(settingsManager.getDnd())
-                true
-            }
-            "setDnd" -> {
-                val enabled = call.argument<Boolean>("enabled") ?: false
-                val success = settingsManager.setDnd(enabled)
-                result.success(success)
-                true
-            }
+
             "getLocation" -> {
                 val loc = locationManager.getLocation()
                 result.success(loc)
                 true
             }
+
             "startLocationUpdates" -> {
                 val success = locationManager.startLocationUpdates { map ->
                     activity.runOnUiThread {
@@ -179,17 +159,15 @@ class DeviceModule(
                 result.success(success)
                 true
             }
+
             "stopLocationUpdates" -> {
                 locationManager.stopLocationUpdates()
                 result.success(true)
                 true
             }
+
             else -> false
         }
     }
 
-    private fun sendDndUpdate() {
-        val isDnd = settingsManager.getDnd()
-        methodChannel?.invokeMethod("dndChanged", isDnd)
-    }
 }

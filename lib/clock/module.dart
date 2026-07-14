@@ -106,7 +106,7 @@ class ClockModule extends TabModule {
     final response = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.getAlarms,
-      expectResponse: true,
+      response: true,
     );
 
     if (response == null || !response.schedule.hasAlarms()) {
@@ -135,7 +135,7 @@ class ClockModule extends TabModule {
         await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.editAlarm,
-          expectResponse: true,
+          response: true,
           builder: (cmd) =>
               cmd.schedule = (pb.Schedule()
                 ..editAlarm = (pb.Alarm()
@@ -147,7 +147,7 @@ class ClockModule extends TabModule {
         await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.createAlarm,
-          expectResponse: true,
+          response: true,
           builder: (cmd) =>
               cmd.schedule = (pb.Schedule()
                 ..createAlarm = updatedWatchFirstAlarm),
@@ -159,7 +159,7 @@ class ClockModule extends TabModule {
         await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.editAlarm,
-          expectResponse: true,
+          response: true,
           builder: (cmd) =>
               cmd.schedule = (pb.Schedule()
                 ..editAlarm = (pb.Alarm()
@@ -171,7 +171,7 @@ class ClockModule extends TabModule {
         await DeviceModule.module.connection.send(
           type: CmdType.schedule,
           subtype: ScheduleSubtype.createAlarm,
-          expectResponse: true,
+          response: true,
           builder: (cmd) =>
               cmd.schedule = (pb.Schedule()
                 ..createAlarm = updatedWatchFirstAlarm),
@@ -213,7 +213,7 @@ class ClockModule extends TabModule {
     final response = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.getWorldClocks,
-      expectResponse: true,
+      response: true,
     );
 
     if (response == null || !response.schedule.hasWorldClocks()) {
@@ -249,7 +249,7 @@ class ClockModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.createAlarm,
-      expectResponse: true,
+      response: true,
       builder: (cmd) => cmd.schedule = (pb.Schedule()..createAlarm = details),
     );
 
@@ -289,7 +289,7 @@ class ClockModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.editAlarm,
-      expectResponse: true,
+      response: true,
       builder: (cmd) => cmd.schedule = (pb.Schedule()
         ..editAlarm = (pb.Alarm()
           ..id = id
@@ -329,7 +329,7 @@ class ClockModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.deleteAlarm,
-      expectResponse: true,
+      response: true,
       builder: (cmd) =>
           cmd.schedule = (pb.Schedule()
             ..deleteAlarm = (pb.AlarmDelete()..id.add(id))),
@@ -363,7 +363,7 @@ class ClockModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.setWorldClocks,
-      expectResponse: true,
+      response: true,
       builder: (cmd) => cmd.schedule = (pb.Schedule()..worldClocks = pClocks),
     );
 
@@ -381,7 +381,7 @@ class ClockModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
       subtype: ScheduleSubtype.deleteWorldClock,
-      expectResponse: true,
+      response: true,
       builder: (cmd) => cmd.schedule = (pb.Schedule()..worldClocks = pClocks),
     );
 

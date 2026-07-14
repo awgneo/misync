@@ -202,7 +202,7 @@ class HealthModule extends TabModule {
       await DeviceModule.module.connection.send(
         type: CmdType.health,
         subtype: HealthSubtype.getWearSportStatus,
-        expectResponse: true,
+        response: true,
         timeout: const Duration(seconds: 8),
       );
     } catch (e) {
@@ -272,7 +272,7 @@ class HealthModule extends TabModule {
 
     final response = await DeviceModule.module.connection.send(
       cmd: cmd,
-      expectResponse: true,
+      response: true,
       timeout: const Duration(seconds: 8),
     );
 

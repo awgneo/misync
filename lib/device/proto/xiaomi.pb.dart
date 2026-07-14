@@ -785,6 +785,7 @@ class System extends $pb.GeneratedMessage {
     DeviceState? deviceState,
     WidgetV3? widgetV3,
     WidgetV3SupportedList? widgetV3SupportedList,
+    ZenRuleList? zenRuleList,
   }) {
     final result = create();
     if (power != null) result.power = power;
@@ -825,6 +826,7 @@ class System extends $pb.GeneratedMessage {
     if (widgetV3 != null) result.widgetV3 = widgetV3;
     if (widgetV3SupportedList != null)
       result.widgetV3SupportedList = widgetV3SupportedList;
+    if (zenRuleList != null) result.zenRuleList = zenRuleList;
     return result;
   }
 
@@ -907,7 +909,9 @@ class System extends $pb.GeneratedMessage {
     ..aOM<WidgetV3SupportedList>(
         54, _omitFieldNames ? '' : 'widgetV3SupportedList',
         protoName: 'widgetV3SupportedList',
-        subBuilder: WidgetV3SupportedList.create);
+        subBuilder: WidgetV3SupportedList.create)
+    ..aOM<ZenRuleList>(71, _omitFieldNames ? '' : 'zenRuleList',
+        protoName: 'zenRuleList', subBuilder: ZenRuleList.create);
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
   System clone() => deepCopy();
@@ -1276,6 +1280,18 @@ class System extends $pb.GeneratedMessage {
   void clearWidgetV3SupportedList() => $_clearField(54);
   @$pb.TagNumber(54)
   WidgetV3SupportedList ensureWidgetV3SupportedList() => $_ensure(28);
+
+  /// 2, 110
+  @$pb.TagNumber(71)
+  ZenRuleList get zenRuleList => $_getN(29);
+  @$pb.TagNumber(71)
+  set zenRuleList(ZenRuleList value) => $_setField(71, value);
+  @$pb.TagNumber(71)
+  $core.bool hasZenRuleList() => $_has(29);
+  @$pb.TagNumber(71)
+  void clearZenRuleList() => $_clearField(71);
+  @$pb.TagNumber(71)
+  ZenRuleList ensureZenRuleList() => $_ensure(29);
 }
 
 class Power extends $pb.GeneratedMessage {
@@ -12590,6 +12606,257 @@ class ThirdPartyAppLaunch extends $pb.GeneratedMessage {
   $core.bool hasUri() => $_has(1);
   @$pb.TagNumber(2)
   void clearUri() => $_clearField(2);
+}
+
+/// HyperOS Focus Mode / Zen Rules Sync
+class ZenRuleList extends $pb.GeneratedMessage {
+  factory ZenRuleList({
+    $core.Iterable<ZenRule>? rules,
+  }) {
+    final result = create();
+    if (rules != null) result.rules.addAll(rules);
+    return result;
+  }
+
+  ZenRuleList._();
+
+  factory ZenRuleList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ZenRuleList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ZenRuleList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..pPM<ZenRule>(1, _omitFieldNames ? '' : 'rules',
+        subBuilder: ZenRule.create);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ZenRuleList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ZenRuleList copyWith(void Function(ZenRuleList) updates) =>
+      super.copyWith((message) => updates(message as ZenRuleList))
+          as ZenRuleList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ZenRuleList create() => ZenRuleList._();
+  @$core.override
+  ZenRuleList createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ZenRuleList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ZenRuleList>(create);
+  static ZenRuleList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<ZenRule> get rules => $_getList(0);
+}
+
+class ZenRule extends $pb.GeneratedMessage {
+  factory ZenRule({
+    $core.bool? isManualRule,
+    $core.String? name,
+    $core.int? state,
+    $core.int? conditionOverride,
+    $core.int? lastActivationTime,
+    ZenRuleSchedule? schedule,
+  }) {
+    final result = create();
+    if (isManualRule != null) result.isManualRule = isManualRule;
+    if (name != null) result.name = name;
+    if (state != null) result.state = state;
+    if (conditionOverride != null) result.conditionOverride = conditionOverride;
+    if (lastActivationTime != null)
+      result.lastActivationTime = lastActivationTime;
+    if (schedule != null) result.schedule = schedule;
+    return result;
+  }
+
+  ZenRule._();
+
+  factory ZenRule.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ZenRule.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ZenRule',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'isManualRule', protoName: 'isManualRule')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aI(3, _omitFieldNames ? '' : 'state', fieldType: $pb.PbFieldType.OU3)
+    ..aI(4, _omitFieldNames ? '' : 'conditionOverride',
+        protoName: 'conditionOverride', fieldType: $pb.PbFieldType.OU3)
+    ..aI(5, _omitFieldNames ? '' : 'lastActivationTime',
+        protoName: 'lastActivationTime', fieldType: $pb.PbFieldType.OU3)
+    ..aOM<ZenRuleSchedule>(6, _omitFieldNames ? '' : 'schedule',
+        subBuilder: ZenRuleSchedule.create);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ZenRule clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ZenRule copyWith(void Function(ZenRule) updates) =>
+      super.copyWith((message) => updates(message as ZenRule)) as ZenRule;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ZenRule create() => ZenRule._();
+  @$core.override
+  ZenRule createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ZenRule getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ZenRule>(create);
+  static ZenRule? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get isManualRule => $_getBF(0);
+  @$pb.TagNumber(1)
+  set isManualRule($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIsManualRule() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIsManualRule() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get state => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set state($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasState() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearState() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get conditionOverride => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set conditionOverride($core.int value) => $_setUnsignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasConditionOverride() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearConditionOverride() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get lastActivationTime => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set lastActivationTime($core.int value) => $_setUnsignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasLastActivationTime() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearLastActivationTime() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  ZenRuleSchedule get schedule => $_getN(5);
+  @$pb.TagNumber(6)
+  set schedule(ZenRuleSchedule value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasSchedule() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearSchedule() => $_clearField(6);
+  @$pb.TagNumber(6)
+  ZenRuleSchedule ensureSchedule() => $_ensure(5);
+}
+
+class ZenRuleSchedule extends $pb.GeneratedMessage {
+  factory ZenRuleSchedule({
+    Time? startTime,
+    Time? endTime,
+    $core.int? repeatDays,
+  }) {
+    final result = create();
+    if (startTime != null) result.startTime = startTime;
+    if (endTime != null) result.endTime = endTime;
+    if (repeatDays != null) result.repeatDays = repeatDays;
+    return result;
+  }
+
+  ZenRuleSchedule._();
+
+  factory ZenRuleSchedule.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ZenRuleSchedule.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ZenRuleSchedule',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aOM<Time>(1, _omitFieldNames ? '' : 'startTime',
+        protoName: 'startTime', subBuilder: Time.create)
+    ..aOM<Time>(2, _omitFieldNames ? '' : 'endTime',
+        protoName: 'endTime', subBuilder: Time.create)
+    ..aI(3, _omitFieldNames ? '' : 'repeatDays',
+        protoName: 'repeatDays', fieldType: $pb.PbFieldType.OU3);
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ZenRuleSchedule clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ZenRuleSchedule copyWith(void Function(ZenRuleSchedule) updates) =>
+      super.copyWith((message) => updates(message as ZenRuleSchedule))
+          as ZenRuleSchedule;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ZenRuleSchedule create() => ZenRuleSchedule._();
+  @$core.override
+  ZenRuleSchedule createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ZenRuleSchedule getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ZenRuleSchedule>(create);
+  static ZenRuleSchedule? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Time get startTime => $_getN(0);
+  @$pb.TagNumber(1)
+  set startTime(Time value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasStartTime() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearStartTime() => $_clearField(1);
+  @$pb.TagNumber(1)
+  Time ensureStartTime() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  Time get endTime => $_getN(1);
+  @$pb.TagNumber(2)
+  set endTime(Time value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEndTime() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEndTime() => $_clearField(2);
+  @$pb.TagNumber(2)
+  Time ensureEndTime() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  $core.int get repeatDays => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set repeatDays($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRepeatDays() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRepeatDays() => $_clearField(3);
 }
 
 const $core.bool _omitFieldNames =

@@ -484,6 +484,14 @@ const System$json = {
       '6': '.xiaomi.DeviceState',
       '10': 'deviceState'
     },
+    {
+      '1': 'zenRuleList',
+      '3': 71,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.ZenRuleList',
+      '10': 'zenRuleList'
+    },
   ],
 };
 
@@ -521,7 +529,8 @@ final $typed_data.Uint8List systemDescriptor = $convert.base64Decode(
     'ZpYnJhdGlvblBhdHRlcm5BY2sYKyABKAsyGy54aWFvbWkuVmlicmF0aW9uUGF0dGVybkFja1IT'
     'dmlicmF0aW9uUGF0dGVybkFjaxJEChBiYXNpY0RldmljZVN0YXRlGDAgASgLMhgueGlhb21pLk'
     'Jhc2ljRGV2aWNlU3RhdGVSEGJhc2ljRGV2aWNlU3RhdGUSNQoLZGV2aWNlU3RhdGUYMSABKAsy'
-    'Ey54aWFvbWkuRGV2aWNlU3RhdGVSC2RldmljZVN0YXRl');
+    'Ey54aWFvbWkuRGV2aWNlU3RhdGVSC2RldmljZVN0YXRlEjUKC3plblJ1bGVMaXN0GEcgASgLMh'
+    'MueGlhb21pLlplblJ1bGVMaXN0Ugt6ZW5SdWxlTGlzdA==');
 
 @$core.Deprecated('Use powerDescriptor instead')
 const Power$json = {
@@ -3827,3 +3836,92 @@ const ThirdPartyAppLaunch$json = {
 final $typed_data.Uint8List thirdPartyAppLaunchDescriptor = $convert.base64Decode(
     'ChNUaGlyZFBhcnR5QXBwTGF1bmNoEjMKB2FwcEluZm8YASABKAsyGS54aWFvbWkuVGhpcmRQYX'
     'J0eUFwcEluZm9SB2FwcEluZm8SEAoDdXJpGAIgASgJUgN1cmk=');
+
+@$core.Deprecated('Use zenRuleListDescriptor instead')
+const ZenRuleList$json = {
+  '1': 'ZenRuleList',
+  '2': [
+    {
+      '1': 'rules',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.xiaomi.ZenRule',
+      '10': 'rules'
+    },
+  ],
+};
+
+/// Descriptor for `ZenRuleList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List zenRuleListDescriptor = $convert.base64Decode(
+    'CgtaZW5SdWxlTGlzdBIlCgVydWxlcxgBIAMoCzIPLnhpYW9taS5aZW5SdWxlUgVydWxlcw==');
+
+@$core.Deprecated('Use zenRuleDescriptor instead')
+const ZenRule$json = {
+  '1': 'ZenRule',
+  '2': [
+    {'1': 'isManualRule', '3': 1, '4': 1, '5': 8, '10': 'isManualRule'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'state', '3': 3, '4': 1, '5': 13, '10': 'state'},
+    {
+      '1': 'conditionOverride',
+      '3': 4,
+      '4': 1,
+      '5': 13,
+      '10': 'conditionOverride'
+    },
+    {
+      '1': 'lastActivationTime',
+      '3': 5,
+      '4': 1,
+      '5': 13,
+      '10': 'lastActivationTime'
+    },
+    {
+      '1': 'schedule',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.ZenRuleSchedule',
+      '10': 'schedule'
+    },
+  ],
+};
+
+/// Descriptor for `ZenRule`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List zenRuleDescriptor = $convert.base64Decode(
+    'CgdaZW5SdWxlEiIKDGlzTWFudWFsUnVsZRgBIAEoCFIMaXNNYW51YWxSdWxlEhIKBG5hbWUYAi'
+    'ABKAlSBG5hbWUSFAoFc3RhdGUYAyABKA1SBXN0YXRlEiwKEWNvbmRpdGlvbk92ZXJyaWRlGAQg'
+    'ASgNUhFjb25kaXRpb25PdmVycmlkZRIuChJsYXN0QWN0aXZhdGlvblRpbWUYBSABKA1SEmxhc3'
+    'RBY3RpdmF0aW9uVGltZRIzCghzY2hlZHVsZRgGIAEoCzIXLnhpYW9taS5aZW5SdWxlU2NoZWR1'
+    'bGVSCHNjaGVkdWxl');
+
+@$core.Deprecated('Use zenRuleScheduleDescriptor instead')
+const ZenRuleSchedule$json = {
+  '1': 'ZenRuleSchedule',
+  '2': [
+    {
+      '1': 'startTime',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.Time',
+      '10': 'startTime'
+    },
+    {
+      '1': 'endTime',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.Time',
+      '10': 'endTime'
+    },
+    {'1': 'repeatDays', '3': 3, '4': 1, '5': 13, '10': 'repeatDays'},
+  ],
+};
+
+/// Descriptor for `ZenRuleSchedule`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List zenRuleScheduleDescriptor = $convert.base64Decode(
+    'Cg9aZW5SdWxlU2NoZWR1bGUSKgoJc3RhcnRUaW1lGAEgASgLMgwueGlhb21pLlRpbWVSCXN0YX'
+    'J0VGltZRImCgdlbmRUaW1lGAIgASgLMgwueGlhb21pLlRpbWVSB2VuZFRpbWUSHgoKcmVwZWF0'
+    'RGF5cxgDIAEoDVIKcmVwZWF0RGF5cw==');

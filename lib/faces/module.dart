@@ -40,7 +40,7 @@ class FacesModule extends TabModule {
     final response = await DeviceModule.module.connection.send(
       type: CmdType.watchface,
       subtype: WatchfaceSubtype.list,
-      expectResponse: true,
+      response: true,
     );
 
     if (response == null ||
@@ -62,7 +62,7 @@ class FacesModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.watchface,
       subtype: WatchfaceSubtype.set,
-      expectResponse: true,
+      response: true,
       builder: (cmd) => cmd.watchface = (Watchface()..watchfaceId = id),
     );
 
@@ -78,7 +78,7 @@ class FacesModule extends TabModule {
     final result = await DeviceModule.module.connection.send(
       type: CmdType.watchface,
       subtype: WatchfaceSubtype.delete,
-      expectResponse: true,
+      response: true,
       builder: (cmd) => cmd.watchface = (Watchface()..watchfaceId = id),
     );
 
@@ -106,7 +106,7 @@ class FacesModule extends TabModule {
     final response = await DeviceModule.module.connection.send(
       type: CmdType.watchface,
       subtype: WatchfaceSubtype.installStart,
-      expectResponse: true,
+      response: true,
       builder: (cmd) =>
           cmd.watchface = (Watchface()..watchfaceInstallStart = installStart),
     );
@@ -143,7 +143,7 @@ class FacesModule extends TabModule {
     final finishResult = await DeviceModule.module.connection.send(
       type: CmdType.watchface,
       subtype: WatchfaceSubtype.installFinish,
-      expectResponse: true,
+      response: true,
       builder: (cmd) =>
           cmd.watchface = (Watchface()..watchfaceInstallFinish = installFinish),
     );

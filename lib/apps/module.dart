@@ -138,7 +138,7 @@ class AppsModule extends TabModule {
       builder: (c) =>
           c.notification = (pb.Notification()
             ..notificationIconReply = iconPackage),
-      expectResponse: true,
+      response: true,
     );
 
     if (iconResponse == null ||
@@ -250,7 +250,7 @@ class AppsModule extends TabModule {
     final response = await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.rpkList,
-      expectResponse: true,
+      response: true,
     );
 
     if (response == null ||
@@ -462,7 +462,7 @@ class AppsModule extends TabModule {
               ..id = package
               ..unknown2 = versionCode
               ..size = fileBytes.length)),
-      expectResponse: true,
+      response: true,
     );
 
     if (installResponse == null || installResponse.status != 0) {
