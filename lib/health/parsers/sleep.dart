@@ -166,7 +166,6 @@ class SleepParser {
     final byteData = ByteData.sublistView(remaining);
     
     // Base bedtime/wake up time from the file header
-    int isAwake = byteData.getUint8(1 + headerSize);
     int bedTime = byteData.getUint32(1 + headerSize + 1, Endian.little);
     int wakeupTime = byteData.getUint32(1 + headerSize + 5, Endian.little);
 
@@ -191,16 +190,14 @@ class SleepParser {
       }
       
       packetOffset += 4;
-      final headerLen = bodyData[packetOffset];
-      packetOffset += 1;
+      packetOffset += 1; // skip headerLen
       
       if (packetOffset + 12 > bodyData.length) break;
       
       final ts = bodyByteData.getUint64(packetOffset, Endian.little);
       packetOffset += 8;
       
-      final parity = bodyData[packetOffset];
-      packetOffset += 1;
+      packetOffset += 1; // skip parity
       final type = bodyData[packetOffset];
       packetOffset += 1;
       
@@ -213,17 +210,17 @@ class SleepParser {
       
       if (type == 16 && dataLen >= 11) {
         // Sleep report summary packet
-        final sleep_duration = dataByteData.getUint16(1, Endian.big);
-        final wake_duration = dataByteData.getUint16(3, Endian.big);
-        final light_duration = dataByteData.getUint16(5, Endian.big);
-        final rem_duration = dataByteData.getUint16(7, Endian.big);
-        final deep_duration = dataByteData.getUint16(9, Endian.big);
+        final sleepDuration = dataByteData.getUint16(1, Endian.big);
+        final wakeDuration = dataByteData.getUint16(3, Endian.big);
+        final lightDuration = dataByteData.getUint16(5, Endian.big);
+        final remDuration = dataByteData.getUint16(7, Endian.big);
+        final deepDuration = dataByteData.getUint16(9, Endian.big);
         
-        report.sleepDuration = sleep_duration;
-        report.awakeDuration = wake_duration;
-        report.lightDuration = light_duration;
-        report.remDuration = rem_duration;
-        report.deepDuration = deep_duration;
+        report.sleepDuration = sleepDuration;
+        report.awakeDuration = wakeDuration;
+        report.lightDuration = lightDuration;
+        report.remDuration = remDuration;
+        report.deepDuration = deepDuration;
       } else if (type == 17) {
         // Sleep stages transition records packet
         int currentTime = ts;

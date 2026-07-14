@@ -338,9 +338,7 @@ class HealthModule extends TabModule {
         return await _syncSleepFile(id, data);
       } else if (id.dataType == Id.dataTypeDaily &&
           id.fileType == Id.fileTypeSummary) {
-        logger.info('skipping daily summary file', {
-          'id': id.toHexString(),
-        });
+        logger.info('skipping daily summary file', {'id': id.toHexString()});
         return true;
       } else if (id.dataType == Id.dataTypeSport &&
           id.fileType == Id.fileTypeSummary) {
@@ -510,21 +508,22 @@ class HealthModule extends TabModule {
       'light': sleep.lightDuration,
     });
 
-    if (sleep.stages.isNotEmpty) {
-      final sessionStart = sleep.startTime;
-      final sessionEnd = sleep.endTime;
-      final stagesList = sleep.formattedStages;
+    final startTime = sleep.startTime;
+    final endTime = sleep.endTime;
+
+    if (endTime.isAfter(startTime)) {
+      final stages = sleep.formattedStages;
 
       try {
         await PlatformModule.module.invokeMethod('health.writeSleepSession', {
-          'startTime': sessionStart.millisecondsSinceEpoch,
-          'endTime': sessionEnd.millisecondsSinceEpoch,
-          'stages': stagesList,
+          'startTime': startTime.millisecondsSinceEpoch,
+          'endTime': endTime.millisecondsSinceEpoch,
+          'stages': stages,
         });
         logger.info('synced native sleep session', {
-          'start': sessionStart.toIso8601String(),
-          'end': sessionEnd.toIso8601String(),
-          'stagesCount': stagesList.length,
+          'start': startTime.toIso8601String(),
+          'end': endTime.toIso8601String(),
+          'stagesCount': stages.length,
         });
       } catch (e) {
         logger.error('failed to sync sleep session', {'error': e.toString()});

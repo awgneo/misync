@@ -32,7 +32,11 @@ class Sleep {
 
   DateTime get endTime {
     if (stages.isEmpty) {
-      return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+      final start = startTime;
+      if (sleepDuration != null && sleepDuration! > 0) {
+        return start.add(Duration(minutes: sleepDuration!));
+      }
+      return start;
     }
     final maxEndTime = stages
         .map((s) => s.endTime)
