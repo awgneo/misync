@@ -63,6 +63,10 @@ class ClockModule(private val context: Context) : BaseModule("clock") {
                 }
                 true
             }
+            "is24HourFormat" -> {
+                result.success(android.text.format.DateFormat.is24HourFormat(context))
+                true
+            }
             else -> false
         }
     }

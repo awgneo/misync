@@ -75,7 +75,8 @@ class ClockModule extends TabModule {
     if (!DeviceModule.module.connection.connected.value) return;
 
     final now = DateTime.now();
-    logger.info('syncing time, date, and timezone offset: ${now.timeZoneName}');
+    final bool is24Hour = await PlatformModule.module.invokeMethod<bool>('clock.is24HourFormat') ?? false;
+    logger.info('syncing time, date, and timezone offset: ${now.timeZoneName}, 24h format: $is24Hour');
 
     await DeviceModule.module.connection.send(
       type: CmdType.system,
@@ -93,7 +94,8 @@ class ClockModule extends TabModule {
           ..timezone = (pb.TimeZone()
             ..zoneOffset = now.timeZoneOffset.inMinutes ~/ 15
             ..dstOffset = 0
-            ..name = now.timeZoneName))),
+            ..name = now.timeZoneName)
+          ..isNot24hour = !is24Hour)),
     );
   }
 
