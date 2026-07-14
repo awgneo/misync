@@ -174,7 +174,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
         MiItems(
           children: [
             MiItem(
-              title: 'Calls & Messages Mirroring',
+              title: 'Calls & Texts Sync',
               subtitle:
                   'Mirror incoming phone calls and text messages to the watch',
               primaryIcon: Icons.contact_phone_outlined,
@@ -188,12 +188,12 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   }
 
   Widget _buildAppsTab(bool connected) {
-    final filtersMap = AppsBlob.map;
+    final appsMap = AppsBlob.map;
 
     return ValueListenableBuilder<Map<String, phone.App>>(
       valueListenable: _installedApps,
       builder: (context, installedApps, _) {
-        if (filtersMap.isEmpty) {
+        if (appsMap.isEmpty) {
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 40),
             alignment: Alignment.center,
@@ -205,7 +205,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           );
         }
 
-        final sortedEntries = filtersMap.entries.toList()
+        final sortedEntries = appsMap.entries.toList()
           ..sort((a, b) {
             final appA = installedApps[a.key];
             final appB = installedApps[b.key];
