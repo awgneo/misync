@@ -243,7 +243,6 @@ class HealthModule extends TabModule {
     for (final id in idList) {
       final idHex = id.toHexString();
       logger.info('downloading file', {'hex': idHex, 'id': id.toString()});
-
       final fileData = await _downloadFile(id);
       if (fileData != null) {
         final success = await _syncFile(id, fileData, workoutRanges);
@@ -320,108 +319,120 @@ class HealthModule extends TabModule {
     Uint8List data,
     List<Map<String, DateTime>> exerciseRanges,
   ) async {
-    try {
-      logger.info('processing file', {
-        'id': id.toHexString(),
-        'size': data.length,
-      });
+    logger.info('processing file', {
+      'id': id.toHexString(),
+      'size': data.length,
+    });
 
-      if (id.dataType == Id.dataTypeDaily && id.fileType == Id.fileTypeDetail) {
-        if (id.dailyType == 6) {
-          return await _syncMeasurementFile(id, data);
-        }
-        return await _syncSnapshotsFile(id, data, exerciseRanges);
-      } else if (id.dataType == Id.dataTypeDaily &&
-          (id.dailyType == Id.dailyTypeSleepNight ||
-              id.dailyType == Id.dailyTypeSleepDay ||
-              id.dailyType == Id.dailyTypeSleepAllDay)) {
-        return await _syncSleepFile(id, data);
-      } else if (id.dataType == Id.dataTypeDaily &&
-          id.fileType == Id.fileTypeSummary) {
-        logger.info('skipping daily summary file', {'id': id.toHexString()});
-        return true;
-      } else if (id.dataType == Id.dataTypeSport &&
-          id.fileType == Id.fileTypeSummary) {
-        return await _syncExerciseFile(id, data, exerciseRanges);
-      } else if (id.dataType == Id.dataTypeSport &&
-          id.fileType == Id.fileTypeDetail) {
-        logger.info('skipping detailed samples file for workout', {
-          'id': id.toHexString(),
-        });
-        return true;
+    if (id.dataType == Id.dataTypeDaily && id.fileType == Id.fileTypeDetail) {
+      if (id.dailyType == 6) {
+        return await _syncMeasurementFile(id, data);
       }
-
-      logger.info('unknown watch health data type', {'dataType': id.dataType});
+      return await _syncSnapshotsFile(id, data, exerciseRanges);
+    } else if (id.dataType == Id.dataTypeDaily &&
+        (id.dailyType == Id.dailyTypeSleepNight ||
+            id.dailyType == Id.dailyTypeSleepDay ||
+            id.dailyType == Id.dailyTypeSleepAllDay)) {
+      return await _syncSleepFile(id, data);
+    } else if (id.dataType == Id.dataTypeDaily &&
+        id.fileType == Id.fileTypeSummary) {
+      logger.info('skipping daily summary file', {'id': id.toHexString()});
       return true;
+    } else if (id.dataType == Id.dataTypeSport &&
+        id.fileType == Id.fileTypeSummary) {
+      return await _syncExerciseFile(id, data, exerciseRanges);
+    } else if (id.dataType == Id.dataTypeSport &&
+        id.fileType == Id.fileTypeDetail) {
+      logger.info('skipping detailed samples file for workout', {
+        'id': id.toHexString(),
+      });
+      return true;
+    }
+
+    logger.info('unknown watch health data type', {'dataType': id.dataType});
+    return true;
+  }
+
+  Future<bool> _syncMeasurementFile(Id id, Uint8List data) async {
+    final List<Measurement> measurements;
+
+    try {
+      measurements = MeasurementParser.parse(id, data);
     } catch (e, stack) {
-      logger.error('failed to parse or sync watch log', {
+      logger.error('failed to parse manual health records', {
         'error': e.toString(),
         'stack': stack.toString(),
       });
       return false;
     }
-  }
 
-  Future<bool> _syncMeasurementFile(Id id, Uint8List data) async {
-    final measures = MeasurementParser.parse(id, data);
-    logger.info('parsed manual health records', {'count': measures.length});
-
-    final futures = <Future<dynamic>>[];
+    logger.info('parsed manual health records', {'count': measurements.length});
     final now = DateTime.now().millisecondsSinceEpoch;
-    for (final r in measures) {
-      final timeMs = (r.timestamp * 1000).clamp(0, now);
-      if (r is HeartRateMeasurement) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeHeartRate', {
-            'time': timeMs,
-            'bpm': r.bpm,
-          }),
-        );
-      } else if (r is OxygenSaturationMeasurement) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeOxygenSaturation', {
-            'time': timeMs,
-            'percentage': r.percentage.toDouble(),
-          }),
-        );
-      } else if (r is StressMeasurement) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeMindfulnessSession', {
-            'time': timeMs,
-            'stress': r.stress,
-          }),
-        );
-      } else if (r is TemperatureMeasurement) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeBodyTemperature', {
-            'time': timeMs,
-            'skinTemp': r.skinTemp,
-            'bodyTemp': r.bodyTemp,
-          }),
-        );
-      } else if (r is BloodPressureMeasurement) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeBloodPressure', {
-            'time': timeMs,
-            'systolic': r.systolic,
-            'diastolic': r.diastolic,
-            'pulse': r.pulse,
-            'status': r.measurementStatus,
-          }),
-        );
+
+    try {
+      for (int i = 0; i < measurements.length; i += batchSize) {
+        final end = (i + batchSize < measurements.length)
+            ? i + batchSize
+            : measurements.length;
+        final batch = measurements.sublist(i, end);
+        final futures = <Future<dynamic>>[];
+        for (final r in batch) {
+          final timeMs = (r.timestamp * 1000).clamp(0, now);
+          if (r is HeartRateMeasurement) {
+            futures.add(
+              PlatformModule.module.invokeMethod('health.writeHeartRate', {
+                'time': timeMs,
+                'bpm': r.bpm,
+              }),
+            );
+          } else if (r is OxygenSaturationMeasurement) {
+            futures.add(
+              PlatformModule.module.invokeMethod(
+                'health.writeOxygenSaturation',
+                {'time': timeMs, 'percentage': r.percentage.toDouble()},
+              ),
+            );
+          } else if (r is StressMeasurement) {
+            futures.add(
+              PlatformModule.module.invokeMethod(
+                'health.writeMindfulnessSession',
+                {'time': timeMs, 'stress': r.stress},
+              ),
+            );
+          } else if (r is TemperatureMeasurement) {
+            futures.add(
+              PlatformModule.module.invokeMethod(
+                'health.writeBodyTemperature',
+                {
+                  'time': timeMs,
+                  'skinTemp': r.skinTemp,
+                  'bodyTemp': r.bodyTemp,
+                },
+              ),
+            );
+          } else if (r is BloodPressureMeasurement) {
+            futures.add(
+              PlatformModule.module.invokeMethod('health.writeBloodPressure', {
+                'time': timeMs,
+                'systolic': r.systolic,
+                'diastolic': r.diastolic,
+                'pulse': r.pulse,
+                'status': r.measurementStatus,
+              }),
+            );
+          }
+        }
+
+        await Future.wait(futures);
       }
+    } catch (e, stack) {
+      logger.error('failed to sync manual health records to health connect', {
+        'error': e.toString(),
+        'stack': stack.toString(),
+      });
+      return false;
     }
 
-    // Run all futures
-    for (int i = 0; i < futures.length; i += batchSize) {
-      final end = (i + batchSize < futures.length)
-          ? i + batchSize
-          : futures.length;
-      final batch = futures.sublist(i, end);
-      await Future.wait(batch);
-    }
-
-    logger.info('manual health connect sync complete');
     return true;
   }
 
@@ -430,79 +441,112 @@ class HealthModule extends TabModule {
     Uint8List data,
     List<Map<String, DateTime>> exerciseRanges,
   ) async {
-    final snapshots = SnapshotsParser.parse(id, data);
+    final List<Snapshot> snapshots;
+
+    try {
+      snapshots = SnapshotsParser.parse(id, data);
+    } catch (e, stack) {
+      logger.error('failed to parse minute-by-minute daily logs', {
+        'error': e.toString(),
+        'stack': stack.toString(),
+      });
+      return false;
+    }
+
     logger.info('parsed minute-by-minute daily logs', {
       'count': snapshots.length,
     });
 
-    final futures = <Future<dynamic>>[];
     final now = DateTime.now().millisecondsSinceEpoch;
-    for (final r in snapshots) {
-      var startMs = r.startTime.millisecondsSinceEpoch;
-      var endMs = r.endTime.millisecondsSinceEpoch;
 
-      if (endMs > now) {
-        endMs = now;
-      }
-      if (startMs >= endMs) {
-        startMs = endMs - 1000; // Ensure start is before end
-      }
+    try {
+      for (int i = 0; i < snapshots.length; i += batchSize) {
+        final end = (i + batchSize < snapshots.length)
+            ? i + batchSize
+            : snapshots.length;
+        final batch = snapshots.sublist(i, end);
+        final futures = <Future<dynamic>>[];
+        for (final r in batch) {
+          var startMs = r.startTime.millisecondsSinceEpoch;
+          var endMs = r.endTime.millisecondsSinceEpoch;
 
-      final isOverlapping = exerciseRanges.any((range) {
-        final rStart = DateTime.fromMillisecondsSinceEpoch(startMs);
-        final rEnd = DateTime.fromMillisecondsSinceEpoch(endMs);
-        return rStart.isBefore(range['end']!) && rEnd.isAfter(range['start']!);
-      });
+          if (endMs > now) {
+            endMs = now;
+          }
+          if (startMs >= endMs) {
+            startMs = endMs - 1000; // Ensure start is before end
+          }
 
-      if (r.steps != null && r.steps! > 0) {
-        if (isOverlapping) {
-          logger.info('skipping overlapping daily steps', {
-            'timestamp': r.timestamp,
-            'steps': r.steps,
+          final isOverlapping = exerciseRanges.any((range) {
+            final rStart = DateTime.fromMillisecondsSinceEpoch(startMs);
+            final rEnd = DateTime.fromMillisecondsSinceEpoch(endMs);
+            return rStart.isBefore(range['end']!) &&
+                rEnd.isAfter(range['start']!);
           });
-        } else {
-          futures.add(
-            PlatformModule.module.invokeMethod('health.writeSteps', {
-              'startTime': startMs,
-              'endTime': endMs,
-              'count': r.steps!,
-            }),
-          );
+
+          if (r.steps != null && r.steps! > 0) {
+            if (isOverlapping) {
+              logger.info('skipping overlapping daily steps', {
+                'timestamp': r.timestamp,
+                'steps': r.steps,
+              });
+            } else {
+              futures.add(
+                PlatformModule.module.invokeMethod('health.writeSteps', {
+                  'startTime': startMs,
+                  'endTime': endMs,
+                  'count': r.steps!,
+                }),
+              );
+            }
+          }
+          if (r.hr != null && r.hr! > 0) {
+            futures.add(
+              PlatformModule.module.invokeMethod('health.writeHeartRate', {
+                'time': endMs,
+                'bpm': r.hr!,
+              }),
+            );
+          }
+          if (r.spo2 != null && r.spo2! > 0) {
+            futures.add(
+              PlatformModule.module.invokeMethod(
+                'health.writeOxygenSaturation',
+                {
+                  'time': endMs,
+                  'percentage': r.spo2!.toDouble().clamp(0.0, 100.0),
+                },
+              ),
+            );
+          }
         }
+
+        await Future.wait(futures);
       }
-      if (r.hr != null && r.hr! > 0) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeHeartRate', {
-            'time': endMs,
-            'bpm': r.hr!,
-          }),
-        );
-      }
-      if (r.spo2 != null && r.spo2! > 0) {
-        futures.add(
-          PlatformModule.module.invokeMethod('health.writeOxygenSaturation', {
-            'time': endMs,
-            'percentage': r.spo2!.toDouble().clamp(0.0, 100.0),
-          }),
-        );
-      }
+    } catch (e, stack) {
+      logger.error(
+        'failed to sync minute-by-minute daily logs to health connect',
+        {'error': e.toString(), 'stack': stack.toString()},
+      );
+      return false;
     }
 
-    // Run all futures
-    for (int i = 0; i < futures.length; i += batchSize) {
-      final end = (i + batchSize < futures.length)
-          ? i + batchSize
-          : futures.length;
-      final batch = futures.sublist(i, end);
-      await Future.wait(batch);
-    }
-
-    logger.info('health connect sync complete');
     return true;
   }
 
   Future<bool> _syncSleepFile(Id id, Uint8List data) async {
-    final sleep = SleepParser.parse(id, data);
+    final Sleep sleep;
+
+    try {
+      sleep = SleepParser.parse(id, data);
+    } catch (e, stack) {
+      logger.error('failed to parse sleep report', {
+        'error': e.toString(),
+        'stack': stack.toString(),
+      });
+      return false;
+    }
+
     logger.info('parsed sleep report', {
       'deep': sleep.deepDuration,
       'light': sleep.lightDuration,
@@ -525,10 +569,15 @@ class HealthModule extends TabModule {
           'end': endTime.toIso8601String(),
           'stagesCount': stages.length,
         });
-      } catch (e) {
-        logger.error('failed to sync sleep session', {'error': e.toString()});
+      } catch (e, stack) {
+        logger.error('failed to sync sleep session', {
+          'error': e.toString(),
+          'stack': stack.toString(),
+        });
+        return false;
       }
     }
+
     return true;
   }
 
@@ -537,7 +586,18 @@ class HealthModule extends TabModule {
     Uint8List data,
     List<Map<String, DateTime>> exerciseRanges,
   ) async {
-    final exercise = ExerciseParser.parse(id, data);
+    final Exercise exercise;
+
+    try {
+      exercise = ExerciseParser.parse(id, data);
+    } catch (e, stack) {
+      logger.error('failed to parse workout report', {
+        'error': e.toString(),
+        'stack': stack.toString(),
+      });
+      return false;
+    }
+
     logger.info('parsed workout report', {
       'duration': exercise.duration,
       'distance': exercise.distance,
@@ -567,12 +627,15 @@ class HealthModule extends TabModule {
           'start': sTime.toIso8601String(),
           'end': eTime.toIso8601String(),
         });
-      } catch (e) {
+      } catch (e, stack) {
         logger.error('failed to sync native workout session', {
           'error': e.toString(),
+          'stack': stack.toString(),
         });
+        return false;
       }
     }
+
     return true;
   }
 
