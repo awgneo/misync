@@ -22,10 +22,8 @@ class NotificationModule extends TabModule {
   @override
   IconData get icon => Icons.notifications;
 
-  DateTime _lastMessageTime = DateTime.fromMillisecondsSinceEpoch(0);
-  String? _lastMessageKey;
-  DateTime _lastCallTime = DateTime.fromMillisecondsSinceEpoch(0);
-  String? _lastCallNumber;
+  DateTime _lastContactTime = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _lastContactKey;
   int _lastPhoneDndChange = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final Map<String, String> _lastNotification = {};
 
@@ -137,23 +135,9 @@ class NotificationModule extends TabModule {
             ..notification2 = (Notification2()..notification3 = notification)),
     );
 
-    final bool chat =
-        package.contains('whatsapp') ||
-        package.contains('tele') ||
-        package.contains('msgr') ||
-        package.contains('message') ||
-        package.contains('messaging') ||
-        package.contains('discord') ||
-        package.contains('dialer') ||
-        package.contains('telecom') ||
-        package.contains('phone');
-
-    if (call) {
-      _lastCallNumber = data['phoneNumber']?.toString() ?? '';
-      _lastCallTime = DateTime.now();
-    } else if (ContactBlob.enabled && (sms || chat)) {
-      _lastMessageKey = key;
-      _lastMessageTime = DateTime.now();
+    if (data['replyable'] == true) {
+      _lastContactTime = DateTime.now();
+      _lastContactKey = key;
     }
   }
 
@@ -239,58 +223,14 @@ class NotificationModule extends TabModule {
     final key = target?.key.toLowerCase() ?? '';
     final int id = target?.id ?? 0;
 
-    final bool call =
-        package.contains('dialer') ||
-        package.contains('telecom') ||
-        package.contains('phone') ||
-        package.contains('contacts') ||
-        key.contains('dialer') ||
-        key.contains('telecom') ||
-        key.contains('phone');
-
-    final bool chat =
-        package.contains('whatsapp') ||
-        package.contains('tele') ||
-        package.contains('msgr') ||
-        package.contains('message') ||
-        package.contains('messaging') ||
-        package.contains('sms') ||
-        package.contains('discord') ||
-        package.contains('dialer') ||
-        package.contains('telecom') ||
-        package.contains('phone');
-
-    final lastContactTime = call ? _lastCallTime : _lastMessageTime;
-    final elapsed = DateTime.now().difference(lastContactTime);
+    final bool replyable = _lastContactKey == key;
+    final elapsed = DateTime.now().difference(_lastContactTime);
 
     if (elapsed.inMilliseconds < 1200) {
       logger.info('ignored automatic watch dismiss event', {
         'elapsedMs': elapsed.inMilliseconds,
         'count': dismiss.notificationId.length,
       });
-      return;
-    }
-
-    // 0. Handle Call Dismiss immediately (always decline call, only launch watch messages app if recent <= 5s)
-    if (call && target != null) {
-      final bool launch = elapsed.inSeconds <= 5;
-
-      logger.info('watch dismissed call', {
-        'package': package,
-        'key': key,
-        'elapsedSeconds': elapsed.inSeconds,
-        'launch': launch,
-      });
-
-      PlatformModule.module.invokeMethod('notifications.dismissNotification', {
-        'key': key,
-        'id': id,
-      });
-
-      if (launch) {
-        AppsModule.module.launchApp(messagesPackage);
-      }
-
       return;
     }
 
@@ -332,16 +272,16 @@ class NotificationModule extends TabModule {
 
     // 3. Active popup swipe (<= 5 seconds) -> check package directly
     if (dismiss.notificationId.isNotEmpty) {
-      if (chat) {
+      if (replyable) {
         logger.info(
-          'watch swiped chat notification (launching watch replies app)',
+          'watch swiped replyable notification (launching watch replies app)',
           {'package': package, 'key': key},
         );
 
         AppsModule.module.launchApp(messagesPackage);
       } else {
         logger.info(
-          'watch swiped non-chat notification (dismissing on phone)',
+          'watch swiped non-replyable notification (dismissing on phone)',
           {'package': package, 'key': key},
         );
 
@@ -410,47 +350,32 @@ class NotificationModule extends TabModule {
   }
 
   Future<void> _handleWatchReply(String text) async {
-    final bool recentCall = _lastCallTime.isAfter(_lastMessageTime);
+    if (_lastContactKey == null || _lastContactKey!.isEmpty) return;
 
-    if (recentCall && _lastCallNumber != null && _lastCallNumber!.isNotEmpty) {
-      final phoneNumber = _lastCallNumber!;
+    logger.info('received notification quick reply from watch', {
+      'key': _lastContactKey,
+      'message': text,
+    });
 
-      logger.info('received call quick reply from watch', {
-        'phoneNumber': phoneNumber,
-        'message': text,
-      });
+    await PlatformModule.module.invokeMethod(
+      'notifications.replyToNotification',
+      {'key': _lastContactKey, 'message': text},
+    );
 
-      await PlatformModule.module.invokeMethod<bool>('notifications.sendSms', {
-        'phoneNumber': phoneNumber,
-        'message': text,
-      });
-    } else if (_lastMessageKey != null && _lastMessageKey!.isNotEmpty) {
-      logger.info('received notification quick reply from watch', {
-        'key': _lastMessageKey,
-        'message': text,
-      });
-
-      await PlatformModule.module.invokeMethod(
-        'notifications.replyToNotification',
-        {'key': _lastMessageKey, 'message': text},
-      );
-
-      await PlatformModule.module.invokeMethod(
-        'notifications.dismissNotification',
-        {'key': _lastMessageKey},
-      );
-    }
+    await PlatformModule.module.invokeMethod(
+      'notifications.dismissNotification',
+      {'key': _lastContactKey},
+    );
   }
 
   Future<void> _handleWatchDismiss() async {
-    final bool callRecent = _lastCallTime.isAfter(_lastMessageTime);
-    final key = callRecent ? null : _lastMessageKey;
-
-    if (key != null && key.isNotEmpty) {
-      logger.info('received dismiss from watch Messages app', {'key': key});
+    if (_lastContactKey != null && _lastContactKey!.isNotEmpty) {
+      logger.info('received dismiss from watch Messages app', {
+        'key': _lastContactKey,
+      });
       await PlatformModule.module.invokeMethod(
         'notifications.dismissNotification',
-        {'key': key},
+        {'key': _lastContactKey},
       );
     }
   }

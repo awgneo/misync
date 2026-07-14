@@ -27,15 +27,16 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
 
     private val notificationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == NotificationsService.ACTION_NOTIFICATION) {
+            if (intent?.action == NotificationsService.ACTION_NOTIFICATION_RECEIVED) {
                 val packageName = intent.getStringExtra(NotificationsService.EXTRA_PACKAGE) ?: ""
                 val title = intent.getStringExtra(NotificationsService.EXTRA_TITLE) ?: ""
                 val body = intent.getStringExtra(NotificationsService.EXTRA_BODY) ?: ""
                 val id = intent.getIntExtra(NotificationsService.EXTRA_ID, 0)
                 val key = intent.getStringExtra(NotificationsService.EXTRA_KEY) ?: ""
-                val appName = intent.getStringExtra(NotificationsService.EXTRA_APP_NAME) ?: ""
-                val category = intent.getStringExtra("category") ?: ""
-                val phoneNumber = intent.getStringExtra("phoneNumber") ?: ""
+                val appName = intent.getStringExtra(NotificationsService.EXTRA_APP) ?: ""
+                val category = intent.getStringExtra(NotificationsService.EXTRA_CATEGORY) ?: ""
+                val phoneNumber = intent.getStringExtra(NotificationsService.EXTRA_PHONE) ?: ""
+                val replyable = intent.getBooleanExtra(NotificationsService.EXTRA_REPLYABLE, false)
 
                 val data = mapOf(
                     "package" to packageName,
@@ -45,14 +46,15 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                     "key" to key,
                     "appName" to appName,
                     "category" to category,
-                    "phoneNumber" to phoneNumber
+                    "phoneNumber" to phoneNumber,
+                    "replyable" to replyable
                 )
                 methodChannel?.invokeMethod("notificationReceived", data)
             } else if (intent?.action == NotificationsService.ACTION_NOTIFICATION_REMOVED) {
                 val packageName = intent.getStringExtra(NotificationsService.EXTRA_PACKAGE) ?: ""
                 val id = intent.getIntExtra(NotificationsService.EXTRA_ID, 0)
                 val key = intent.getStringExtra(NotificationsService.EXTRA_KEY) ?: ""
-                val category = intent.getStringExtra("category") ?: ""
+                val category = intent.getStringExtra(NotificationsService.EXTRA_CATEGORY) ?: ""
 
                 val data = mapOf(
                     "package" to packageName,
@@ -67,7 +69,7 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
 
     override fun onCreate() {
         val filter = IntentFilter().apply {
-            addAction(NotificationsService.ACTION_NOTIFICATION)
+            addAction(NotificationsService.ACTION_NOTIFICATION_RECEIVED)
             addAction(NotificationsService.ACTION_NOTIFICATION_REMOVED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -173,13 +175,6 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                         result.error("ERROR", e.message, null)
                     }
                 }.start()
-                true
-            }
-            "sendSms" -> {
-                val phoneNumber = call.argument<String>("phoneNumber") ?: ""
-                val message = call.argument<String>("message") ?: ""
-                val success = notificationsManager.sendSms(phoneNumber, message)
-                result.success(success)
                 true
             }
             "getDefaultSmsPackage" -> {

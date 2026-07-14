@@ -1,6 +1,7 @@
 package com.misync.notifications
 
 import android.service.notification.NotificationListenerService
+import android.telephony.SmsManager
 import android.service.notification.StatusBarNotification
 import android.content.Intent
 import android.os.Bundle
@@ -13,14 +14,17 @@ class NotificationsService : NotificationListenerService() {
     private val TAG = "NotificationsService"
 
     companion object {
-        const val ACTION_NOTIFICATION = "com.misync.NOTIFICATION_RECEIVED"
-        const val ACTION_NOTIFICATION_REMOVED = "com.misync.NOTIFICATION_REMOVED"
+        const val ACTION_NOTIFICATION_RECEIVED = "com.misync.action.NOTIFICATION_RECEIVED"
+        const val ACTION_NOTIFICATION_REMOVED = "com.misync.action.NOTIFICATION_REMOVED"
         const val EXTRA_PACKAGE = "package"
         const val EXTRA_TITLE = "title"
         const val EXTRA_BODY = "body"
         const val EXTRA_ID = "id"
         const val EXTRA_KEY = "key"
-        const val EXTRA_APP_NAME = "appName"
+        const val EXTRA_APP = "app"
+        const val EXTRA_CATEGORY = "category"
+        const val EXTRA_PHONE = "phone"
+        const val EXTRA_REPLYABLE = "replyable"
 
         var instance: NotificationsService? = null
             private set
@@ -89,62 +93,50 @@ class NotificationsService : NotificationListenerService() {
         val key = sbn.key
         val category = notification.category ?: ""
 
+        val isCall = (category == Notification.CATEGORY_CALL ||
+                     packageName.lowercase().contains("dialer") ||
+                     packageName.lowercase().contains("telecom") ||
+                     packageName.lowercase().contains("phone"))
+
         var phoneNumber = ""
-        if (category == Notification.CATEGORY_CALL || packageName.contains("dialer") || packageName.contains("telecom") || packageName.contains("phone")) {
-            phoneNumber = extras.getString("android.phoneNumber") ?: ""
-            if (phoneNumber.isEmpty()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val person = extras.getParcelable<android.app.Person>("android.callPerson")
-                    val uriStr = person?.uri?.toString() ?: ""
-                    if (uriStr.startsWith("tel:")) {
-                        phoneNumber = uriStr.substring(4)
-                    } else if (uriStr.startsWith("content://com.android.contacts/")) {
-                        try {
-                            val contactUri = android.net.Uri.parse(uriStr)
-                            val cursor = contentResolver.query(contactUri, null, null, null, null)
-                            if (cursor != null) {
-                                if (cursor.moveToFirst()) {
-                                    val idCol = cursor.getColumnIndex(android.provider.ContactsContract.Contacts._ID)
-                                    if (idCol != -1) {
-                                        val contactId = cursor.getString(idCol)
-                                        val phones = contentResolver.query(
-                                            android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                            arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER),
-                                            android.provider.ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
-                                            arrayOf(contactId), null
-                                        )
-                                        if (phones != null) {
-                                            if (phones.moveToFirst()) {
-                                                phoneNumber = phones.getString(0)
-                                            }
-                                            phones.close()
-                                        }
-                                    }
-                                }
-                                cursor.close()
+        if (isCall) {
+            phoneNumber = extractPhoneNumber(sbn)
+        }
+
+        var hasRemoteInput = isCall
+        if (!hasRemoteInput) {
+            val actions = notification.actions
+            if (actions != null) {
+                for (action in actions) {
+                    val ris = action.remoteInputs
+                    if (ris != null) {
+                        for (ri in ris) {
+                            if (ri.resultKey != null) {
+                                hasRemoteInput = true
+                                break
                             }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error resolving contact URI: $uriStr", e)
                         }
                     }
+                    if (hasRemoteInput) break
                 }
-            }
-            if (phoneNumber.isEmpty() && title.matches(Regex("^[+]?[0-9\\s\\-()]{7,20}$"))) {
-                phoneNumber = title.replace("\\s".toRegex(), "")
             }
         }
 
-        Log.d(TAG, "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category, phoneNumber: $phoneNumber")
+        Log.d(
+            TAG,
+            "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category, phoneNumber: $phoneNumber, hasRemoteInput: $hasRemoteInput"
+        )
 
-        val intent = Intent(ACTION_NOTIFICATION).apply {
+        val intent = Intent(ACTION_NOTIFICATION_RECEIVED).apply {
             putExtra(EXTRA_PACKAGE, packageName)
             putExtra(EXTRA_TITLE, title)
             putExtra(EXTRA_BODY, body)
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, key)
-            putExtra(EXTRA_APP_NAME, appName)
-            putExtra("category", category)
-            putExtra("phoneNumber", phoneNumber)
+            putExtra(EXTRA_APP, appName)
+            putExtra(EXTRA_CATEGORY, category)
+            putExtra(EXTRA_PHONE, phoneNumber)
+            putExtra(EXTRA_REPLYABLE, hasRemoteInput)
             setPackage(this@NotificationsService.packageName)
         }
         sendBroadcast(intent)
@@ -163,7 +155,7 @@ class NotificationsService : NotificationListenerService() {
             putExtra(EXTRA_PACKAGE, packageName)
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, key)
-            putExtra("category", category)
+            putExtra(EXTRA_CATEGORY, category)
             setPackage(this@NotificationsService.packageName)
         }
         sendBroadcast(intent)
@@ -179,8 +171,42 @@ class NotificationsService : NotificationListenerService() {
     fun reply(key: String, replyText: String): Boolean {
         val activeNotifications = activeNotifications ?: return false
         val sbn = activeNotifications.find { it.key == key } ?: return false
-        val actions = sbn.notification.actions ?: return false
+        val notification = sbn.notification
+        val category = notification.category ?: ""
+        val packageName = sbn.packageName
 
+        val isCall = (category == Notification.CATEGORY_CALL ||
+                     packageName.lowercase().contains("dialer") ||
+                     packageName.lowercase().contains("telecom") ||
+                     packageName.lowercase().contains("phone"))
+
+        if (isCall) {
+            val phoneNumber = extractPhoneNumber(sbn)
+            if (phoneNumber.isNotEmpty()) {
+                // 1. Decline the call first
+                declineCall(key)
+
+                // 2. Send SMS
+                try {
+                    val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        this.getSystemService(SmsManager::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        SmsManager.getDefault()
+                    }
+                    smsManager.sendTextMessage(phoneNumber, null, replyText, null, null)
+                    Log.d(TAG, "SMS call quick reply sent to $phoneNumber successfully")
+                    return true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send SMS call reply to $phoneNumber", e)
+                }
+            } else {
+                Log.w(TAG, "Cannot send SMS reply: Phone number is empty")
+            }
+            return false
+        }
+
+        val actions = notification.actions ?: return false
         for (action in actions) {
             val remoteInputs = action.remoteInputs ?: continue
             for (remoteInput in remoteInputs) {
@@ -225,9 +251,9 @@ class NotificationsService : NotificationListenerService() {
                 val cat = s.notification.category ?: ""
                 val pkg = s.packageName.lowercase()
                 cat == Notification.CATEGORY_CALL ||
-                pkg.contains("dialer") ||
-                pkg.contains("telecom") ||
-                pkg.contains("phone")
+                        pkg.contains("dialer") ||
+                        pkg.contains("telecom") ||
+                        pkg.contains("phone")
             }
         }
 
@@ -284,5 +310,55 @@ class NotificationsService : NotificationListenerService() {
         val activeNotifications = activeNotifications ?: return false
         val sbn = activeNotifications.find { it.id == id } ?: return false
         return dismiss(sbn.key)
+    }
+
+    private fun extractPhoneNumber(sbn: StatusBarNotification): String {
+        val notification = sbn.notification
+        val extras = notification.extras
+        var phoneNumber = extras.getString("android.phoneNumber") ?: ""
+        if (phoneNumber.isEmpty()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val person = extras.getParcelable<android.app.Person>("android.callPerson")
+                val uriStr = person?.uri?.toString() ?: ""
+                if (uriStr.startsWith("tel:")) {
+                    phoneNumber = uriStr.substring(4)
+                } else if (uriStr.startsWith("content://com.android.contacts/")) {
+                    try {
+                        val contactUri = android.net.Uri.parse(uriStr)
+                        val cursor = contentResolver.query(contactUri, null, null, null, null)
+                        if (cursor != null) {
+                            if (cursor.moveToFirst()) {
+                                val idCol = cursor.getColumnIndex(android.provider.ContactsContract.Contacts._ID)
+                                if (idCol != -1) {
+                                    val contactId = cursor.getString(idCol)
+                                    val phones = contentResolver.query(
+                                        android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                        arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                        android.provider.ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                                        arrayOf(contactId), null
+                                    )
+                                    if (phones != null) {
+                                        if (phones.moveToFirst()) {
+                                            phoneNumber = phones.getString(0)
+                                        }
+                                        phones.close()
+                                    }
+                                }
+                            }
+                            cursor.close()
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error resolving contact URI in extractPhoneNumber: $uriStr", e)
+                    }
+                }
+            }
+        }
+        if (phoneNumber.isEmpty() && extras.getCharSequence("android.title") != null) {
+            val title = extras.getCharSequence("android.title").toString()
+            if (title.matches(Regex("^[+]?[0-9\\s\\-()]{7,20}$"))) {
+                phoneNumber = title.replace("\\s".toRegex(), "")
+            }
+        }
+        return phoneNumber
     }
 }

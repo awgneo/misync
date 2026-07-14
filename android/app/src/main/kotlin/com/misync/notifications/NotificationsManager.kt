@@ -21,8 +21,8 @@ class NotificationsManager(private val context: Context) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val filter = notificationManager.currentInterruptionFilter
         return filter == NotificationManager.INTERRUPTION_FILTER_NONE ||
-               filter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
-               filter == NotificationManager.INTERRUPTION_FILTER_ALARMS
+                filter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+                filter == NotificationManager.INTERRUPTION_FILTER_ALARMS
     }
 
     fun setDnd(enabled: Boolean): Boolean {
@@ -59,27 +59,6 @@ class NotificationsManager(private val context: Context) {
             NotificationsService.instance?.dismiss(key) ?: false
         } else if (id != null) {
             NotificationsService.instance?.dismissById(id) ?: false
-        } else {
-            false
-        }
-    }
-
-    fun sendSms(phoneNumber: String, message: String): Boolean {
-        return if (phoneNumber.isNotEmpty()) {
-            try {
-                val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    context.getSystemService(SmsManager::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    SmsManager.getDefault()
-                }
-                smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-                Log.d(TAG, "SMS sent to $phoneNumber successfully")
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send SMS to $phoneNumber", e)
-                false
-            }
         } else {
             false
         }
