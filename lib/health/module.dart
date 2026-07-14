@@ -333,8 +333,15 @@ class HealthModule extends TabModule {
         return await _syncSnapshotsFile(id, data, exerciseRanges);
       } else if (id.dataType == Id.dataTypeDaily &&
           (id.dailyType == Id.dailyTypeSleepNight ||
-              id.dailyType == Id.dailyTypeSleepDay)) {
+              id.dailyType == Id.dailyTypeSleepDay ||
+              id.dailyType == Id.dailyTypeSleepAllDay)) {
         return await _syncSleepFile(id, data);
+      } else if (id.dataType == Id.dataTypeDaily &&
+          id.fileType == Id.fileTypeSummary) {
+        logger.info('skipping daily summary file', {
+          'id': id.toHexString(),
+        });
+        return true;
       } else if (id.dataType == Id.dataTypeSport &&
           id.fileType == Id.fileTypeSummary) {
         return await _syncExerciseFile(id, data, exerciseRanges);

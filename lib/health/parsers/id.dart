@@ -8,6 +8,7 @@ class Id {
   static const int fileTypeSummary = 1;
   static const int dailyTypeSleepNight = 3;
   static const int dailyTypeSleepDay = 2;
+  static const int dailyTypeSleepAllDay = 8;
   final int timeStamp;
   final int tzIn15Min;
   final int version;
