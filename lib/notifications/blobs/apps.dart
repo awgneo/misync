@@ -5,16 +5,16 @@ class AppsBlob extends Blob<Map<String, bool>> {
   static AppsBlob get instance => _instance;
 
   AppsBlob._()
-      : super(
-          module: 'notifications',
-          name: 'filters',
-          defaultValue: const {
-            'com.whatsapp': true,
-            'com.instagram.android': true,
-            'com.google.android.apps.messaging': true,
-            'com.android.email': false,
-          },
-        );
+    : super(
+        module: 'notifications',
+        name: 'filters',
+        defaultValue: const {
+          'com.whatsapp': true,
+          'com.instagram.android': true,
+          'com.google.android.apps.messaging': true,
+          'com.android.email': false,
+        },
+      );
 
   static Map<String, bool> get map => _instance.value;
 

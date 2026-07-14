@@ -205,8 +205,17 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           );
         }
 
+        final sortedEntries = filtersMap.entries.toList()
+          ..sort((a, b) {
+            final appA = installedApps[a.key];
+            final appB = installedApps[b.key];
+            final nameA = appA?.name ?? a.key.split('.').last.toUpperCase();
+            final nameB = appB?.name ?? b.key.split('.').last.toUpperCase();
+            return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+          });
+
         return MiItems(
-          children: filtersMap.entries.map((entry) {
+          children: sortedEntries.map((entry) {
             final package = entry.key;
             final isEnabled = entry.value;
             final appInfo = installedApps[package];

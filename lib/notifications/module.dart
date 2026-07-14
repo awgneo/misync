@@ -103,7 +103,7 @@ class NotificationModule extends TabModule {
       ..appName = appName
       ..title = title
       ..body = call ? '' : body
-      ..id = id
+      ..id = id & 0xFFFFFFFF
       ..key = key
       ..unknown4 = ''
       ..timestamp = DateTime.now()
@@ -157,7 +157,7 @@ class NotificationModule extends TabModule {
     });
 
     final idProto = NotificationId()
-      ..id = id
+      ..id = id & 0xFFFFFFFF
       ..package = package
       ..key = key;
 
@@ -383,7 +383,6 @@ class NotificationModule extends TabModule {
   @override
   Future<void> sync() async {
     if (!DeviceModule.module.connection.connected.value) return;
-
     await _syncDnd();
     await _syncContact();
   }
@@ -455,9 +454,6 @@ class NotificationModule extends TabModule {
                   ..lastActivationTime = timestamp,
               );
             }
-
-            // Clean up manual_zen_rule to avoid watch rejection
-            rules.removeWhere((r) => r.name == 'manual_zen_rule');
 
             await DeviceModule.module.connection.send(
               type: CmdType.system,

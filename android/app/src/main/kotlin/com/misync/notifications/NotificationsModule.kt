@@ -131,7 +131,7 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
         return when (method) {
             "replyToNotification" -> {
                 val key = call.argument<String>("key")
-                val id = call.argument<Int>("id")
+                val id = call.argument<Number>("id")?.toInt()
                 val message = call.argument<String>("message") ?: ""
                 val success = notificationsManager.replyToNotification(key, id, message)
                 result.success(success)
@@ -149,7 +149,7 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
             }
             "dismissNotification" -> {
                 val key = call.argument<String>("key")
-                val id = call.argument<Int>("id")
+                val id = call.argument<Number>("id")?.toInt()
                 val success = notificationsManager.dismissNotification(key, id)
                 result.success(success)
                 true
