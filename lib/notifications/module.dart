@@ -26,6 +26,7 @@ class NotificationModule extends TabModule {
   String? _lastContactKey;
   int _lastPhoneDndChange = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final Map<String, String> _lastNotification = {};
+  final ValueNotifier<Map<int, int>> vibrations = ValueNotifier({});
 
   @override
   late final Screen screen = NotificationsScreen(this);
@@ -387,6 +388,7 @@ class NotificationModule extends TabModule {
     if (!DeviceModule.module.connection.connected.value) return;
     await _syncDnd();
     await _syncContact();
+    await _syncVibrations();
   }
 
   Future<void> _syncDnd() async {
@@ -510,6 +512,26 @@ class NotificationModule extends TabModule {
     );
   }
 
+  Future<void> _syncVibrations() async {
+    final response = await DeviceModule.module.connection.send(
+      type: CmdType.system,
+      subtype: SystemSubtype.vibrationGet,
+      response: true,
+    );
+
+    if (response != null && response.system.hasVibrationPatterns()) {
+      final Map<int, int> current = {};
+      for (final item in response.system.vibrationPatterns.notificationType) {
+        current[item.notificationType] = item.preset;
+      }
+      vibrations.value = current;
+      logger.info(
+        'synced vibrations from watch',
+        current.map((k, v) => MapEntry(k.toString(), v)),
+      );
+    }
+  }
+
   Future<void> saveContactEnabled(bool enabled) async {
     ContactBlob.enabled = enabled;
     await _syncContact();
@@ -535,5 +557,25 @@ class NotificationModule extends TabModule {
 
   void removeApp(String package) {
     AppsBlob.instance.removeApp(package);
+  }
+
+  Future<void> setWatchVibration(int notificationType, int preset) async {
+    await DeviceModule.module.connection.send(
+      type: CmdType.system,
+      subtype: SystemSubtype.vibrationSetPreset,
+      builder: (cmd) =>
+          cmd.system = (System()
+            ..vibrationSetPreset = (VibrationNotificationType()
+              ..notificationType = notificationType
+              ..preset = preset)),
+    );
+
+    final updated = Map<int, int>.from(vibrations.value);
+    updated[notificationType] = preset;
+    vibrations.value = updated;
+    logger.info('vibration preset updated', {
+      'type': notificationType,
+      'preset': preset,
+    });
   }
 }

@@ -31,6 +31,48 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   );
   final ValueNotifier<bool> _loadingInstalledApps = ValueNotifier(false);
 
+  static const Map<int, String> _vibrationCategories = {
+    1: 'Incoming Calls',
+    2: 'Event Reminders',
+    3: 'Alarms',
+    4: 'App Notifications',
+    5: 'Standing Reminder',
+    6: 'SMS',
+    7: 'Goal Reached',
+    8: 'Schedule/Todo',
+  };
+
+  static const Map<int, IconData> _vibrationCategoryIcons = {
+    1: Icons.phone_in_talk,
+    2: Icons.event,
+    3: Icons.alarm,
+    4: Icons.notifications,
+    5: Icons.accessibility_new,
+    6: Icons.sms,
+    7: Icons.emoji_events,
+    8: Icons.today,
+  };
+
+  static const Map<int, String> _vibrationPresets = {
+    0: 'Default',
+    240: 'Chime',
+    241: 'Raindrops',
+    242: 'Gradual Wakeup',
+    243: 'Reverse Pulse',
+    244: 'Pulse',
+    245: 'Spark',
+    246: 'Coin',
+    247: 'Award',
+    248: 'Guitar',
+    249: 'Tambourine',
+    250: 'Heartbeat',
+    251: 'Step-by-Step',
+    252: 'Toy House',
+    253: 'Iced Latte',
+    254: 'Rhythm',
+    255: 'Light Dance',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -160,6 +202,15 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
             child: ListenableBuilder(
               listenable: DndBlob.instance,
               builder: (context, _) => _buildDndTab(connected),
+            ),
+          ),
+        ),
+        MiTab(
+          label: 'Vibrate',
+          child: MiPanel(
+            child: ListenableBuilder(
+              listenable: widget.module.vibrations,
+              builder: (context, _) => _buildVibrateTab(connected),
             ),
           ),
         ),
@@ -325,6 +376,40 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               toggled: widget.module.saveDndEnabled,
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVibrateTab(bool connected) {
+    final currentVibrations = widget.module.vibrations.value;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MiItems(
+          children: _vibrationCategories.entries.map((entry) {
+            final categoryId = entry.key;
+            final categoryName = entry.value;
+            final categoryIcon =
+                _vibrationCategoryIcons[categoryId] ?? Icons.vibration;
+            final currentPreset = currentVibrations[categoryId] ?? 0;
+
+            final optionsMap = Map<int, String>.from(_vibrationPresets);
+            if (!optionsMap.containsKey(currentPreset)) {
+              optionsMap[currentPreset] = 'Custom ($currentPreset)';
+            }
+
+            return MiItem(
+              title: categoryName,
+              primaryIcon: categoryIcon,
+              options: optionsMap,
+              value: currentPreset,
+              selected: (preset) {
+                widget.module.setWatchVibration(categoryId, preset as int);
+              },
+            );
+          }).toList(),
         ),
       ],
     );

@@ -39,7 +39,9 @@ enum SystemSubtype implements ValuedEnum {
   displayItemsGet(29),
   displayItemsSet(39),
   zenRuleGet(109),
-  zenRuleSet(110);
+  zenRuleSet(110),
+  vibrationGet(46),
+  vibrationSetPreset(47);
 
   @override
   final int value;
