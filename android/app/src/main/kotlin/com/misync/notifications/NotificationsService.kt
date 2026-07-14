@@ -93,10 +93,7 @@ class NotificationsService : NotificationListenerService() {
         val key = sbn.key
         val category = notification.category ?: ""
 
-        val isCall = (category == Notification.CATEGORY_CALL ||
-                     packageName.lowercase().contains("dialer") ||
-                     packageName.lowercase().contains("telecom") ||
-                     packageName.lowercase().contains("phone"))
+        val isCall = isCallNotification(packageName, category)
 
         var phoneNumber = ""
         if (isCall) {
@@ -175,10 +172,7 @@ class NotificationsService : NotificationListenerService() {
         val category = notification.category ?: ""
         val packageName = sbn.packageName
 
-        val isCall = (category == Notification.CATEGORY_CALL ||
-                     packageName.lowercase().contains("dialer") ||
-                     packageName.lowercase().contains("telecom") ||
-                     packageName.lowercase().contains("phone"))
+        val isCall = isCallNotification(packageName, category)
 
         if (isCall) {
             val phoneNumber = extractPhoneNumber(sbn)
@@ -244,16 +238,22 @@ class NotificationsService : NotificationListenerService() {
         // Try exact match first
         var sbn = activeNotifications.find { it.key == key }
 
-        // Fallback: search for any active call notification
+        // Fallback: search for any active call notification ONLY if the target key is call-related
         if (sbn == null) {
-            Log.d(TAG, "Exact notification not found for key: $key. Searching active notifications for call...")
-            sbn = activeNotifications.find { s ->
-                val cat = s.notification.category ?: ""
-                val pkg = s.packageName.lowercase()
-                cat == Notification.CATEGORY_CALL ||
-                        pkg.contains("dialer") ||
-                        pkg.contains("telecom") ||
-                        pkg.contains("phone")
+            val parts = key.split("|")
+            val isCallKey = if (parts.size >= 2) {
+                isCallPackage(parts[1])
+            } else {
+                true // Default to true if key format is not standard
+            }
+
+            if (isCallKey) {
+                Log.d(TAG, "Exact notification not found for key: $key. Searching active notifications for call...")
+                sbn = activeNotifications.find { s ->
+                    isCallNotification(s.packageName, s.notification.category)
+                }
+            } else {
+                Log.d(TAG, "Exact notification not found for non-call key: $key. Skipping call-decline fallback.")
             }
         }
 
@@ -293,12 +293,40 @@ class NotificationsService : NotificationListenerService() {
     }
 
     fun dismiss(key: String): Boolean {
+        Log.d(TAG, "dismiss called for key: $key")
         try {
             if (declineCall(key)) {
                 return true
             }
-            cancelNotification(key)
-            Log.d(TAG, "Notification dismissed successfully for key: $key")
+
+            val active = activeNotifications ?: emptyArray()
+            Log.d(TAG, "Active notification keys (${active.size}): ${active.map { it.key }}")
+
+            // Try exact match first in active list
+            var targetKey = key
+            val exactMatch = active.find { it.key == key }
+
+            if (exactMatch == null) {
+                // Fallback: Parse package name and ID/tag from key
+                // Key format is typically: userId|packageName|id|tag|uid
+                val parts = key.split("|")
+                if (parts.size >= 3) {
+                    val pkg = parts[1]
+                    val idStr = parts[2]
+                    val id = idStr.toIntOrNull()
+                    if (id != null) {
+                        // Find by package name and ID
+                        val fallbackMatch = active.find { it.packageName == pkg && it.id == id }
+                        if (fallbackMatch != null) {
+                            Log.d(TAG, "Exact key not found, found fallback match by package and ID: ${fallbackMatch.key}")
+                            targetKey = fallbackMatch.key
+                        }
+                    }
+                }
+            }
+
+            cancelNotification(targetKey)
+            Log.d(TAG, "Notification dismissed successfully for key: $targetKey")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing notification: ", e)
@@ -360,5 +388,17 @@ class NotificationsService : NotificationListenerService() {
             }
         }
         return phoneNumber
+    }
+
+    private fun isCallPackage(packageName: String): Boolean {
+        val pkg = packageName.lowercase()
+        return pkg.contains("dialer") ||
+               pkg.contains("telecom") ||
+               pkg.contains("phone") ||
+               pkg.contains("call")
+    }
+
+    private fun isCallNotification(packageName: String, category: String?): Boolean {
+        return (category ?: "") == Notification.CATEGORY_CALL || isCallPackage(packageName)
     }
 }

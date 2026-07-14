@@ -129,6 +129,30 @@ analyze() {
   success "Static analysis completed successfully."
 }
 
+get-device() {
+  local device
+  device=$(adb devices | grep -v "List" | grep "device" | awk '{print $1}' | head -n 1)
+  if [ -z "$device" ]; then
+    error "No connected Android devices found via adb."
+    return 1
+  fi
+  echo "$device"
+}
+
+debug() {
+  local dev
+  dev=$(get-device) || exit $?
+  info "Running on device $dev in debug mode..."
+  flutter run -d "$dev"
+}
+
+release() {
+  local dev
+  dev=$(get-device) || exit $?
+  info "Running on device $dev in release mode..."
+  flutter run -d "$dev" --release
+}
+
 misync-usage() {
   echo "build|Build watch applications, APK schemas, and protobuf schemas."
   echo "build-apk|Manage Chinese Mi Fitness APK version and extraction."
@@ -138,6 +162,8 @@ misync-usage() {
   echo "build-icon|Generate launcher icons."
   echo "clean|Clean watch app and Flutter build artifacts."
   echo "analyze|Run static analysis checks."
+  echo "debug|Run Flutter app in debug mode on connected device."
+  echo "release|Run Flutter app in release mode on connected device."
 }
 
 misync-flow() {
@@ -150,6 +176,8 @@ misync-flow() {
     build-icon) build-icon; return $?;;
     clean) clean; return $?;;
     analyze) analyze; return $?;;
+    debug) debug; return $?;;
+    release) release; return $?;;
     *) return 127 ;;
   esac
 }
