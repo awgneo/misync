@@ -439,9 +439,9 @@ class NotificationModule extends TabModule {
 
   Future<void> _syncContact() async {
     if (ContactBlob.enabled) {
-      await AppsModule.module.enableApp(messagesPackage);
+      await AppsModule.module.enableInternalApp(messagesPackage);
     } else {
-      await AppsModule.module.disableApp(messagesPackage);
+      await AppsModule.module.disableInternalApp(messagesPackage);
     }
   }
 

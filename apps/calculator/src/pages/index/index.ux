@@ -1,0 +1,230 @@
+<!-- apps/calculator/src/pages/index/index.ux -->
+<import name="mi-button" src="../../shared/components/mi-button.ux"></import>
+<import name="mi-textbox" src="../../shared/components/mi-textbox.ux"></import>
+
+<template>
+	<div class="mi-page">
+		<scroll class="mi-scroll" scroll-y="false">
+			<!-- Calculator Viewport (Locked to 480px) -->
+			<div class="mi-viewport">
+				<!-- Row 1: Calculator Display -->
+				<div class="mi-row">
+					<mi-textbox
+						value="{{ displayExpression || '0' }}"
+						placeholder="0"
+						classes="mi-last"
+					></mi-textbox>
+				</div>
+
+				<!-- Row 2: C, (, ), / -->
+				<div class="mi-row">
+					<mi-button
+						label="C"
+						classes="mi-danger"
+						@tap="handleClear"
+					></mi-button>
+					<mi-button label="(" @tap="handleInput('(')"></mi-button>
+					<mi-button label=")" @tap="handleInput(')')"></mi-button>
+					<mi-button
+						label="/"
+						classes="mi-accent mi-last"
+						@tap="handleInput('/')"
+					></mi-button>
+				</div>
+
+				<!-- Row 3: 7, 8, 9, X -->
+				<div class="mi-row">
+					<mi-button label="7" @tap="handleInput('7')"></mi-button>
+					<mi-button label="8" @tap="handleInput('8')"></mi-button>
+					<mi-button label="9" @tap="handleInput('9')"></mi-button>
+					<mi-button
+						label="X"
+						classes="mi-accent mi-last"
+						@tap="handleInput('x')"
+					></mi-button>
+				</div>
+
+				<!-- Row 4: 4, 5, 6, - -->
+				<div class="mi-row">
+					<mi-button label="4" @tap="handleInput('4')"></mi-button>
+					<mi-button label="5" @tap="handleInput('5')"></mi-button>
+					<mi-button label="6" @tap="handleInput('6')"></mi-button>
+					<mi-button
+						label="-"
+						classes="mi-accent mi-last"
+						@tap="handleInput('-')"
+					></mi-button>
+				</div>
+
+				<!-- Row 5: 1, 2, 3, + -->
+				<div class="mi-row">
+					<mi-button label="1" @tap="handleInput('1')"></mi-button>
+					<mi-button label="2" @tap="handleInput('2')"></mi-button>
+					<mi-button label="3" @tap="handleInput('3')"></mi-button>
+					<mi-button
+						label="+"
+						classes="mi-accent mi-last"
+						@tap="handleInput('+')"
+					></mi-button>
+				</div>
+
+				<!-- Row 6: 0, ., ⌫, = -->
+				<div class="mi-row">
+					<mi-button label="0" @tap="handleInput('0')"></mi-button>
+					<mi-button label="." @tap="handleInput('.')"></mi-button>
+					<mi-button label="⌫" @tap="handleDelete"></mi-button>
+					<mi-button
+						label="="
+						classes="mi-accent mi-last"
+						@tap="handleEvaluate"
+					></mi-button>
+				</div>
+			</div>
+		</scroll>
+	</div>
+</template>
+
+<script>
+function evaluateExpression(str) {
+	str = str.replace(/\s+/g, ""); // strip spaces
+	str = str.replace(/x/gi, "*"); // replace x with *
+	let index = 0;
+
+	function parseExpression() {
+		let result = parseTerm();
+		while (index < str.length) {
+			const op = str[index];
+			if (op === "+" || op === "-") {
+				index++;
+				const right = parseTerm();
+				if (op === "+") result += right;
+				else result -= right;
+			} else {
+				break;
+			}
+		}
+		return result;
+	}
+
+	function parseTerm() {
+		let result = parseFactor();
+		while (index < str.length) {
+			const op = str[index];
+			if (op === "*" || op === "/") {
+				index++;
+				const right = parseFactor();
+				if (op === "*") result *= right;
+				else {
+					if (right === 0) throw new Error("Div by 0");
+					result /= right;
+				}
+			} else {
+				break;
+			}
+		}
+		return result;
+	}
+
+	function parseFactor() {
+		if (index >= str.length) return 0;
+		if (str[index] === "(") {
+			index++; // consume '('
+			const result = parseExpression();
+			if (str[index] === ")") {
+				index++; // consume ')'
+			}
+			return result;
+		}
+
+		// Parse number
+		let start = index;
+		if (str[index] === "-") {
+			index++;
+		}
+		while (
+			index < str.length &&
+			((str[index] >= "0" && str[index] <= "9") || str[index] === ".")
+		) {
+			index++;
+		}
+		if (start === index) return 0;
+		return parseFloat(str.substring(start, index));
+	}
+
+	try {
+		const val = parseExpression();
+		if (isNaN(val) || !isFinite(val)) {
+			return "Error";
+		}
+		// Round to 8 decimal places to avoid floating point precision quirks
+		return Math.round(val * 1e8) / 1e8;
+	} catch (e) {
+		return "Error";
+	}
+}
+
+export default {
+	private: {
+		displayExpression: "",
+		previousExpression: "",
+		isResultDisplayed: false,
+	},
+
+	onInit() {
+		this.displayExpression = "";
+		this.previousExpression = "";
+		this.isResultDisplayed = false;
+	},
+
+	handleInput(char) {
+		if (this.isResultDisplayed) {
+			if (char === "+" || char === "-" || char === "x" || char === "/") {
+				this.isResultDisplayed = false;
+			} else {
+				this.displayExpression = "";
+				this.isResultDisplayed = false;
+			}
+		}
+		this.displayExpression += char;
+	},
+
+	handleClear() {
+		this.displayExpression = "";
+		this.previousExpression = "";
+		this.isResultDisplayed = false;
+	},
+
+	handleDelete() {
+		if (this.isResultDisplayed) {
+			this.isResultDisplayed = false;
+			if (this.previousExpression.length > 0) {
+				this.displayExpression = this.previousExpression.substring(
+					0,
+					this.previousExpression.length - 1
+				);
+			} else {
+				this.displayExpression = "";
+			}
+			return;
+		}
+		if (this.displayExpression.length > 0) {
+			this.displayExpression = this.displayExpression.substring(
+				0,
+				this.displayExpression.length - 1
+			);
+		}
+	},
+
+	handleEvaluate() {
+		if (this.displayExpression.trim() === "") return;
+		this.previousExpression = this.displayExpression;
+		const result = evaluateExpression(this.displayExpression);
+		this.displayExpression = String(result);
+		this.isResultDisplayed = true;
+	},
+};
+</script>
+
+<style lang="less">
+@import "../../shared/styles/theme.less";
+</style>

@@ -1,186 +1,68 @@
+<import name="mi-button" src="../../shared/components/mi-button.ux"></import>
+
 <template>
-  <div class="page-container">
-    <list class="actions-list" id="actions-list">
-      <!-- Grid items chunked into rows of 3 columns -->
-      <list-item type="row" for="{{row in actionRows}}" class="row-item">
-        <div class="row-container">
-          <div class="action-btn" for="{{item in row}}" onclick="handleActionTap(item.name)">
-            <div class="icon-circle">
-              <text class="action-icon">{{item.icon}}</text>
-            </div>
-            <text class="action-name">{{item.name}}</text>
-          </div>
-        </div>
-      </list-item>
-    </list>
+  <div class="mi-page">
+    <scroll class="mi-scroll" scroll-y="true">
+      <!-- Grid items chunked into rows of 2 columns -->
+      <div for="{{row in actionRows}}" class="mi-row">
+        <mi-button
+          for="{{item in row}}"
+          label="{{item.icon ? item.icon + ' ' + item.name : item.name}}"
+          classes="{{ $idx === 1 ? 'mi-last' : '' }}"
+          @tap="handleActionTap(item.name)"
+        ></mi-button>
+      </div>
+    </scroll>
   </div>
 </template>
 
 <script>
-import interconnect from '@system.interconnect'
-import vibrator from '@system.vibrator'
+import misync from "../../shared/modules/misync.js";
 
 export default {
   private: {
-    connect: null,
     actionsList: [],
     actionRows: []
   },
 
   onInit() {
-    this.updateActionRows()
-  },
+    // Register message listener
+    this.unsubscribe = misync.onMessage((payload) => {
+      if (payload.response) {
+        this.actionsList = payload.response
+        this.updateActionRows()
+      }
+    })
 
-  onReady() {
-    this.handleCreateConn()
+    // Initialize misync and request actions
+    misync.initialize({
+      onOpen: () => {
+        misync.send("getActions")
+      }
+    })
   },
 
   onDestroy() {
-    if (this.connect) {
-      this.connect.onmessage = null
-      this.connect.onopen = null
-      this.connect.onclose = null
-      this.connect.onerror = null
-    }
-  },
-
-  handleCreateConn() {
-    const self = this
-    try {
-      this.connect = interconnect.instance()
-
-      this.connect.onmessage = (data) => {
-        try {
-          let payload = JSON.parse(data.data)
-          if (payload.response) {
-            self.actionsList = payload.response
-            self.updateActionRows()
-          }
-        } catch (e) {
-          console.error('json error: ' + e)
-        }
-      }
-
-      this.connect.onopen = () => {
-        self.requestActions()
-      }
-
-      this.connect.onclose = (data) => {
-        console.log('interconnect closed: ' + (data ? data.code : 'unknown'))
-      }
-
-      this.connect.onerror = (data) => {
-        console.error('interconnect error: ' + (data ? data.code : 'unknown'))
-      }
-
-      this.connect.getReadyState({
-        success: (data) => {
-          if (data && (data.status == 1 || data.status === '1')) {
-            self.requestActions()
-          }
-        }
-      })
-    } catch (err) {
-      console.error('interconnect error: ' + err)
-    }
-  },
-
-  requestActions() {
-    if (this.connect) {
-      try {
-        this.connect.send({
-          data: { command: 'getActions' }
-        })
-      } catch (e) {
-        console.error('send error: ' + e)
-      }
+    if (this.unsubscribe) {
+      this.unsubscribe()
     }
   },
 
   handleActionTap(name) {
-    try {
-      vibrator.vibrate({ mode: 'short' })
-    } catch (e) {
-      console.error('vibrate error: ' + e)
-    }
-
-    if (this.connect) {
-      try {
-        this.connect.send({
-          data: { command: 'launchAction', action: name }
-        })
-      } catch (e) {
-        console.error('send error: ' + e)
-      }
-    }
+    misync.send("launchAction", { action: name })
   },
 
   updateActionRows() {
     const rows = []
     const list = this.actionsList || []
-    for (let i = 0; i < list.length; i += 3) {
-      rows.push(list.slice(i, i + 3))
+    for (let i = 0; i < list.length; i += 2) {
+      rows.push(list.slice(i, i + 2))
     }
     this.actionRows = rows
   }
 }
 </script>
 
-<style>
-.page-container {
-  flex-direction: column;
-  background-color: #000000;
-  width: 100%;
-  height: 100%;
-}
-
-.actions-list {
-  width: 100%;
-  height: 100%;
-}
-
-.row-item {
-  width: 100%;
-  height: 150px;
-  justify-content: center;
-  align-items: center;
-}
-
-.row-container {
-  width: 100%;
-  height: 100%;
-  flex-direction: row;
-  justify-content: space-around;
-  align-items: center;
-}
-
-.action-btn {
-  width: 30%;
-  height: 100%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-circle {
-  width: 90px;
-  height: 90px;
-  border-radius: 45px;
-  background-color: #141822;
-  border: 1px solid #26324D;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-icon {
-  font-size: 36px;
-}
-
-.action-name {
-  color: #ffffff;
-  font-size: 20px;
-  margin-top: 8px;
-  text-align: center;
-  max-width: 100%;
-}
+<style lang="less">
+@import "../../shared/styles/theme.less";
 </style>

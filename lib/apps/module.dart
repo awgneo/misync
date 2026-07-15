@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:crypto/crypto.dart';
-import 'package:convert/convert.dart';
 import 'package:archive/archive.dart';
 import 'package:misync/screen.dart';
 import '../device/module.dart';
@@ -28,8 +26,6 @@ class AppsModule extends TabModule {
   static AppsModule get module => _module;
   AppsModule._();
 
-  final List<String> internalApps = [];
-
   @override
   Future<void> start() async {
     _startInternalApps();
@@ -41,27 +37,44 @@ class AppsModule extends TabModule {
     try {
       final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
       final allAssets = manifest.listAssets();
-
       final rpkPaths = allAssets.where(
         (path) => path.startsWith('assets/rpk/') && path.endsWith('.rpk'),
       );
 
-      internalApps.clear();
+      final updatedApps = Map<String, App>.from(AppsBlob.instance.value);
+
       for (final path in rpkPaths) {
         final filename = path.split('/').last;
         final package = filename.substring(0, filename.length - 4);
-        internalApps.add(package);
+
+        // Read the asset RPK and parse manifest.json to extract versionCode
+        final ByteData assetData = await rootBundle.load(path);
+        final Uint8List assetBytes = assetData.buffer.asUint8List();
+        final archive = ZipDecoder().decodeBytes(assetBytes);
+        final manifestFile = archive.findFile('manifest.json');
+        if (manifestFile == null) {
+          logger.error('invalid RPK asset $path: manifest.json not found');
+          continue;
+        }
+
+        final manifestString = utf8.decode(manifestFile.content as List<int>);
+        final manifestJson = jsonDecode(manifestString) as Map<String, dynamic>;
+        final versionCode = manifestJson['versionCode'] as int? ?? 1;
+
+        final current = updatedApps[package];
+        updatedApps[package] = App(
+          enabled: current?.enabled ?? false,
+          versionCode: versionCode,
+          package: package,
+          external: false,
+          fingerprint: current?.fingerprint ?? const [],
+        );
       }
-      if (internalApps.isEmpty) {
-        internalApps.add('com.misync.messages');
-      }
-      logger.info('Loaded internal apps: $internalApps');
+
+      await AppsBlob.instance.update(updatedApps);
+      logger.info('initialized internal apps');
     } catch (e) {
-      logger.error(
-        'Failed to load internal apps from manifest: $e. Falling back to hardcoded.',
-      );
-      internalApps.clear();
-      internalApps.add('com.misync.messages');
+      logger.error('failed to load internal apps from manifest: $e');
     }
   }
 
@@ -69,6 +82,8 @@ class AppsModule extends TabModule {
     if (cmd.type == CmdType.thirdPartyApp.value) {
       if (cmd.subtype == ThirdPartyAppSubtype.requestPhoneAppStatus.value) {
         await _handleWatchAppStatusRequest(cmd);
+      } else if (cmd.subtype == ThirdPartyAppSubtype.rpkInstalled.value) {
+        await _handleWatchAppInstallResult(cmd);
       }
     } else if (cmd.type == CmdType.notification.value &&
         cmd.subtype == NotificationSubtype.iconQuery.value &&
@@ -90,9 +105,53 @@ class AppsModule extends TabModule {
     }
 
     if (query) {
-      logger.info('watch queried app status for: $package');
+      logger.info('watch queried app status for $package');
       await _sendWatchAppStatus(package, fingerprint: fingerprint);
     }
+  }
+
+  Future<void> _handleWatchAppInstallResult(pb.Command cmd) async {
+    if (!cmd.hasThirdPartyApp() || !cmd.thirdPartyApp.hasRpkInstallResult()) {
+      return;
+    }
+
+    final result = cmd.thirdPartyApp.rpkInstallResult;
+    final status = result.status; // 0 success/installed, 1 fail, 2 uninstalled
+    if (status != 0) return; // JUST handle the install message for now
+
+    String package = '';
+    if (result.hasRpkInfo() && result.rpkInfo.hasId()) {
+      package = result.rpkInfo.id;
+    } else if (result.hasPackageName()) {
+      package = result.packageName;
+    }
+
+    if (package.isEmpty) {
+      logger.error(
+        'watch reported app install result, but package identifier is empty',
+      );
+      return;
+    }
+
+    logger.info('watch reported successful app install result for $package');
+
+    final updatedApps = Map<String, App>.from(AppsBlob.instance.value);
+    final current = updatedApps[package];
+    if (current == null) {
+      // New external app found on watch
+      updatedApps[package] = App(
+        enabled: true,
+        versionCode: result.rpkInfo.versionCode,
+        package: package,
+        external: true,
+        fingerprint: result.rpkInfo.sha,
+      );
+    } else {
+      // Existing app, update fingerprint
+      updatedApps[package] = current.copyWith(fingerprint: result.rpkInfo.sha);
+    }
+
+    AppsBlob.instance.update(updatedApps);
   }
 
   Future<void> _sendWatchAppStatus(
@@ -227,19 +286,8 @@ class AppsModule extends TabModule {
   @override
   Future<void> sync() async {
     if (!DeviceModule.module.connection.connected.value) return;
-    await _syncInternalApps();
     await _syncInstalledApps();
-  }
-
-  Future<void> _syncInternalApps() async {
-    for (final package in internalApps) {
-      final bool enabled = AppsBlob.getEnabled(package);
-      if (enabled) {
-        await enableApp(package);
-      } else {
-        await disableApp(package);
-      }
-    }
+    await _syncInternalApps();
   }
 
   Future<void> _syncInstalledApps() async {
@@ -262,45 +310,79 @@ class AppsModule extends TabModule {
 
     final watchApps = response.thirdPartyApp.rpkList.rpkInfo;
     logger.info('received ${watchApps.length} installed apps from watch.');
-    // Update AppsBlob registry based on the watch list
     final updatedApps = Map<String, App>.from(AppsBlob.instance.value);
+    final Set<String> watchAppIds = watchApps.map((a) => a.id).toSet();
 
-    // Identify all external apps currently reported by the watch
-    final Set<String> watchExternalAppIds = {};
+    // Process all apps reported by the watch
     for (final watchApp in watchApps) {
       final package = watchApp.id;
-      final bool internal = internalApps.contains(package);
+      final current = updatedApps[package];
 
-      if (!internal) {
-        // External app, add to registry
-        watchExternalAppIds.add(package);
+      if (current == null) {
+        // Discovered a new external app installed on the watch
         updatedApps[package] = App(
           enabled: true,
-          hash: '',
+          versionCode: watchApp.versionCode,
           package: package,
           external: true,
           fingerprint: watchApp.sha,
         );
       } else {
-        // Internal app, update fingerprint in blob registry
-        final current = updatedApps[package];
-        updatedApps[package] = App(
-          enabled: current?.enabled ?? true,
-          hash: current?.hash ?? '',
-          package: package,
-          external: false,
-          fingerprint: watchApp.sha,
-        );
+        // App exists in database: update its fingerprint
+        if (current.isInternal) {
+          // If watch version is older than local version code, clear fingerprint to trigger update
+          if (watchApp.versionCode < current.versionCode) {
+            updatedApps[package] = current.copyWith(fingerprint: const []);
+          } else {
+            updatedApps[package] = current.copyWith(fingerprint: watchApp.sha);
+          }
+        } else {
+          // External app: update both fingerprint and version code
+          updatedApps[package] = current.copyWith(
+            fingerprint: watchApp.sha,
+            versionCode: watchApp.versionCode,
+          );
+        }
+      }
+    }
+
+    // For any app currently in our database that is NOT in the watch's RPK list:
+    // We must clear its watch fingerprint. If it is an internal app and was
+    // previously installed (fingerprint.isNotEmpty), we also mark it as disabled
+    // to detect watch-side manual uninstalls.
+    for (final entry in updatedApps.entries) {
+      final package = entry.key;
+      final app = entry.value;
+      if (!watchAppIds.contains(package)) {
+        if (!app.external && app.fingerprint.isNotEmpty) {
+          updatedApps[package] = app.copyWith(
+            enabled: false,
+            fingerprint: const [],
+          );
+        } else {
+          updatedApps[package] = app.copyWith(fingerprint: const []);
+        }
       }
     }
 
     // Remove any external apps from our blob registry that are no longer installed on the watch
     updatedApps.removeWhere((package, app) {
-      return app.external && !watchExternalAppIds.contains(package);
+      return app.external && !watchAppIds.contains(package);
     });
 
-    // Save to blob
-    AppsBlob.instance.update(updatedApps);
+    await AppsBlob.instance.update(updatedApps);
+  }
+
+  Future<void> _syncInternalApps() async {
+    final apps = AppsBlob.instance.value;
+    for (final app in apps.values) {
+      if (app.external) continue;
+      if (app.enabled) {
+        await installInternalApp(app);
+      } else {
+        await uninstallApp(app.package);
+      }
+    }
   }
 
   Future<void> launchApp(String package, {String? uri}) async {
@@ -325,90 +407,62 @@ class AppsModule extends TabModule {
     );
   }
 
-  Future<bool> enableApp(String package) async {
-    if (!DeviceModule.module.connection.connected.value) return false;
-
-    if (!internalApps.contains(package)) {
+  Future<bool> enableInternalApp(String package) async {
+    final app = AppsBlob.instance.value[package];
+    if (app == null || app.external) {
       logger.error('app $package is not an internal app');
       return false;
     }
 
-    // Mark as enabled in the blob first
+    // See if already enabled
+    if (app.enabled) {
+      logger.info('app $package is already enabled');
+      return true;
+    }
+
     AppsBlob.setEnabled(package, true);
-
-    final ByteData assetData = await rootBundle.load('assets/rpk/$package.rpk');
-    final Uint8List assetBytes = assetData.buffer.asUint8List();
-    final localFileSha = sha256.convert(assetBytes).bytes;
-    final localFileShaHex = hex.encode(localFileSha).toUpperCase();
-
-    // Check if it is already installed with this exact fingerprint on the watch
-    final installedApp = AppsBlob.instance.value[package];
-    if (installedApp != null && installedApp.fingerprint.isNotEmpty) {
-      bool match = true;
-      if (installedApp.fingerprint.length == localFileSha.length) {
-        for (int i = 0; i < localFileSha.length; i++) {
-          if (installedApp.fingerprint[i] != localFileSha[i]) {
-            match = false;
-            break;
-          }
-        }
-      } else {
-        match = false;
-      }
-      if (match) {
-        logger.info(
-          'internal app $package is already up to date on the watch. Skipping installation.',
-        );
-        return true;
-      }
-    }
-
-    final success = await _uploadApp(package, 1, assetBytes);
-    logger.info('installation of $package result: $success');
-
-    if (success) {
-      final app = AppsBlob.instance.value[package];
-
-      final updatedApps = Map<String, App>.from(AppsBlob.instance.value);
-      updatedApps[package] =
-          (app ??
-                  App(
-                    enabled: true,
-                    hash: localFileShaHex,
-                    package: package,
-                    external: false,
-                  ))
-              .copyWith(
-                enabled: true,
-                hash: localFileShaHex,
-                package: package,
-                external: false,
-              );
-
-      AppsBlob.instance.update(updatedApps);
-    }
-
-    return success;
+    // Mark as enabled in the blob first
+    return await installInternalApp(app);
   }
 
-  Future<void> disableApp(String package) async {
-    if (!internalApps.contains(package)) return;
-
-    // Mark as disabled in the blob first
-    AppsBlob.setEnabled(package, false);
-
-    // Perform the uninstallation from the watch
+  Future<void> disableInternalApp(String package) async {
     final app = AppsBlob.instance.value[package];
-    if (app != null && (app.hash.isNotEmpty || app.fingerprint.isNotEmpty)) {
-      logger.info(
-        'internal app $package is disabled and uninstalling from watch',
-      );
-
-      await uninstall(package);
+    if (app == null || app.external) {
+      logger.error('app $package is not an internal app');
+      return;
     }
+
+    // See if already disabled
+    if (!app.enabled) {
+      logger.info('app $package is already disabled');
+      return;
+    }
+
+    AppsBlob.setEnabled(package, false);
+    // Uninstall the app on the watch (disables it)
+    await uninstallApp(package);
   }
 
-  Future<bool> install(String path) async {
+  Future<bool> installInternalApp(App app) async {
+    if (!DeviceModule.module.connection.connected.value) return false;
+
+    // Check if app is already installed
+    if (app.fingerprint.isNotEmpty) {
+      logger.info('app ${app.package} is already installed');
+      return true;
+    }
+
+    // Load the rpk asset again
+    final ByteData assetData = await rootBundle.load(
+      'assets/rpk/${app.package}.rpk',
+    );
+    final Uint8List assetBytes = assetData.buffer.asUint8List();
+
+    // Upload rpk to watch
+    return _uploadApp(app.package, app.versionCode, assetBytes);
+  }
+
+  Future<bool> installExternalApp(String path) async {
     final file = File(path);
     if (!await file.exists()) {
       logger.error('file $path not found');
@@ -425,7 +479,6 @@ class AppsModule extends TabModule {
 
     final manifestString = utf8.decode(manifestFile.content as List<int>);
     final manifestJson = jsonDecode(manifestString) as Map<String, dynamic>;
-
     final package = manifestJson['package'] as String? ?? '';
     final appName = manifestJson['name'] as String? ?? path.split('/').last;
     final versionCode = manifestJson['versionCode'] as int? ?? 1;
@@ -438,20 +491,8 @@ class AppsModule extends TabModule {
       'Installing external app: $appName ($package), version: $versionCode',
     );
 
-    final success = await _uploadApp(package, versionCode, bytes);
-    if (success) {
-      final updatedApps = Map<String, App>.from(AppsBlob.instance.value);
-      updatedApps[package] = App(
-        enabled: true,
-        hash: '',
-        package: package,
-        external: true,
-      );
-
-      AppsBlob.instance.update(updatedApps);
-    }
-
-    return success;
+    // Upload rpk to watch
+    return _uploadApp(package, versionCode, bytes);
   }
 
   Future<bool> _uploadApp(
@@ -465,15 +506,15 @@ class AppsModule extends TabModule {
       'Sending RPK install start command for $package ($versionCode)',
     );
 
-    // Send CMD_RPK_INSTALL (type 20, subtype 1)
+    // Send rpk install message request
     final installResponse = await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.rpkInstall,
       builder: (cmd) =>
           cmd.thirdPartyApp = (pb.ThirdPartyApp()
-            ..rpkInfo = (pb.RpkInfo()
+            ..rpkInstallStart = (pb.RpkInstallStart()
               ..id = package
-              ..unknown2 = versionCode
+              ..versionCode = versionCode
               ..size = fileBytes.length)),
       response: true,
     );
@@ -496,19 +537,27 @@ class AppsModule extends TabModule {
       return false;
     }
 
-    logger.info('Sideload finalized. Waiting for device unpacking...');
-    await _syncInstalledApps();
+    logger.info('successful installation of app $package');
     return true;
   }
 
-  Future<void> uninstall(String package) async {
+  Future<void> uninstallApp(String package) async {
     if (!DeviceModule.module.connection.connected.value) return;
 
     logger.info('Requesting deletion for RPK: $package');
 
     final app = AppsBlob.instance.value[package];
-    final sha = app?.fingerprint ?? const <int>[];
+    if (app == null) {
+      logger.info('app $package is not registered');
+      return;
+    }
 
+    if (app.fingerprint.isEmpty) {
+      logger.info('app $package is not installed');
+      return;
+    }
+
+    // Send RPK deletion request
     await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
       subtype: ThirdPartyAppSubtype.rpkDelete,
@@ -516,17 +565,20 @@ class AppsModule extends TabModule {
           cmd.thirdPartyApp = (pb.ThirdPartyApp()
             ..appStatusReq = (pb.ThirdPartyAppInfo()
               ..packageName = package
-              ..fingerprint = sha)),
+              ..fingerprint = app.fingerprint)),
     );
 
-    // Immediately remove from blob registry to trigger UI update
+    // Update the apps blob
     final updatedApps = Map<String, App>.from(AppsBlob.instance.value);
     final current = updatedApps[package];
     if (current != null) {
       if (current.external) {
         updatedApps.remove(package);
       } else {
-        updatedApps[package] = current.copyWith(enabled: false, hash: '');
+        updatedApps[package] = current.copyWith(
+          enabled: false,
+          fingerprint: const [],
+        );
       }
 
       AppsBlob.instance.update(updatedApps);

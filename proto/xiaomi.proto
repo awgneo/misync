@@ -493,22 +493,23 @@ message RpkList {
   repeated RpkInfoList rpkInfo = 1;
 }
 
-message RpkInfo {
-  optional string id = 1;
-  optional uint32 size = 3;
-  optional uint32 unknown2 = 2; // 0
+message RpkInstallStatus {
+  optional int32 status = 1;
+  optional uint32 expectedSliceLength = 2;
 }
 
 message RpkInfoList {
   optional string id = 1;
-  optional string name = 5;
   optional bytes sha = 2;
-  optional uint32 unknown3 = 3;
-  optional uint32 unknown4 = 4;
+  optional uint32 versionCode = 3;
+  optional bool canRemove = 4;
+  optional string name = 5;
 }
 
 message RpkInstallStart {
-  optional uint32 cmd = 1;
+  optional string id = 1;
+  optional uint32 versionCode = 2;
+  optional uint32 size = 3;
 }
 
 //
@@ -1114,12 +1115,19 @@ message Phonebook {
 // Third party App/Interconnect communication (type 20)
 message ThirdPartyApp {
   optional RpkList rpkList = 1;
-  optional RpkInfo rpkInfo = 2;
-  optional RpkInstallStart rpkInstallStart = 3;
+  optional RpkInstallStart rpkInstallStart = 2;
+  optional RpkInstallStatus rpkInstallStatus = 3;
+  optional RpkInstallResult rpkInstallResult = 4;
   optional ThirdPartyAppInfo appStatusReq = 5;
   optional ThirdPartyAppLaunch appLaunchReq = 6;
   optional ThirdPartyAppStatus appStatusResp = 8;
   optional ThirdPartyAppMessage message = 9;
+}
+
+message RpkInstallResult {
+  optional int32 status = 1; // 0 success/installed, 1 fail, 2 uninstalled
+  optional string packageName = 2;
+  optional RpkInfoList rpkInfo = 3;
 }
 
 message ThirdPartyAppInfo {

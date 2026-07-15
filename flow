@@ -79,7 +79,7 @@ build-apk() {
 
   info "Checking for latest Chinese Mi Fitness APK..."
   local latest_version
-  latest_version=$(curl -s -D - "https://hlth.io.mi.com/download?appId=mifitness" -o /dev/null | grep -i "location:" | awk -F'/' '{print $5}' | awk -F'?' '{print $1}')
+  latest_version=$(curl --connect-timeout 3 --max-time 5 -s -D - "https://hlth.io.mi.com/download?appId=mifitness" -o /dev/null | grep -i "location:" | awk -F'/' '{print $5}' | awk -F'?' '{print $1}')
   
   if [ -z "$latest_version" ]; then
     warning "Could not fetch latest version name. Skipping download checks."
@@ -89,7 +89,7 @@ build-apk() {
 
     if [ "$latest_version" != "$current_version" ] || [ ! -d "$decompiled_dir" ] || [ ! -f "$apk_path" ]; then
       info "New version detected: $latest_version. Downloading APK..."
-      curl -L -o "$apk_path" "https://hlth.io.mi.com/download?appId=mifitness" || abort "Failed to download latest APK." 2
+      curl --connect-timeout 5 -L -o "$apk_path" "https://hlth.io.mi.com/download?appId=mifitness" || abort "Failed to download latest APK." 2
       
       # Clean up old decompiled directory if it exists
       if [ -d "$decompiled_dir" ]; then

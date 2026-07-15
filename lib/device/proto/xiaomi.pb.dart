@@ -5216,96 +5216,87 @@ class RpkList extends $pb.GeneratedMessage {
   $pb.PbList<RpkInfoList> get rpkInfo => $_getList(0);
 }
 
-class RpkInfo extends $pb.GeneratedMessage {
-  factory RpkInfo({
-    $core.String? id,
-    $core.int? unknown2,
-    $core.int? size,
+class RpkInstallStatus extends $pb.GeneratedMessage {
+  factory RpkInstallStatus({
+    $core.int? status,
+    $core.int? expectedSliceLength,
   }) {
     final result = create();
-    if (id != null) result.id = id;
-    if (unknown2 != null) result.unknown2 = unknown2;
-    if (size != null) result.size = size;
+    if (status != null) result.status = status;
+    if (expectedSliceLength != null)
+      result.expectedSliceLength = expectedSliceLength;
     return result;
   }
 
-  RpkInfo._();
+  RpkInstallStatus._();
 
-  factory RpkInfo.fromBuffer($core.List<$core.int> data,
+  factory RpkInstallStatus.fromBuffer($core.List<$core.int> data,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(data, registry);
-  factory RpkInfo.fromJson($core.String json,
+  factory RpkInstallStatus.fromJson($core.String json,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromJson(json, registry);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'RpkInfo',
+      _omitMessageNames ? '' : 'RpkInstallStatus',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'id')
-    ..aI(2, _omitFieldNames ? '' : 'unknown2', fieldType: $pb.PbFieldType.OU3)
-    ..aI(3, _omitFieldNames ? '' : 'size', fieldType: $pb.PbFieldType.OU3)
+    ..aI(1, _omitFieldNames ? '' : 'status')
+    ..aI(2, _omitFieldNames ? '' : 'expectedSliceLength',
+        protoName: 'expectedSliceLength', fieldType: $pb.PbFieldType.OU3)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  RpkInfo clone() => deepCopy();
+  RpkInstallStatus clone() => deepCopy();
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  RpkInfo copyWith(void Function(RpkInfo) updates) =>
-      super.copyWith((message) => updates(message as RpkInfo)) as RpkInfo;
+  RpkInstallStatus copyWith(void Function(RpkInstallStatus) updates) =>
+      super.copyWith((message) => updates(message as RpkInstallStatus))
+          as RpkInstallStatus;
 
   @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
-  static RpkInfo create() => RpkInfo._();
+  static RpkInstallStatus create() => RpkInstallStatus._();
   @$core.override
-  RpkInfo createEmptyInstance() => create();
+  RpkInstallStatus createEmptyInstance() => create();
   @$core.pragma('dart2js:noInline')
-  static RpkInfo getDefault() =>
-      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RpkInfo>(create);
-  static RpkInfo? _defaultInstance;
+  static RpkInstallStatus getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RpkInstallStatus>(create);
+  static RpkInstallStatus? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get id => $_getSZ(0);
+  $core.int get status => $_getIZ(0);
   @$pb.TagNumber(1)
-  set id($core.String value) => $_setString(0, value);
+  set status($core.int value) => $_setSignedInt32(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasId() => $_has(0);
+  $core.bool hasStatus() => $_has(0);
   @$pb.TagNumber(1)
-  void clearId() => $_clearField(1);
+  void clearStatus() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get unknown2 => $_getIZ(1);
+  $core.int get expectedSliceLength => $_getIZ(1);
   @$pb.TagNumber(2)
-  set unknown2($core.int value) => $_setUnsignedInt32(1, value);
+  set expectedSliceLength($core.int value) => $_setUnsignedInt32(1, value);
   @$pb.TagNumber(2)
-  $core.bool hasUnknown2() => $_has(1);
+  $core.bool hasExpectedSliceLength() => $_has(1);
   @$pb.TagNumber(2)
-  void clearUnknown2() => $_clearField(2);
-
-  @$pb.TagNumber(3)
-  $core.int get size => $_getIZ(2);
-  @$pb.TagNumber(3)
-  set size($core.int value) => $_setUnsignedInt32(2, value);
-  @$pb.TagNumber(3)
-  $core.bool hasSize() => $_has(2);
-  @$pb.TagNumber(3)
-  void clearSize() => $_clearField(3);
+  void clearExpectedSliceLength() => $_clearField(2);
 }
 
 class RpkInfoList extends $pb.GeneratedMessage {
   factory RpkInfoList({
     $core.String? id,
     $core.List<$core.int>? sha,
-    $core.int? unknown3,
-    $core.int? unknown4,
+    $core.int? versionCode,
+    $core.bool? canRemove,
     $core.String? name,
   }) {
     final result = create();
     if (id != null) result.id = id;
     if (sha != null) result.sha = sha;
-    if (unknown3 != null) result.unknown3 = unknown3;
-    if (unknown4 != null) result.unknown4 = unknown4;
+    if (versionCode != null) result.versionCode = versionCode;
+    if (canRemove != null) result.canRemove = canRemove;
     if (name != null) result.name = name;
     return result;
   }
@@ -5326,8 +5317,9 @@ class RpkInfoList extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'id')
     ..a<$core.List<$core.int>>(
         2, _omitFieldNames ? '' : 'sha', $pb.PbFieldType.OY)
-    ..aI(3, _omitFieldNames ? '' : 'unknown3', fieldType: $pb.PbFieldType.OU3)
-    ..aI(4, _omitFieldNames ? '' : 'unknown4', fieldType: $pb.PbFieldType.OU3)
+    ..aI(3, _omitFieldNames ? '' : 'versionCode',
+        protoName: 'versionCode', fieldType: $pb.PbFieldType.OU3)
+    ..aOB(4, _omitFieldNames ? '' : 'canRemove', protoName: 'canRemove')
     ..aOS(5, _omitFieldNames ? '' : 'name')
     ..hasRequiredFields = false;
 
@@ -5369,22 +5361,22 @@ class RpkInfoList extends $pb.GeneratedMessage {
   void clearSha() => $_clearField(2);
 
   @$pb.TagNumber(3)
-  $core.int get unknown3 => $_getIZ(2);
+  $core.int get versionCode => $_getIZ(2);
   @$pb.TagNumber(3)
-  set unknown3($core.int value) => $_setUnsignedInt32(2, value);
+  set versionCode($core.int value) => $_setUnsignedInt32(2, value);
   @$pb.TagNumber(3)
-  $core.bool hasUnknown3() => $_has(2);
+  $core.bool hasVersionCode() => $_has(2);
   @$pb.TagNumber(3)
-  void clearUnknown3() => $_clearField(3);
+  void clearVersionCode() => $_clearField(3);
 
   @$pb.TagNumber(4)
-  $core.int get unknown4 => $_getIZ(3);
+  $core.bool get canRemove => $_getBF(3);
   @$pb.TagNumber(4)
-  set unknown4($core.int value) => $_setUnsignedInt32(3, value);
+  set canRemove($core.bool value) => $_setBool(3, value);
   @$pb.TagNumber(4)
-  $core.bool hasUnknown4() => $_has(3);
+  $core.bool hasCanRemove() => $_has(3);
   @$pb.TagNumber(4)
-  void clearUnknown4() => $_clearField(4);
+  void clearCanRemove() => $_clearField(4);
 
   @$pb.TagNumber(5)
   $core.String get name => $_getSZ(4);
@@ -5398,10 +5390,14 @@ class RpkInfoList extends $pb.GeneratedMessage {
 
 class RpkInstallStart extends $pb.GeneratedMessage {
   factory RpkInstallStart({
-    $core.int? cmd,
+    $core.String? id,
+    $core.int? versionCode,
+    $core.int? size,
   }) {
     final result = create();
-    if (cmd != null) result.cmd = cmd;
+    if (id != null) result.id = id;
+    if (versionCode != null) result.versionCode = versionCode;
+    if (size != null) result.size = size;
     return result;
   }
 
@@ -5418,7 +5414,10 @@ class RpkInstallStart extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'RpkInstallStart',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
-    ..aI(1, _omitFieldNames ? '' : 'cmd', fieldType: $pb.PbFieldType.OU3)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aI(2, _omitFieldNames ? '' : 'versionCode',
+        protoName: 'versionCode', fieldType: $pb.PbFieldType.OU3)
+    ..aI(3, _omitFieldNames ? '' : 'size', fieldType: $pb.PbFieldType.OU3)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5441,13 +5440,31 @@ class RpkInstallStart extends $pb.GeneratedMessage {
   static RpkInstallStart? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get cmd => $_getIZ(0);
+  $core.String get id => $_getSZ(0);
   @$pb.TagNumber(1)
-  set cmd($core.int value) => $_setUnsignedInt32(0, value);
+  set id($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasCmd() => $_has(0);
+  $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)
-  void clearCmd() => $_clearField(1);
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get versionCode => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set versionCode($core.int value) => $_setUnsignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasVersionCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearVersionCode() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get size => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set size($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSize() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSize() => $_clearField(3);
 }
 
 class Health extends $pb.GeneratedMessage {
@@ -12189,8 +12206,9 @@ class Phonebook extends $pb.GeneratedMessage {
 class ThirdPartyApp extends $pb.GeneratedMessage {
   factory ThirdPartyApp({
     RpkList? rpkList,
-    RpkInfo? rpkInfo,
     RpkInstallStart? rpkInstallStart,
+    RpkInstallStatus? rpkInstallStatus,
+    RpkInstallResult? rpkInstallResult,
     ThirdPartyAppInfo? appStatusReq,
     ThirdPartyAppLaunch? appLaunchReq,
     ThirdPartyAppStatus? appStatusResp,
@@ -12198,8 +12216,9 @@ class ThirdPartyApp extends $pb.GeneratedMessage {
   }) {
     final result = create();
     if (rpkList != null) result.rpkList = rpkList;
-    if (rpkInfo != null) result.rpkInfo = rpkInfo;
     if (rpkInstallStart != null) result.rpkInstallStart = rpkInstallStart;
+    if (rpkInstallStatus != null) result.rpkInstallStatus = rpkInstallStatus;
+    if (rpkInstallResult != null) result.rpkInstallResult = rpkInstallResult;
     if (appStatusReq != null) result.appStatusReq = appStatusReq;
     if (appLaunchReq != null) result.appLaunchReq = appLaunchReq;
     if (appStatusResp != null) result.appStatusResp = appStatusResp;
@@ -12222,10 +12241,12 @@ class ThirdPartyApp extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..aOM<RpkList>(1, _omitFieldNames ? '' : 'rpkList',
         protoName: 'rpkList', subBuilder: RpkList.create)
-    ..aOM<RpkInfo>(2, _omitFieldNames ? '' : 'rpkInfo',
-        protoName: 'rpkInfo', subBuilder: RpkInfo.create)
-    ..aOM<RpkInstallStart>(3, _omitFieldNames ? '' : 'rpkInstallStart',
+    ..aOM<RpkInstallStart>(2, _omitFieldNames ? '' : 'rpkInstallStart',
         protoName: 'rpkInstallStart', subBuilder: RpkInstallStart.create)
+    ..aOM<RpkInstallStatus>(3, _omitFieldNames ? '' : 'rpkInstallStatus',
+        protoName: 'rpkInstallStatus', subBuilder: RpkInstallStatus.create)
+    ..aOM<RpkInstallResult>(4, _omitFieldNames ? '' : 'rpkInstallResult',
+        protoName: 'rpkInstallResult', subBuilder: RpkInstallResult.create)
     ..aOM<ThirdPartyAppInfo>(5, _omitFieldNames ? '' : 'appStatusReq',
         protoName: 'appStatusReq', subBuilder: ThirdPartyAppInfo.create)
     ..aOM<ThirdPartyAppLaunch>(6, _omitFieldNames ? '' : 'appLaunchReq',
@@ -12267,70 +12288,162 @@ class ThirdPartyApp extends $pb.GeneratedMessage {
   RpkList ensureRpkList() => $_ensure(0);
 
   @$pb.TagNumber(2)
-  RpkInfo get rpkInfo => $_getN(1);
+  RpkInstallStart get rpkInstallStart => $_getN(1);
   @$pb.TagNumber(2)
-  set rpkInfo(RpkInfo value) => $_setField(2, value);
+  set rpkInstallStart(RpkInstallStart value) => $_setField(2, value);
   @$pb.TagNumber(2)
-  $core.bool hasRpkInfo() => $_has(1);
+  $core.bool hasRpkInstallStart() => $_has(1);
   @$pb.TagNumber(2)
-  void clearRpkInfo() => $_clearField(2);
+  void clearRpkInstallStart() => $_clearField(2);
   @$pb.TagNumber(2)
-  RpkInfo ensureRpkInfo() => $_ensure(1);
+  RpkInstallStart ensureRpkInstallStart() => $_ensure(1);
 
   @$pb.TagNumber(3)
-  RpkInstallStart get rpkInstallStart => $_getN(2);
+  RpkInstallStatus get rpkInstallStatus => $_getN(2);
   @$pb.TagNumber(3)
-  set rpkInstallStart(RpkInstallStart value) => $_setField(3, value);
+  set rpkInstallStatus(RpkInstallStatus value) => $_setField(3, value);
   @$pb.TagNumber(3)
-  $core.bool hasRpkInstallStart() => $_has(2);
+  $core.bool hasRpkInstallStatus() => $_has(2);
   @$pb.TagNumber(3)
-  void clearRpkInstallStart() => $_clearField(3);
+  void clearRpkInstallStatus() => $_clearField(3);
   @$pb.TagNumber(3)
-  RpkInstallStart ensureRpkInstallStart() => $_ensure(2);
+  RpkInstallStatus ensureRpkInstallStatus() => $_ensure(2);
+
+  @$pb.TagNumber(4)
+  RpkInstallResult get rpkInstallResult => $_getN(3);
+  @$pb.TagNumber(4)
+  set rpkInstallResult(RpkInstallResult value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRpkInstallResult() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRpkInstallResult() => $_clearField(4);
+  @$pb.TagNumber(4)
+  RpkInstallResult ensureRpkInstallResult() => $_ensure(3);
 
   @$pb.TagNumber(5)
-  ThirdPartyAppInfo get appStatusReq => $_getN(3);
+  ThirdPartyAppInfo get appStatusReq => $_getN(4);
   @$pb.TagNumber(5)
   set appStatusReq(ThirdPartyAppInfo value) => $_setField(5, value);
   @$pb.TagNumber(5)
-  $core.bool hasAppStatusReq() => $_has(3);
+  $core.bool hasAppStatusReq() => $_has(4);
   @$pb.TagNumber(5)
   void clearAppStatusReq() => $_clearField(5);
   @$pb.TagNumber(5)
-  ThirdPartyAppInfo ensureAppStatusReq() => $_ensure(3);
+  ThirdPartyAppInfo ensureAppStatusReq() => $_ensure(4);
 
   @$pb.TagNumber(6)
-  ThirdPartyAppLaunch get appLaunchReq => $_getN(4);
+  ThirdPartyAppLaunch get appLaunchReq => $_getN(5);
   @$pb.TagNumber(6)
   set appLaunchReq(ThirdPartyAppLaunch value) => $_setField(6, value);
   @$pb.TagNumber(6)
-  $core.bool hasAppLaunchReq() => $_has(4);
+  $core.bool hasAppLaunchReq() => $_has(5);
   @$pb.TagNumber(6)
   void clearAppLaunchReq() => $_clearField(6);
   @$pb.TagNumber(6)
-  ThirdPartyAppLaunch ensureAppLaunchReq() => $_ensure(4);
+  ThirdPartyAppLaunch ensureAppLaunchReq() => $_ensure(5);
 
   @$pb.TagNumber(8)
-  ThirdPartyAppStatus get appStatusResp => $_getN(5);
+  ThirdPartyAppStatus get appStatusResp => $_getN(6);
   @$pb.TagNumber(8)
   set appStatusResp(ThirdPartyAppStatus value) => $_setField(8, value);
   @$pb.TagNumber(8)
-  $core.bool hasAppStatusResp() => $_has(5);
+  $core.bool hasAppStatusResp() => $_has(6);
   @$pb.TagNumber(8)
   void clearAppStatusResp() => $_clearField(8);
   @$pb.TagNumber(8)
-  ThirdPartyAppStatus ensureAppStatusResp() => $_ensure(5);
+  ThirdPartyAppStatus ensureAppStatusResp() => $_ensure(6);
 
   @$pb.TagNumber(9)
-  ThirdPartyAppMessage get message => $_getN(6);
+  ThirdPartyAppMessage get message => $_getN(7);
   @$pb.TagNumber(9)
   set message(ThirdPartyAppMessage value) => $_setField(9, value);
   @$pb.TagNumber(9)
-  $core.bool hasMessage() => $_has(6);
+  $core.bool hasMessage() => $_has(7);
   @$pb.TagNumber(9)
   void clearMessage() => $_clearField(9);
   @$pb.TagNumber(9)
-  ThirdPartyAppMessage ensureMessage() => $_ensure(6);
+  ThirdPartyAppMessage ensureMessage() => $_ensure(7);
+}
+
+class RpkInstallResult extends $pb.GeneratedMessage {
+  factory RpkInstallResult({
+    $core.int? status,
+    $core.String? packageName,
+    RpkInfoList? rpkInfo,
+  }) {
+    final result = create();
+    if (status != null) result.status = status;
+    if (packageName != null) result.packageName = packageName;
+    if (rpkInfo != null) result.rpkInfo = rpkInfo;
+    return result;
+  }
+
+  RpkInstallResult._();
+
+  factory RpkInstallResult.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RpkInstallResult.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RpkInstallResult',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'status')
+    ..aOS(2, _omitFieldNames ? '' : 'packageName', protoName: 'packageName')
+    ..aOM<RpkInfoList>(3, _omitFieldNames ? '' : 'rpkInfo',
+        protoName: 'rpkInfo', subBuilder: RpkInfoList.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RpkInstallResult clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RpkInstallResult copyWith(void Function(RpkInstallResult) updates) =>
+      super.copyWith((message) => updates(message as RpkInstallResult))
+          as RpkInstallResult;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RpkInstallResult create() => RpkInstallResult._();
+  @$core.override
+  RpkInstallResult createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RpkInstallResult getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RpkInstallResult>(create);
+  static RpkInstallResult? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get status => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set status($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasStatus() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearStatus() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get packageName => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set packageName($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPackageName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPackageName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  RpkInfoList get rpkInfo => $_getN(2);
+  @$pb.TagNumber(3)
+  set rpkInfo(RpkInfoList value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRpkInfo() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRpkInfo() => $_clearField(3);
+  @$pb.TagNumber(3)
+  RpkInfoList ensureRpkInfo() => $_ensure(2);
 }
 
 class ThirdPartyAppInfo extends $pb.GeneratedMessage {

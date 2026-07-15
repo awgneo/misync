@@ -1570,50 +1570,58 @@ final $typed_data.Uint8List rpkListDescriptor = $convert.base64Decode(
     'CgdScGtMaXN0Ei0KB3Jwa0luZm8YASADKAsyEy54aWFvbWkuUnBrSW5mb0xpc3RSB3Jwa0luZm'
     '8=');
 
-@$core.Deprecated('Use rpkInfoDescriptor instead')
-const RpkInfo$json = {
-  '1': 'RpkInfo',
+@$core.Deprecated('Use rpkInstallStatusDescriptor instead')
+const RpkInstallStatus$json = {
+  '1': 'RpkInstallStatus',
   '2': [
-    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
-    {'1': 'size', '3': 3, '4': 1, '5': 13, '10': 'size'},
-    {'1': 'unknown2', '3': 2, '4': 1, '5': 13, '10': 'unknown2'},
+    {'1': 'status', '3': 1, '4': 1, '5': 5, '10': 'status'},
+    {
+      '1': 'expectedSliceLength',
+      '3': 2,
+      '4': 1,
+      '5': 13,
+      '10': 'expectedSliceLength'
+    },
   ],
 };
 
-/// Descriptor for `RpkInfo`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List rpkInfoDescriptor = $convert.base64Decode(
-    'CgdScGtJbmZvEg4KAmlkGAEgASgJUgJpZBISCgRzaXplGAMgASgNUgRzaXplEhoKCHVua25vd2'
-    '4yGAIgASgNUgh1bmtub3duMg==');
+/// Descriptor for `RpkInstallStatus`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List rpkInstallStatusDescriptor = $convert.base64Decode(
+    'ChBScGtJbnN0YWxsU3RhdHVzEhYKBnN0YXR1cxgBIAEoBVIGc3RhdHVzEjAKE2V4cGVjdGVkU2'
+    'xpY2VMZW5ndGgYAiABKA1SE2V4cGVjdGVkU2xpY2VMZW5ndGg=');
 
 @$core.Deprecated('Use rpkInfoListDescriptor instead')
 const RpkInfoList$json = {
   '1': 'RpkInfoList',
   '2': [
     {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
-    {'1': 'name', '3': 5, '4': 1, '5': 9, '10': 'name'},
     {'1': 'sha', '3': 2, '4': 1, '5': 12, '10': 'sha'},
-    {'1': 'unknown3', '3': 3, '4': 1, '5': 13, '10': 'unknown3'},
-    {'1': 'unknown4', '3': 4, '4': 1, '5': 13, '10': 'unknown4'},
+    {'1': 'versionCode', '3': 3, '4': 1, '5': 13, '10': 'versionCode'},
+    {'1': 'canRemove', '3': 4, '4': 1, '5': 8, '10': 'canRemove'},
+    {'1': 'name', '3': 5, '4': 1, '5': 9, '10': 'name'},
   ],
 };
 
 /// Descriptor for `RpkInfoList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List rpkInfoListDescriptor = $convert.base64Decode(
-    'CgtScGtJbmZvTGlzdBIOCgJpZBgBIAEoCVICaWQSEgoEbmFtZRgFIAEoCVIEbmFtZRIQCgNzaG'
-    'EYAiABKAxSA3NoYRIaCgh1bmtub3duMxgDIAEoDVIIdW5rbm93bjMSGgoIdW5rbm93bjQYBCAB'
-    'KA1SCHVua25vd240');
+    'CgtScGtJbmZvTGlzdBIOCgJpZBgBIAEoCVICaWQSEAoDc2hhGAIgASgMUgNzaGESIAoLdmVyc2'
+    'lvbkNvZGUYAyABKA1SC3ZlcnNpb25Db2RlEhwKCWNhblJlbW92ZRgEIAEoCFIJY2FuUmVtb3Zl'
+    'EhIKBG5hbWUYBSABKAlSBG5hbWU=');
 
 @$core.Deprecated('Use rpkInstallStartDescriptor instead')
 const RpkInstallStart$json = {
   '1': 'RpkInstallStart',
   '2': [
-    {'1': 'cmd', '3': 1, '4': 1, '5': 13, '10': 'cmd'},
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'versionCode', '3': 2, '4': 1, '5': 13, '10': 'versionCode'},
+    {'1': 'size', '3': 3, '4': 1, '5': 13, '10': 'size'},
   ],
 };
 
 /// Descriptor for `RpkInstallStart`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List rpkInstallStartDescriptor =
-    $convert.base64Decode('Cg9ScGtJbnN0YWxsU3RhcnQSEAoDY21kGAEgASgNUgNjbWQ=');
+final $typed_data.Uint8List rpkInstallStartDescriptor = $convert.base64Decode(
+    'Cg9ScGtJbnN0YWxsU3RhcnQSDgoCaWQYASABKAlSAmlkEiAKC3ZlcnNpb25Db2RlGAIgASgNUg'
+    't2ZXJzaW9uQ29kZRISCgRzaXplGAMgASgNUgRzaXpl');
 
 @$core.Deprecated('Use healthDescriptor instead')
 const Health$json = {
@@ -3699,20 +3707,28 @@ const ThirdPartyApp$json = {
       '10': 'rpkList'
     },
     {
-      '1': 'rpkInfo',
-      '3': 2,
-      '4': 1,
-      '5': 11,
-      '6': '.xiaomi.RpkInfo',
-      '10': 'rpkInfo'
-    },
-    {
       '1': 'rpkInstallStart',
-      '3': 3,
+      '3': 2,
       '4': 1,
       '5': 11,
       '6': '.xiaomi.RpkInstallStart',
       '10': 'rpkInstallStart'
+    },
+    {
+      '1': 'rpkInstallStatus',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.RpkInstallStatus',
+      '10': 'rpkInstallStatus'
+    },
+    {
+      '1': 'rpkInstallResult',
+      '3': 4,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.RpkInstallResult',
+      '10': 'rpkInstallResult'
     },
     {
       '1': 'appStatusReq',
@@ -3752,13 +3768,38 @@ const ThirdPartyApp$json = {
 /// Descriptor for `ThirdPartyApp`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List thirdPartyAppDescriptor = $convert.base64Decode(
     'Cg1UaGlyZFBhcnR5QXBwEikKB3Jwa0xpc3QYASABKAsyDy54aWFvbWkuUnBrTGlzdFIHcnBrTG'
-    'lzdBIpCgdycGtJbmZvGAIgASgLMg8ueGlhb21pLlJwa0luZm9SB3Jwa0luZm8SQQoPcnBrSW5z'
-    'dGFsbFN0YXJ0GAMgASgLMhcueGlhb21pLlJwa0luc3RhbGxTdGFydFIPcnBrSW5zdGFsbFN0YX'
-    'J0Ej0KDGFwcFN0YXR1c1JlcRgFIAEoCzIZLnhpYW9taS5UaGlyZFBhcnR5QXBwSW5mb1IMYXBw'
-    'U3RhdHVzUmVxEj8KDGFwcExhdW5jaFJlcRgGIAEoCzIbLnhpYW9taS5UaGlyZFBhcnR5QXBwTG'
-    'F1bmNoUgxhcHBMYXVuY2hSZXESQQoNYXBwU3RhdHVzUmVzcBgIIAEoCzIbLnhpYW9taS5UaGly'
-    'ZFBhcnR5QXBwU3RhdHVzUg1hcHBTdGF0dXNSZXNwEjYKB21lc3NhZ2UYCSABKAsyHC54aWFvbW'
-    'kuVGhpcmRQYXJ0eUFwcE1lc3NhZ2VSB21lc3NhZ2U=');
+    'lzdBJBCg9ycGtJbnN0YWxsU3RhcnQYAiABKAsyFy54aWFvbWkuUnBrSW5zdGFsbFN0YXJ0Ug9y'
+    'cGtJbnN0YWxsU3RhcnQSRAoQcnBrSW5zdGFsbFN0YXR1cxgDIAEoCzIYLnhpYW9taS5ScGtJbn'
+    'N0YWxsU3RhdHVzUhBycGtJbnN0YWxsU3RhdHVzEkQKEHJwa0luc3RhbGxSZXN1bHQYBCABKAsy'
+    'GC54aWFvbWkuUnBrSW5zdGFsbFJlc3VsdFIQcnBrSW5zdGFsbFJlc3VsdBI9CgxhcHBTdGF0dX'
+    'NSZXEYBSABKAsyGS54aWFvbWkuVGhpcmRQYXJ0eUFwcEluZm9SDGFwcFN0YXR1c1JlcRI/Cgxh'
+    'cHBMYXVuY2hSZXEYBiABKAsyGy54aWFvbWkuVGhpcmRQYXJ0eUFwcExhdW5jaFIMYXBwTGF1bm'
+    'NoUmVxEkEKDWFwcFN0YXR1c1Jlc3AYCCABKAsyGy54aWFvbWkuVGhpcmRQYXJ0eUFwcFN0YXR1'
+    'c1INYXBwU3RhdHVzUmVzcBI2CgdtZXNzYWdlGAkgASgLMhwueGlhb21pLlRoaXJkUGFydHlBcH'
+    'BNZXNzYWdlUgdtZXNzYWdl');
+
+@$core.Deprecated('Use rpkInstallResultDescriptor instead')
+const RpkInstallResult$json = {
+  '1': 'RpkInstallResult',
+  '2': [
+    {'1': 'status', '3': 1, '4': 1, '5': 5, '10': 'status'},
+    {'1': 'packageName', '3': 2, '4': 1, '5': 9, '10': 'packageName'},
+    {
+      '1': 'rpkInfo',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.xiaomi.RpkInfoList',
+      '10': 'rpkInfo'
+    },
+  ],
+};
+
+/// Descriptor for `RpkInstallResult`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List rpkInstallResultDescriptor = $convert.base64Decode(
+    'ChBScGtJbnN0YWxsUmVzdWx0EhYKBnN0YXR1cxgBIAEoBVIGc3RhdHVzEiAKC3BhY2thZ2VOYW'
+    '1lGAIgASgJUgtwYWNrYWdlTmFtZRItCgdycGtJbmZvGAMgASgLMhMueGlhb21pLlJwa0luZm9M'
+    'aXN0UgdycGtJbmZv');
 
 @$core.Deprecated('Use thirdPartyAppInfoDescriptor instead')
 const ThirdPartyAppInfo$json = {

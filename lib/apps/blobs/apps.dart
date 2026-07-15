@@ -2,14 +2,14 @@ import '../../storage/blob.dart';
 
 class App {
   final bool enabled;
-  final String hash;
+  final int versionCode;
   final String package;
   final bool external;
   final List<int> fingerprint;
 
   const App({
     required this.enabled,
-    required this.hash,
+    required this.versionCode,
     required this.package,
     required this.external,
     this.fingerprint = const [],
@@ -21,10 +21,12 @@ class App {
     return '${lastSegment[0].toUpperCase()}${lastSegment.substring(1)}';
   }
 
+  bool get isInternal => !external;
+
   factory App.fromJson(Map<String, dynamic> json) {
     return App(
       enabled: json['enabled'] as bool? ?? true,
-      hash: json['hash'] as String? ?? '',
+      versionCode: json['versionCode'] as int? ?? 0,
       package: json['package'] as String? ?? '',
       external: json['external'] as bool? ?? false,
       fingerprint: List<int>.from(json['fingerprint'] ?? []),
@@ -33,7 +35,7 @@ class App {
 
   Map<String, dynamic> toJson() => {
     'enabled': enabled,
-    'hash': hash,
+    'versionCode': versionCode,
     'package': package,
     'external': external,
     'fingerprint': fingerprint,
@@ -41,14 +43,14 @@ class App {
 
   App copyWith({
     bool? enabled,
-    String? hash,
+    int? versionCode,
     String? package,
     bool? external,
     List<int>? fingerprint,
   }) {
     return App(
       enabled: enabled ?? this.enabled,
-      hash: hash ?? this.hash,
+      versionCode: versionCode ?? this.versionCode,
       package: package ?? this.package,
       external: external ?? this.external,
       fingerprint: fingerprint ?? this.fingerprint,
@@ -61,43 +63,39 @@ class AppsBlob extends Blob<Map<String, App>> {
   static AppsBlob get instance => _instance;
 
   AppsBlob._()
-    : super(
-        module: 'apps',
-        name: 'installed_hashes',
-        defaultValue: const {},
-      );
+    : super(module: 'apps', name: 'installed_hashes', defaultValue: const {});
 
   static bool getEnabled(String package) {
-    return instance.value[package]?.enabled ?? true;
+    return instance.value[package]?.enabled ?? false;
   }
 
   static void setEnabled(String package, bool enabled) {
     final updated = Map<String, App>.from(instance.value);
     final current =
         updated[package] ??
-        App(enabled: true, hash: '', package: package, external: false);
+        App(enabled: true, versionCode: 0, package: package, external: false);
     updated[package] = current.copyWith(enabled: enabled);
     instance.update(updated);
   }
 
-  static String getHash(String package) {
-    return instance.value[package]?.hash ?? '';
+  static int getVersionCode(String package) {
+    return instance.value[package]?.versionCode ?? 0;
   }
 
-  static void setHash(String package, String hash) {
+  static void setVersionCode(String package, int versionCode) {
     final updated = Map<String, App>.from(instance.value);
     final current =
         updated[package] ??
-        App(enabled: true, hash: '', package: package, external: false);
-    updated[package] = current.copyWith(hash: hash);
+        App(enabled: true, versionCode: 0, package: package, external: false);
+    updated[package] = current.copyWith(versionCode: versionCode);
     instance.update(updated);
   }
 
-  static void removeHash(String package) {
+  static void removeVersionCode(String package) {
     final updated = Map<String, App>.from(instance.value);
     final current = updated[package];
     if (current != null) {
-      updated[package] = current.copyWith(hash: '');
+      updated[package] = current.copyWith(versionCode: 0);
       instance.update(updated);
     }
   }
@@ -118,16 +116,11 @@ class AppsBlob extends Blob<Map<String, App>> {
   @override
   Map<String, App> parse(dynamic json) {
     if (json is! Map) return const {};
-    final parsed = json.map(
-      (key, val) {
-        final map = Map<String, dynamic>.from(val ?? {});
-        map['package'] ??= key as String;
-        return MapEntry(
-          key as String,
-          App.fromJson(map),
-        );
-      },
-    );
+    final parsed = json.map((key, val) {
+      final map = Map<String, dynamic>.from(val ?? {});
+      map['package'] ??= key as String;
+      return MapEntry(key as String, App.fromJson(map));
+    });
     final sortedEntries = parsed.entries.toList()
       ..sort((a, b) {
         if (a.value.external != b.value.external) {

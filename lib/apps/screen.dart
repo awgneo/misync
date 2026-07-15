@@ -25,7 +25,7 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
     final path = result.files.first.path;
     if (path == null) throw StateError('Picked file path is null');
 
-    final success = await widget.module.install(path);
+    final success = await widget.module.installExternalApp(path);
     if (!success) {
       if (!mounted) return;
       await showMiModal<bool>(
@@ -87,16 +87,16 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
                   ? Icons.apps
                   : Icons.settings_applications,
               delete: app.external
-                  ? () => widget.module.uninstall(package)
+                  ? () => widget.module.uninstallApp(package)
                   : null,
               enabled: app.external ? null : app.enabled,
               toggled: app.external
                   ? null
                   : (enabled) {
                       if (enabled) {
-                        widget.module.enableApp(package);
+                        widget.module.enableInternalApp(package);
                       } else {
-                        widget.module.disableApp(package);
+                        widget.module.disableInternalApp(package);
                       }
                     },
             );
