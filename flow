@@ -153,6 +153,19 @@ release() {
   flutter run -d "$dev" --release
 }
 
+doc() {
+  info "Documenting Mi Fitness Vela Quick App Guide..."
+  siteone-crawler \
+    --url="https://iot.mi.com/vela/quickapp/en/guide/" \
+    --max-depth=0 \
+    --include-regex="\/vela\/quickapp\/en\/" \
+    --ignore-robots-txt \
+    --browser \
+    --offline-export-preserve-url-structure \
+    --markdown-export-dir="./docs/xiaomi_vela_quickapp" \
+    --markdown-move-content-before-h1-to-end
+}
+
 misync-usage() {
   echo "build|Build watch applications, APK schemas, and protobuf schemas."
   echo "build-apk|Manage Chinese Mi Fitness APK version and extraction."

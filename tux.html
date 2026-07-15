@@ -1,0 +1,109 @@
+<!-- WIDGET mibutton.ux -->
+
+<template>
+    <div class="mibutton">
+        <text class="mibutton-top" static>{{ say }}</text>
+        <text class="mibutton-bottom" static>{{ obj.name }}</text>
+    </div>
+</template>
+
+<style lang="less">
+    .mibutton-top {
+        font-weight: bold;
+    }
+
+    .mibutton-bottom {
+        font-weight: bold;
+    }
+</style>
+
+<script>
+    export default {
+        protected: {
+            name: 'aaa'
+        },
+        onInit() {
+            console.log('I am a child component')
+        },
+        onReady() {
+            console.log('I am a child component')
+        },
+        onDestroy() {
+            console.log('I am a child component')
+        }
+    }
+</script>
+
+<!-- PAGE index.ux -->
+
+<template>
+    <!-- Only one root node is allowed in the template -->
+    <div class="page">
+        <text class="title" static>Welcome to {{title}}</text>
+        <!-- Click to navigate to the details page -->
+        <input class="btn" type="button" value="Navigate to Details Page" onclick="routeDetail">
+    </div>
+</template>
+
+<style>
+    .page {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .title {
+        font-size: 30px;
+        text-align: center;
+    }
+
+    .btn {
+        width: 400px;
+        height: 60px;
+        margin-top: 75px;
+        border-radius: 43px;
+        background-color: #09ba07;
+        font-size: 30px;
+        color: #ffffff;
+    }
+</style>
+
+<script>
+    import router from '@system.router'
+
+    export default {
+        private: {
+            title: 'this is default title'
+        },
+        // Listen for application creation. Called when the application is created.
+        onCreate() {
+            console.info('Application onCreate')
+        },
+        // Listen for application returning to the foreground. Called when the application returns to the foreground.
+        onShow() {
+            console.info('Application onShow')
+        },
+        // Listen for application moving to the background. Called when the application moves to the background.
+        onHide() {
+            console.info('Application onHide')
+        },
+        // Listen for application destruction. Called when the application is destroyed.
+        onDestroy() {
+            console.info('Application onDestroy')
+        },
+        // Listen for application errors. Called when the application catches an exception. The parameter is an Error object.
+        onError(e) {
+            console.log('Application onError', e)
+        },
+        // Exposed to all pages. Accessed in pages via: this.$app.$def.method1()
+        method1() {
+            console.info('This is an APP method')
+        },
+        // Exposed to all pages. Accessed in pages via: this.$app.$def.data1
+        data1: {
+            name: 'This is data stored by the APP'
+        }
+    }
+</script>
+
+<!-- BECOMES -->

@@ -51,3 +51,4 @@ app.*.map.json
 .test/
 .apks/
 .sources/
+.docs/
