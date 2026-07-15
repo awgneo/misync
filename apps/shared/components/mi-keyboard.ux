@@ -1,0 +1,230 @@
+<!-- apps/shared/components/mi-keyboard.ux -->
+<import name="mi-button" src="./mi-button.ux"></import>
+
+<template>
+	<div class="mi-keyboard-container">
+		<!-- Rows 3, 4, 5: QWERTY rows inside horizontal scroll -->
+		<div class="mi-keyboard-scroll-container">
+			<scroll class="mi-keyboard-scroll-x" scroll-x="{{ true }}" scroll-y="{{ false }}">
+				<div class="mi-keyboard-keys-container">
+					<!-- Row 3: QWERTY Row 1 -->
+					<div class="mi-keyboard-row mi-keyboard-row-padding">
+						<mi-button
+							for="{{ item in row1 }}"
+							label="{{ item }}"
+							classes="mi-button-normal {{ item === 'p' ? 'mi-last' : '' }}"
+							@tap="handleKeyPress(item)"
+						></mi-button>
+					</div>
+
+					<!-- Row 4: QWERTY Row 2 -->
+					<div
+						class="mi-keyboard-row mi-keyboard-row-offset-1 mi-keyboard-row-padding"
+					>
+						<mi-button
+							for="{{ item in row2 }}"
+							label="{{ item }}"
+							classes="mi-button-normal {{ item === 'l' ? 'mi-last' : '' }}"
+							@tap="handleKeyPress(item)"
+						></mi-button>
+					</div>
+
+					<!-- Row 5: QWERTY Row 3 -->
+					<div
+						class="mi-keyboard-row mi-keyboard-row-offset-2 mi-keyboard-row-padding"
+					>
+						<mi-button
+							for="{{ item in row3 }}"
+							label="{{ item }}"
+							classes="mi-button-normal"
+							@tap="handleKeyPress(item)"
+						></mi-button>
+
+						<!-- Space bar inline in third row -->
+						<mi-button
+							label="Space"
+							classes="mi-button-space mi-last"
+							@tap="handleKeyPress(' ')"
+						></mi-button>
+					</div>
+				</div>
+			</scroll>
+		</div>
+
+		<!-- Row 6: Control Row -->
+		<div class="mi-row mi-keyboard-control-row">
+			<!-- Shift Key / Symbol modifier -->
+			<mi-button
+				label="{{ numberFlag ? '#+=' : '⇧' }}"
+				classes="mi-keyboard-control-button mi-first {{ (upperFlag && !numberFlag) ? 'mi-accent' : '' }}"
+				@tap="handleToggleShift"
+			></mi-button>
+
+			<!-- Number mode key -->
+			<mi-button
+				label="{{ numberFlag ? 'abc' : '123' }}"
+				classes="mi-keyboard-control-button {{ numberFlag ? 'mi-accent' : '' }}"
+				@tap="handleToggleNumber"
+			></mi-button>
+
+			<!-- Delete key -->
+			<mi-button
+				label="⌫"
+				classes="mi-keyboard-control-button mi-last"
+				@tap="handleDeletePress"
+			></mi-button>
+		</div>
+	</div>
+</template>
+
+<script>
+export default {
+	data: {
+		activeKey: "",
+		upperFlag: false,
+		numberFlag: false,
+		row1: [],
+		row2: [],
+		row3: [],
+		keys: {
+			full: [
+				["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+				["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+				["Z", "X", "C", "V", "B", "N", "M"],
+			],
+			sign: [
+				["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+				["~", "!", "@", "#", "%", '"', '"', "*", "?", "/"],
+				["(", ")", "-", "_", ":", ";", ",", ".", "!"],
+			],
+		},
+	},
+
+	onInit() {
+		this.updateKeyboardRows();
+	},
+
+	reset() {
+		this.activeKey = "";
+		this.upperFlag = false;
+		this.numberFlag = false;
+		this.updateKeyboardRows();
+	},
+
+	updateKeyboardRows() {
+		const keysSource = this.numberFlag ? this.keys.sign : this.keys.full;
+		this.row1 = keysSource[0].map((c) =>
+			this.numberFlag ? c : this.upperFlag ? c.toUpperCase() : c.toLowerCase()
+		);
+		this.row2 = keysSource[1].map((c) =>
+			this.numberFlag ? c : this.upperFlag ? c.toUpperCase() : c.toLowerCase()
+		);
+		this.row3 = keysSource[2].map((c) =>
+			this.numberFlag ? c : this.upperFlag ? c.toUpperCase() : c.toLowerCase()
+		);
+	},
+
+	triggerActiveFeedback(keyId) {
+		const self = this;
+		this.activeKey = keyId;
+		setTimeout(() => {
+			if (self.activeKey === keyId) {
+				self.activeKey = "";
+			}
+		}, 250);
+	},
+
+	handleKeyPress(char) {
+		if (char === "Space") {
+			char = " ";
+		}
+		this.triggerActiveFeedback(char);
+		this.$emit("keytap", { character: char });
+	},
+
+	handleDeletePress() {
+		this.triggerActiveFeedback("delete");
+		this.$emit("delete", {});
+	},
+
+	handleToggleShift() {
+		this.upperFlag = !this.upperFlag;
+		this.updateKeyboardRows();
+		this.triggerActiveFeedback("shift");
+	},
+
+	handleToggleNumber() {
+		this.numberFlag = !this.numberFlag;
+		this.updateKeyboardRows();
+		this.triggerActiveFeedback("number");
+	},
+};
+</script>
+
+<style lang="less">
+@import "../styles/theme.less";
+
+.mi-keyboard-container {
+	flex: 4;
+	flex-direction: column;
+	width: 100%;
+}
+
+.mi-keyboard-scroll-container {
+	flex: 3;
+	width: 100%;
+}
+
+.mi-keyboard-scroll-x {
+	width: 100%;
+	height: 100%;
+}
+
+.mi-keyboard-keys-container {
+	flex-direction: column;
+	width: 634px;
+	height: 100%;
+	justify-content: space-between;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+.mi-keyboard-row {
+	flex: 1;
+	flex-direction: row;
+	align-items: center;
+}
+
+.mi-keyboard-row-padding {
+	padding-top: 3px;
+	padding-bottom: 3px;
+}
+
+.mi-keyboard-row-offset-1 {
+	margin-left: 32px;
+}
+
+.mi-keyboard-row-offset-2 {
+	margin-left: 33px;
+}
+
+.mi-keyboard-control-row {
+	flex: 1;
+	width: 100%;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	padding-left: 0px;
+	padding-right: 0px;
+	padding-top: 3px;
+	padding-bottom: 3px;
+}
+
+.mi-keyboard-control-button {
+	flex: 1;
+	margin-left: 4px;
+	margin-right: 4px;
+}
+
+
+</style>

@@ -1,0 +1,137 @@
+// Design System Variables
+@bg-default: #242424;
+@border-radius: 12px;
+@accent-color: #00e5ff;
+@danger-color: #b71c1c;
+@bg-active: #ffffff;
+@text-active: #000000;
+
+/* Core Page Layouts */
+.mi-page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+}
+
+.mi-scroll {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+}
+
+/* Page Viewport (Locked to 480px watch screen height inside scrolling contexts) */
+.mi-viewport {
+  width: 100%;
+  height: 480px;
+  flex-direction: column;
+  align-items: center;
+  padding: 0px 0px;
+}
+
+/* Horizontal Layout Rows */
+.mi-row {
+  width: 100%;
+  height: 80px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.mi-spacer {
+  width: 100%;
+  height: 60px;
+}
+
+/* TextBox Styling (.mi-textbox) */
+.mi-textbox {
+  flex: 1;
+  height: 100%;
+  background-color: @bg-default;
+  border-radius: @border-radius;
+  padding-left: 12px;
+  padding-right: 12px;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.mi-textbox-text {
+  font-size: 28px;
+  color: #ffffff;
+}
+
+/* Core Button Styling (.mi-button) */
+.mi-button {
+  justify-content: center;
+  align-items: center;
+  border-radius: @border-radius;
+  background-color: @bg-default;
+  height: 100%;
+  width: 100%;
+  margin-right: 8px;
+}
+
+.mi-button-text {
+  font-size: 28px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* Button Variants */
+.mi-button-normal {
+  width: 58px;
+  margin-right: 6px;
+}
+
+.mi-button-space {
+  width: 120px;
+  background-color: #383838;
+  margin-right: 6px;
+}
+
+.mi-button-control {
+  flex: 1;
+  width: 100%;
+  background-color: #1a1a1a;
+}
+
+.mi-send-btn {
+  width: 70px;
+}
+
+.mi-accent {
+  background-color: @accent-color !important;
+}
+
+.mi-danger {
+  background-color: @danger-color !important;
+}
+
+.mi-button-text-accent {
+  color: #000000 !important;
+}
+
+.mi-last {
+  margin-right: 0px !important;
+}
+
+.mi-first {
+  margin-left: 0px !important;
+}
+
+/* Button Status Modifiers */
+.mi-button-pressed {
+  opacity: 0.6;
+  background-color: @bg-active !important;
+}
+
+.mi-button-text-pressed {
+  color: @text-active !important;
+}
+
+.margin-center {
+  margin-left: 6px;
+  margin-right: 6px;
+}

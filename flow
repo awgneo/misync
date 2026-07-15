@@ -16,9 +16,21 @@ build-watch() {
     if [ -d "$app_dir" ] && [ -f "$app_dir/package.json" ]; then
       local name
       name=$(basename "$app_dir")
+      if [ "$name" = "shared" ]; then
+        continue
+      fi
+      
+      info "Syncing shared library to watch app: $name..."
+      if [ -d "apps/shared" ]; then
+        rm -rf "$app_dir/src/shared"
+        mkdir -p "$app_dir/src/shared"
+        cp -R apps/shared/ "$app_dir/src/shared/"
+      fi
+      
       info "Building watch app: $name..."
       (
         cd "$app_dir" || exit 1
+        rm -rf dist build
         if [ ! -d "node_modules" ]; then
           npm install || exit 1
         fi
@@ -189,7 +201,7 @@ misync-flow() {
     build-icon) build-icon; return $?;;
     clean) clean; return $?;;
     analyze) analyze; return $?;;
-    debug) debug; return $?;;
+    debug) build && debug; return $?;;
     release) release; return $?;;
     *) return 127 ;;
   esac

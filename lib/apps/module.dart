@@ -341,13 +341,26 @@ class AppsModule extends TabModule {
     final localFileSha = sha256.convert(assetBytes).bytes;
     final localFileShaHex = hex.encode(localFileSha).toUpperCase();
 
-    // Check if it is already installed with this exact hash
-    final lastInstalledHash = AppsBlob.getHash(package);
-    if (lastInstalledHash == localFileShaHex) {
-      logger.info(
-        'internal app $package is already up to date ($localFileShaHex). Skipping installation.',
-      );
-      return true;
+    // Check if it is already installed with this exact fingerprint on the watch
+    final installedApp = AppsBlob.instance.value[package];
+    if (installedApp != null && installedApp.fingerprint.isNotEmpty) {
+      bool match = true;
+      if (installedApp.fingerprint.length == localFileSha.length) {
+        for (int i = 0; i < localFileSha.length; i++) {
+          if (installedApp.fingerprint[i] != localFileSha[i]) {
+            match = false;
+            break;
+          }
+        }
+      } else {
+        match = false;
+      }
+      if (match) {
+        logger.info(
+          'internal app $package is already up to date on the watch. Skipping installation.',
+        );
+        return true;
+      }
     }
 
     final success = await _uploadApp(package, 1, assetBytes);

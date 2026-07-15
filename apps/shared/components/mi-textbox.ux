@@ -1,0 +1,35 @@
+<!-- apps/shared/components/mi-textbox.ux -->
+<template>
+	<div class="mi-textbox {{classes}}" style="background-color: {{background || '#242424'}};">
+		<text class="mi-textbox-text">
+			{{ value || placeholder }}
+		</text>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		value: {
+			type: String,
+			default: "",
+		},
+		placeholder: {
+			type: String,
+			default: "",
+		},
+		classes: {
+			type: String,
+			default: "",
+		},
+		background: {
+			type: String,
+			default: "",
+		},
+	},
+};
+</script>
+
+<style lang="less">
+  @import '../styles/theme.less';
+</style>
