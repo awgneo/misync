@@ -1,11 +1,15 @@
-<!-- apps/shared/components/mi-keyboard.ux -->
+<!-- apps/shared/components/keyboard.ux -->
 <import name="mi-button" src="./mi-button.ux"></import>
 
 <template>
 	<div class="mi-keyboard-container">
 		<!-- Rows 3, 4, 5: QWERTY rows inside horizontal scroll -->
 		<div class="mi-keyboard-scroll-container">
-			<scroll class="mi-keyboard-scroll-x" scroll-x="{{ true }}" scroll-y="{{ false }}">
+			<scroll
+				class="mi-keyboard-scroll-x"
+				scroll-x="{{ true }}"
+				scroll-y="{{ false }}"
+			>
 				<div class="mi-keyboard-keys-container">
 					<!-- Row 3: QWERTY Row 1 -->
 					<div class="mi-keyboard-row mi-keyboard-row-padding">
@@ -225,6 +229,4 @@ export default {
 	margin-left: 4px;
 	margin-right: 4px;
 }
-
-
 </style>

@@ -1,66 +1,66 @@
-<import name="mi-button" src="../../shared/components/mi-button.ux"></import>
+<import name="mi-button" src="../../shared/components/button.ux"></import>
 
 <template>
-  <div class="mi-page">
-    <scroll class="mi-scroll" scroll-y="true">
-      <!-- Grid items chunked into rows of 2 columns -->
-      <div for="{{row in actionRows}}" class="mi-row">
-        <mi-button
-          for="{{item in row}}"
-          label="{{item.icon ? item.icon + ' ' + item.name : item.name}}"
-          classes="{{ $idx === 1 ? 'mi-last' : '' }}"
-          @tap="handleActionTap(item.name)"
-        ></mi-button>
-      </div>
-    </scroll>
-  </div>
+	<div class="mi-page">
+		<scroll class="mi-scroll" scroll-y="true">
+			<!-- Grid items chunked into rows of 2 columns -->
+			<div for="{{ row in actionRows }}" class="mi-row">
+				<mi-button
+					for="{{ item in row }}"
+					label="{{ item.icon ? item.icon + ' ' + item.name : item.name }}"
+					classes="{{ $idx === 1 ? 'mi-last' : '' }}"
+					@tap="handleActionTap(item.name)"
+				></mi-button>
+			</div>
+		</scroll>
+	</div>
 </template>
 
 <script>
 import misync from "../../shared/modules/misync.js";
 
 export default {
-  private: {
-    actionsList: [],
-    actionRows: []
-  },
+	private: {
+		actionsList: [],
+		actionRows: [],
+	},
 
-  onInit() {
-    // Register message listener
-    this.unsubscribe = misync.onMessage((payload) => {
-      if (payload.response) {
-        this.actionsList = payload.response
-        this.updateActionRows()
-      }
-    })
+	onInit() {
+		// Register message listener
+		this.unsubscribe = misync.onMessage((payload) => {
+			if (payload.response) {
+				this.actionsList = payload.response;
+				this.updateActionRows();
+			}
+		});
 
-    // Initialize misync and request actions
-    misync.initialize({
-      onOpen: () => {
-        misync.send("getActions")
-      }
-    })
-  },
+		// Initialize misync and request actions
+		misync.initialize({
+			onOpen: () => {
+				misync.send("getActions");
+			},
+		});
+	},
 
-  onDestroy() {
-    if (this.unsubscribe) {
-      this.unsubscribe()
-    }
-  },
+	onDestroy() {
+		if (this.unsubscribe) {
+			this.unsubscribe();
+		}
+	},
 
-  handleActionTap(name) {
-    misync.send("launchAction", { action: name })
-  },
+	handleActionTap(name) {
+		misync.send("launchAction", { action: name });
+	},
 
-  updateActionRows() {
-    const rows = []
-    const list = this.actionsList || []
-    for (let i = 0; i < list.length; i += 2) {
-      rows.push(list.slice(i, i + 2))
-    }
-    this.actionRows = rows
-  }
-}
+	updateActionRows() {
+		const rows = [];
+		const list = this.actionsList || [];
+		for (let i = 0; i < list.length; i += 2) {
+			rows.push(list.slice(i, i + 2));
+		}
+		this.actionRows = rows;
+	},
+};
 </script>
 
 <style lang="less">

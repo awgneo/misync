@@ -195,11 +195,6 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 true
             }
 
-            "getDefaultSmsPackage" -> {
-                result.success(notificationsManager.getDefaultSmsPackage())
-                true
-            }
-
             else -> false
         }
     }

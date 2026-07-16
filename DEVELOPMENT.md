@@ -65,6 +65,12 @@ Platform channel routing prefixes method calls with the module name (e.g. `'heal
   * *Incorrect*: `"media.onMediaChanged"`, `"onNotificationReceived"`, `"onDndChanged"`
 * **API Functions (Flutter-to-Native Commands)**: All methods invoked by Dart targeting native platform APIs are namespaced with the module prefix and use camelCase. Public module methods should generally start with verbs like `get` (e.g., `getSomething`) or `do`/action verbs (e.g., `doSomethingSpecial`). Namespace syntax like `media.control` is standard.
 
+### Method Channel Error Handling & Return Types
+
+*   **Abolish Dummy Booleans**: Native commands that perform an action (e.g., writing a file, triggering DND, replying to a notification) **must not** return `result.success(true)` or `result.success(false)` to represent status. They should return `result.success(null)` (void) on success, and throw a descriptive exception on failure.
+*   **Exception Propagation**: Do not catch and swallow exceptions inside concrete modules or method channels. Let native exceptions bubble up, or call `result.error()` explicitly. When exceptions bubble up, the global `BaseModule` interceptor automatically catches them, prints structured logs, and sends a descriptive `PlatformException` back to Dart.
+*   **Dart Client Safety**: Dart callers should wrap native calls in standard `try-catch` blocks to capture native failures cleanly, ensuring that errors correctly abort multi-step transactions (like database writes or BLE commands) rather than failing silently.
+
 ### Kotlin Side
 On the Android native layer, the project enforces a strict **Module-to-Manager concern separation**:
 

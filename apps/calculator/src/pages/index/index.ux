@@ -1,6 +1,6 @@
 <!-- apps/calculator/src/pages/index/index.ux -->
-<import name="mi-button" src="../../shared/components/mi-button.ux"></import>
-<import name="mi-textbox" src="../../shared/components/mi-textbox.ux"></import>
+<import name="mi-button" src="../../shared/components/button.ux"></import>
+<import name="mi-textbox" src="../../shared/components/textbox.ux"></import>
 
 <template>
 	<div class="mi-page">

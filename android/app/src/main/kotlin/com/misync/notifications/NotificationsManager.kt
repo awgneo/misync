@@ -73,9 +73,6 @@ class NotificationsManager(private val context: Context) {
         return true
     }
 
-    fun getDefaultSmsPackage(): String? {
-        return Telephony.Sms.getDefaultSmsPackage(context)
-    }
 
     fun getAppIcon(packageName: String, size: Int): ByteArray {
         val pm = context.packageManager
