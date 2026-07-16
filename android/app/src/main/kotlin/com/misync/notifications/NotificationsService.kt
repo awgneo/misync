@@ -108,7 +108,8 @@ class NotificationsService : NotificationListenerService() {
             if (actions != null) {
                 for (action in actions) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        if (action.semanticAction == Notification.Action.SEMANTIC_ACTION_CALL_ANSWER) {
+                        // 8 = Notification.Action.SEMANTIC_ACTION_CALL_ANSWER
+                        if (action.semanticAction == 8) {
                             hasAnswerAction = true
                             break
                         }
