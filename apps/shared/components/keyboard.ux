@@ -1,5 +1,5 @@
 <!-- apps/shared/components/keyboard.ux -->
-<import name="mi-button" src="./mi-button.ux"></import>
+<import name="mi-button" src="./button.ux"></import>
 
 <template>
 	<div class="mi-keyboard-container">
