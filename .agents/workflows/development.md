@@ -12,5 +12,9 @@ Please review all of the following:
   - All subdirectories and files in components
   - All subdirectories and files in features
 3. The flutter source code in lib/** (100% of all subdirectories and files)
-4. The messages QuickApp in apps/messages (100% of all subdirectories and files)
-5. The shared QuickApp library in apps/shared
+4. A sampling of the native kotlin source code in android/app/src/main/kotlin/**
+  - MainActivity.kt
+  - base/**
+  - A sampling of modules (notifications, media, health)
+5. The messages QuickApp in apps/messages (100% of all subdirectories and files)
+6. The shared QuickApp library in apps/shared
