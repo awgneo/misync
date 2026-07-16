@@ -1,10 +1,17 @@
 <!-- apps/investments/src/pages/index/index.ux -->
 <import name="mi-header" src="../../shared/components/header.ux"></import>
-<import name="investment-item" src="../../components/investment-item.ux"></import>
+<import
+	name="investment-item"
+	src="../../components/investment-item.ux"
+></import>
 
 <template>
 	<div class="mi-page">
-		<swiper if="{{ watchlists.length > 0 }}" class="mi-swiper" indicator="{{ true }}">
+		<swiper
+			if="{{ watchlists.length > 0 }}"
+			class="mi-swiper"
+			indicator="{{ true }}"
+		>
 			<div for="{{ watchlist in watchlists }}" class="watchlist-slide">
 				<div class="mi-row">
 					<mi-header text="{{ watchlist.name }}"></mi-header>
@@ -18,7 +25,10 @@
 							classes="mi-last"
 						></investment-item>
 					</div>
-					<div if="{{ !watchlist.investments || watchlist.investments.length === 0 }}" class="empty-container">
+					<div
+						if="{{ !watchlist.investments || watchlist.investments.length === 0 }}"
+						class="empty-container"
+					>
 						<text class="empty-text">No stocks in this list</text>
 					</div>
 					<div class="bottom-spacer"></div>
@@ -105,7 +115,7 @@ export default {
 	align-items: center;
 }
 .empty-text {
-	font-size: 28px;
+	font-size: @font-size-small;
 	color: #888888;
 }
 .bottom-spacer {

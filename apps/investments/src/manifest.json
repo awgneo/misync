@@ -2,7 +2,7 @@
   "package": "com.misync.investments",
   "name": "Investments",
   "versionName": "1.0.0",
-  "versionCode": 5,
+  "versionCode": 6,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "simulationVersion": "default",

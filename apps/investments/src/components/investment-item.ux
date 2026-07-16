@@ -5,7 +5,7 @@
 		<div class="stock-price-container">
 			<text class="stock-price">${{ price }}</text>
 			<text class="stock-change {{ change >= 0 ? 'text-green' : 'text-red' }}">
-				{{ change >= 0 ? '+' : '' }}{{ change }}%
+				{{ change >= 0 ? "+" : "" }}{{ change }}%
 			</text>
 		</div>
 	</div>
@@ -50,7 +50,7 @@ export default {
 	margin-right: 8px;
 }
 .stock-symbol {
-	font-size: 30px;
+	font-size: @font-size-normal;
 	color: #ffffff;
 	font-weight: bold;
 }
@@ -59,12 +59,12 @@ export default {
 	align-items: center;
 }
 .stock-price {
-	font-size: 28px;
+	font-size: @font-size-small;
 	color: #ffffff;
 	margin-right: 10px;
 }
 .stock-change {
-	font-size: 26px;
+	font-size: @font-size-small;
 	font-weight: bold;
 	padding: 4px 8px;
 	border-radius: 6px;

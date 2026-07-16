@@ -541,6 +541,11 @@ class HealthModule extends TabModule {
   }
 
   Future<bool> _syncSleepFile(Id id, Uint8List data) async {
+    logger.info('raw sleep file hex', {
+      'hex': data.sublist(0, data.length > 64 ? 64 : data.length).map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+      'length': data.length,
+    });
+
     final Sleep sleep;
 
     try {

@@ -16,7 +16,7 @@ class Sleep {
   int? awakeDuration;
   int? awakeCount;
   int? friendlyTotalScore;
-  List<SleepReportStage> stages = [];
+  List<SleepStage> stages = [];
 
   Sleep(this.timestamp);
 
@@ -84,12 +84,12 @@ class Sleep {
   }
 }
 
-class SleepReportStage {
+class SleepStage {
   final int startTime;
   final int endTime;
   final int sleepState;
 
-  SleepReportStage(this.startTime, this.endTime, this.sleepState);
+  SleepStage(this.startTime, this.endTime, this.sleepState);
 
   Map<String, dynamic> toJson() {
     return {

@@ -106,7 +106,7 @@ class SleepParser {
       offset += 5;
 
       if (prevTime != null && prevState != null) {
-        report.stages.add(SleepReportStage(prevTime, t, prevState));
+        report.stages.add(SleepStage(prevTime, t, prevState));
       }
       prevTime = t;
       prevState = s;
@@ -144,7 +144,7 @@ class SleepParser {
       offset += 5;
 
       if (prevTime != null && prevState != null) {
-        report.stages.add(SleepReportStage(prevTime, t, prevState));
+        report.stages.add(SleepStage(prevTime, t, prevState));
       }
       prevTime = t;
       prevState = s;
@@ -156,58 +156,89 @@ class SleepParser {
   static Sleep _parseAllDaySleep(Id id, Uint8List data) {
     if (data.length < 7) return Sleep(id.timeStamp);
     final remaining = data.sublist(7);
-    
-    // Header size varies based on version
-    final headerSize = id.version >= 5 ? 2 : 1;
-    if (remaining.length < 1 + headerSize + 9) {
+
+    final int dataValidLen;
+    if (id.version <= 4) {
+      dataValidLen = 1;
+    } else if (id.version == 5) {
+      dataValidLen = 2;
+    } else {
+      dataValidLen = 3;
+    }
+
+    int reportVariablesSize = 0;
+    if (id.version >= 1) reportVariablesSize += 1; // isSleepFinish
+    if (id.version >= 1)
+      reportVariablesSize += 8; // bedTime (4) + wakeupTime (4)
+    if (id.version >= 4) reportVariablesSize += 1; // sleepQuality
+    if (id.version >= 5) {
+      reportVariablesSize +=
+          17; // sleepEfficiency (1) + entrySleepDuration (4) + linBedDuration (4) + goBedTime (4) + leaveBedTime (4)
+    }
+
+    if (remaining.length < 1 + dataValidLen + reportVariablesSize) {
       return Sleep(id.timeStamp);
     }
-    
+
     final byteData = ByteData.sublistView(remaining);
-    
+
     // Base bedtime/wake up time from the file header
-    int bedTime = byteData.getUint32(1 + headerSize + 1, Endian.little);
-    int wakeupTime = byteData.getUint32(1 + headerSize + 5, Endian.little);
+    int bedTime = byteData.getUint32(2 + dataValidLen, Endian.little);
+    int wakeupTime = byteData.getUint32(6 + dataValidLen, Endian.little);
 
     final report = Sleep(id.timeStamp);
     report.bedTime = bedTime;
     report.wakeupTime = wakeupTime;
 
     // Search for 0xFFFCFAFB packets inside the payload body
-    final bodyOffset = 1 + headerSize + 9;
+    final bodyOffset = 1 + dataValidLen + reportVariablesSize;
     final bodyData = remaining.sublist(bodyOffset);
     final bodyByteData = ByteData.sublistView(bodyData);
-    
+
     int packetOffset = 0;
-    while (packetOffset + 17 <= bodyData.length) {
-      // Find packet signature 0xFFFCFAFB
-      if (bodyData[packetOffset] != 0xFF ||
-          bodyData[packetOffset + 1] != 0xFC ||
-          bodyData[packetOffset + 2] != 0xFA ||
-          bodyData[packetOffset + 3] != 0xFB) {
+    while (packetOffset + 14 <= bodyData.length) {
+      final bool isNewProto;
+      if (bodyData[packetOffset] == 0xFF &&
+          bodyData[packetOffset + 1] == 0x11) {
+        isNewProto = true;
+      } else if (packetOffset + 17 <= bodyData.length &&
+          bodyData[packetOffset] == 0xFF &&
+          bodyData[packetOffset + 1] == 0xFC &&
+          bodyData[packetOffset + 2] == 0xFA &&
+          bodyData[packetOffset + 3] == 0xFB) {
+        isNewProto = false;
+      } else {
         packetOffset++;
         continue;
       }
-      
-      packetOffset += 4;
-      packetOffset += 1; // skip headerLen
-      
+
+      final int sigLen = isNewProto ? 2 : 5; // signature (1/4) + headerLen (1)
+      packetOffset += sigLen;
+
       if (packetOffset + 12 > bodyData.length) break;
-      
-      final ts = bodyByteData.getUint64(packetOffset, Endian.little);
+
+      int ts = bodyByteData.getUint64(packetOffset, Endian.little);
+      if (ts > 1000000000000) {
+        ts = ts ~/ 1000;
+      }
       packetOffset += 8;
-      
+
       packetOffset += 1; // skip parity
       final type = bodyData[packetOffset];
       packetOffset += 1;
-      
-      final dataLen = (bodyData[packetOffset] << 8) | bodyData[packetOffset + 1];
+
+      final dataLen =
+          (bodyData[packetOffset] << 8) | bodyData[packetOffset + 1];
       packetOffset += 2;
-      
+
       if (packetOffset + dataLen > bodyData.length) break;
-      
-      final dataByteData = ByteData.sublistView(bodyData, packetOffset, packetOffset + dataLen);
-      
+
+      final dataByteData = ByteData.sublistView(
+        bodyData,
+        packetOffset,
+        packetOffset + dataLen,
+      );
+
       if (type == 16 && dataLen >= 11) {
         // Sleep report summary packet
         final sleepDuration = dataByteData.getUint16(1, Endian.big);
@@ -215,7 +246,7 @@ class SleepParser {
         final lightDuration = dataByteData.getUint16(5, Endian.big);
         final remDuration = dataByteData.getUint16(7, Endian.big);
         final deepDuration = dataByteData.getUint16(9, Endian.big);
-        
+
         report.sleepDuration = sleepDuration;
         report.awakeDuration = wakeDuration;
         report.lightDuration = lightDuration;
@@ -229,18 +260,20 @@ class SleepParser {
           final val = dataByteData.getUint16(i, Endian.big);
           final stage = val >> 12;
           final offsetMinutes = val & 0xFFF;
-          
+
           final stageStart = currentTime;
           currentTime += offsetMinutes * 60;
           final stageEnd = currentTime;
-          
-          report.stages.add(SleepReportStage(stageStart, stageEnd, _decodeStage(stage)));
+
+          report.stages.add(
+            SleepStage(stageStart, stageEnd, _decodeStage(stage)),
+          );
         }
       }
-      
+
       packetOffset += dataLen;
     }
-    
+
     return report;
   }
 
