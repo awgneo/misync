@@ -33,7 +33,7 @@ class HealthManager(private val context: Context) {
 
     fun writeSteps(startTimeMs: Long, endTimeMs: Long, count: Long, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -50,17 +50,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write steps: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write steps", null)
             }
         }
     }
 
     fun writeHeartRate(timeMs: Long, bpm: Long, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -77,17 +77,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write heart rate: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write heart rate", null)
             }
         }
     }
 
     fun writeOxygenSaturation(timeMs: Long, percentage: Double, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -102,17 +102,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write oxygen saturation: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write oxygen saturation", null)
             }
         }
     }
 
     fun writeActiveCaloriesBurned(startTimeMs: Long, endTimeMs: Long, kcal: Double, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -129,17 +129,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write active calories: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write active calories", null)
             }
         }
     }
 
     fun writeDistance(startTimeMs: Long, endTimeMs: Long, meters: Double, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -156,10 +156,10 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write distance: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write distance", null)
             }
         }
     }
@@ -171,28 +171,38 @@ class HealthManager(private val context: Context) {
         result: MethodChannel.Result
     ) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
         scope.launch {
             try {
-                val stages = stagesList.map { stageMap ->
-                    val start = stageMap["start"] as Long
-                    val end = stageMap["end"] as Long
-                    val state = stageMap["stage"] as Int
-                    val type = when (state) {
-                        2 -> SleepSessionRecord.STAGE_TYPE_DEEP
-                        3 -> SleepSessionRecord.STAGE_TYPE_LIGHT
-                        4 -> SleepSessionRecord.STAGE_TYPE_REM
-                        1, 5 -> SleepSessionRecord.STAGE_TYPE_AWAKE
-                        else -> SleepSessionRecord.STAGE_TYPE_UNKNOWN
-                    }
-                    SleepSessionRecord.Stage(
-                        startTime = Instant.ofEpochMilli(start),
-                        endTime = Instant.ofEpochMilli(end),
-                        stage = type
+                val stages = if (stagesList.isEmpty()) {
+                    listOf(
+                        SleepSessionRecord.Stage(
+                            startTime = Instant.ofEpochMilli(startTimeMs),
+                            endTime = Instant.ofEpochMilli(endTimeMs),
+                            stage = SleepSessionRecord.STAGE_TYPE_UNKNOWN
+                        )
                     )
+                } else {
+                    stagesList.map { stageMap ->
+                        val start = stageMap["start"] as Long
+                        val end = stageMap["end"] as Long
+                        val state = stageMap["stage"] as Int
+                        val type = when (state) {
+                            2 -> SleepSessionRecord.STAGE_TYPE_DEEP
+                            3 -> SleepSessionRecord.STAGE_TYPE_LIGHT
+                            4 -> SleepSessionRecord.STAGE_TYPE_REM
+                            1, 5 -> SleepSessionRecord.STAGE_TYPE_AWAKE
+                            else -> SleepSessionRecord.STAGE_TYPE_UNKNOWN
+                        }
+                        SleepSessionRecord.Stage(
+                            startTime = Instant.ofEpochMilli(start),
+                            endTime = Instant.ofEpochMilli(end),
+                            stage = type
+                        )
+                    }
                 }
 
                 val sleepSession = SleepSessionRecord(
@@ -208,15 +218,15 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(sleepSession))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write sleep session: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write sleep session", null)
             }
         }
     }
 
-    fun writeWorkoutSession(
+    fun writeExerciseSession(
         startTimeMs: Long,
         endTimeMs: Long,
         sportType: Int,
@@ -227,7 +237,7 @@ class HealthManager(private val context: Context) {
         result: MethodChannel.Result
     ) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -332,17 +342,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(list)
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write workout session: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write workout session", null)
             }
         }
     }
 
     fun writeMindfulnessSession(timeMs: Long, stress: Int, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -361,22 +371,22 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write mindfulness session: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write mindfulness session", null)
             }
         }
     }
 
     fun writeBodyTemperature(timeMs: Long, skinTemp: Double?, bodyTemp: Double?, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
         val temp = bodyTemp ?: skinTemp ?: run {
-            result.success(false)
+            result.error("INVALID_ARGUMENTS", "Body temperature and skin temperature cannot both be null", null)
             return
         }
 
@@ -391,17 +401,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write body temperature: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write body temperature", null)
             }
         }
     }
 
     fun writeBloodPressure(timeMs: Long, systolic: Int, diastolic: Int, result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(false)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -417,17 +427,17 @@ class HealthManager(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
-                result.success(true)
+                result.success(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write blood pressure: ", e)
-                result.success(false)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write blood pressure", null)
             }
         }
     }
 
     fun getLatestHeightAndWeight(result: MethodChannel.Result) {
         val currentClient = client ?: run {
-            result.success(null)
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
         }
 
@@ -451,13 +461,15 @@ class HealthManager(private val context: Context) {
                 }
                 val weight = weightResponse.records.maxByOrNull { it.time }?.weight?.inKilograms
                 val height = heightResponse.records.maxByOrNull { it.time }?.height?.inMeters
-                result.success(mapOf(
-                    "weight" to weight,
-                    "height" to height
-                ))
+                result.success(
+                    mapOf(
+                        "weight" to weight,
+                        "height" to height
+                    )
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to read height/weight: ", e)
-                result.success(null)
+                result.error("READ_ERROR", e.message ?: "Failed to read height/weight", null)
             }
         }
     }

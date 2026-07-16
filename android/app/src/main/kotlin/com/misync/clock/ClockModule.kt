@@ -31,11 +31,7 @@ class ClockModule(private val context: Context) : BaseModule("clock") {
     }
 
     override fun onDestroy() {
-        try {
-            context.unregisterReceiver(alarmReceiver)
-        } catch (e: Exception) {
-            // Ignored
-        }
+        context.unregisterReceiver(alarmReceiver)
     }
 
     override fun checkPermissions(): Boolean {

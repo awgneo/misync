@@ -25,6 +25,7 @@ class NotificationsService : NotificationListenerService() {
         const val EXTRA_CATEGORY = "category"
         const val EXTRA_PHONE = "phone"
         const val EXTRA_REPLYABLE = "replyable"
+        const val EXTRA_KIND = "kind"
 
         var instance: NotificationsService? = null
             private set
@@ -93,7 +94,47 @@ class NotificationsService : NotificationListenerService() {
         val key = sbn.key
         val category = notification.category ?: ""
 
+        // 1. Voicemails & Missed Calls Filter
+        val isDialer = isCallPackage(packageName)
+        if (isDialer && category != Notification.CATEGORY_CALL) {
+            Log.d(TAG, "Filtering out missed call/voicemail dialer notification from $packageName")
+            return
+        }
+
         val isCall = isCallNotification(packageName, category)
+        if (isCall) {
+            var hasAnswerAction = false
+            val actions = notification.actions
+            if (actions != null) {
+                for (action in actions) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        if (action.semanticAction == Notification.Action.SEMANTIC_ACTION_CALL_ANSWER) {
+                            hasAnswerAction = true
+                            break
+                        }
+                    }
+                    val titleText = action.title?.toString()?.lowercase() ?: ""
+                    if (titleText.contains("answer") || titleText.contains("accept") || titleText.contains("接听") || titleText.contains(
+                            "contestar"
+                        )
+                    ) {
+                        hasAnswerAction = true
+                        break
+                    }
+                }
+            }
+            if (!hasAnswerAction) {
+                Log.d(TAG, "Filtering out non-ringing call notification from $packageName (no answer action)")
+                return
+            }
+        }
+
+        val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
+        val kind = when {
+            isCall -> "call"
+            defaultSmsPkg != null && packageName == defaultSmsPkg -> "text"
+            else -> "standard"
+        }
 
         var phoneNumber = ""
         if (isCall) {
@@ -121,7 +162,7 @@ class NotificationsService : NotificationListenerService() {
 
         Log.d(
             TAG,
-            "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category, phoneNumber: $phoneNumber, hasRemoteInput: $hasRemoteInput"
+            "Notification received from: $packageName ($appName), title: $title, body: $body, category: $category, phoneNumber: $phoneNumber, hasRemoteInput: $hasRemoteInput, kind: $kind"
         )
 
         val intent = Intent(ACTION_NOTIFICATION_RECEIVED).apply {
@@ -134,8 +175,10 @@ class NotificationsService : NotificationListenerService() {
             putExtra(EXTRA_CATEGORY, category)
             putExtra(EXTRA_PHONE, phoneNumber)
             putExtra(EXTRA_REPLYABLE, hasRemoteInput)
+            putExtra(EXTRA_KIND, kind)
             setPackage(this@NotificationsService.packageName)
         }
+
         sendBroadcast(intent)
     }
 
@@ -318,7 +361,10 @@ class NotificationsService : NotificationListenerService() {
                         // Find by package name and ID
                         val fallbackMatch = active.find { it.packageName == pkg && it.id == id }
                         if (fallbackMatch != null) {
-                            Log.d(TAG, "Exact key not found, found fallback match by package and ID: ${fallbackMatch.key}")
+                            Log.d(
+                                TAG,
+                                "Exact key not found, found fallback match by package and ID: ${fallbackMatch.key}"
+                            )
                             targetKey = fallbackMatch.key
                         }
                     }
@@ -393,9 +439,9 @@ class NotificationsService : NotificationListenerService() {
     private fun isCallPackage(packageName: String): Boolean {
         val pkg = packageName.lowercase()
         return pkg.contains("dialer") ||
-               pkg.contains("telecom") ||
-               pkg.contains("phone") ||
-               pkg.contains("call")
+                pkg.contains("telecom") ||
+                pkg.contains("phone") ||
+                pkg.contains("call")
     }
 
     private fun isCallNotification(packageName: String, category: String?): Boolean {

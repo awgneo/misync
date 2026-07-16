@@ -19,13 +19,9 @@ class LocationManager(private val context: Context) {
         val providers = locationManager.getProviders(true)
         var bestLocation: Location? = null
         for (provider in providers) {
-            try {
-                val loc = locationManager.getLastKnownLocation(provider) ?: continue
-                if (bestLocation == null || loc.accuracy < bestLocation.accuracy) {
-                    bestLocation = loc
-                }
-            } catch (e: SecurityException) {
-                Log.e(TAG, "Location permission not granted for provider $provider", e)
+            val loc = locationManager.getLastKnownLocation(provider) ?: continue
+            if (bestLocation == null || loc.accuracy < bestLocation.accuracy) {
+                bestLocation = loc
             }
         }
         if (bestLocation != null) {
@@ -85,29 +81,23 @@ class LocationManager(private val context: Context) {
         }
 
         var started = false
-        try {
-            if (locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    android.location.LocationManager.GPS_PROVIDER,
-                    2000L,
-                    1.0f,
-                    locationListener!!
-                )
-                started = true
-            }
-            if (locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    android.location.LocationManager.NETWORK_PROVIDER,
-                    2000L,
-                    1.0f,
-                    locationListener!!
-                )
-                started = true
-            }
-        } catch (e: SecurityException) {
-            Log.e(TAG, "startLocationUpdates: permission not granted", e)
-        } catch (e: Exception) {
-            Log.e(TAG, "startLocationUpdates: error requesting updates", e)
+        if (locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+            locationManager.requestLocationUpdates(
+                android.location.LocationManager.GPS_PROVIDER,
+                2000L,
+                1.0f,
+                locationListener!!
+            )
+            started = true
+        }
+        if (locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
+            locationManager.requestLocationUpdates(
+                android.location.LocationManager.NETWORK_PROVIDER,
+                2000L,
+                1.0f,
+                locationListener!!
+            )
+            started = true
         }
 
         return started

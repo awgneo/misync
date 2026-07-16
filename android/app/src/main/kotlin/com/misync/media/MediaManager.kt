@@ -151,8 +151,8 @@ class MediaManager(private val context: Context) {
         }
     }
 
-    fun controlMedia(key: Int?, volume: Int?): Boolean {
-        val controller = currentController ?: return false
+    fun controlMedia(key: Int?, volume: Int?) {
+        val controller = currentController ?: throw IllegalStateException("No active media session running")
         val transport = controller.transportControls
         when (key) {
             0 -> transport.play()
@@ -172,6 +172,5 @@ class MediaManager(private val context: Context) {
                 }
             }
         }
-        return true
     }
 }

@@ -22,6 +22,9 @@ class Sleep {
 
   DateTime get startTime {
     if (stages.isEmpty) {
+      if (bedTime != null && bedTime! > 0) {
+        return DateTime.fromMillisecondsSinceEpoch(bedTime! * 1000);
+      }
       return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     }
     final minStartTime = stages
@@ -32,6 +35,9 @@ class Sleep {
 
   DateTime get endTime {
     if (stages.isEmpty) {
+      if (wakeupTime != null && wakeupTime! > 0) {
+        return DateTime.fromMillisecondsSinceEpoch(wakeupTime! * 1000);
+      }
       final start = startTime;
       if (sleepDuration != null && sleepDuration! > 0) {
         return start.add(Duration(minutes: sleepDuration!));

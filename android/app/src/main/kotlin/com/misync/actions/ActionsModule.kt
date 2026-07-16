@@ -27,8 +27,8 @@ class ActionsModule(context: Context) : BaseModule("actions") {
                 val packageName = call.argument<String>("package")
                 val uriString = call.argument<String>("uri")
                 val extras = call.argument<Map<String, String>>("extras")
-                val success = actionsManager.launchAction(intentAction, packageName, uriString, extras)
-                result.success(success)
+                actionsManager.launchAction(intentAction, packageName, uriString, extras)
+                result.success(null)
                 true
             }
             else -> false

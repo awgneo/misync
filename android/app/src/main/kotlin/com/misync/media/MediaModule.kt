@@ -42,6 +42,7 @@ class MediaModule(private val context: Context) : BaseModule("media") {
                     activity.startActivity(intent)
                 } catch (ex: Exception) {
                     Log.e(TAG, "Failed to launch manage files settings", ex)
+                    throw ex
                 }
             }
         } else {
@@ -73,8 +74,8 @@ class MediaModule(private val context: Context) : BaseModule("media") {
             "control" -> {
                 val key = call.argument<Int>("key")
                 val volume = call.argument<Int>("volume")
-                val success = mediaManager.controlMedia(key, volume)
-                result.success(success)
+                mediaManager.controlMedia(key, volume)
+                result.success(null)
                 return true
             }
         }

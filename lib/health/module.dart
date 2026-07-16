@@ -143,20 +143,26 @@ class HealthModule extends TabModule {
 
   Future<void> _syncUser() async {
     logger.info('syncing user profile and goals to watch');
-    final latest = await PlatformModule.module
-        .invokeMethod<Map<dynamic, dynamic>>('health.getLatestHeightAndWeight');
+    try {
+      final latest = await PlatformModule.module
+          .invokeMethod<Map<dynamic, dynamic>>('health.getLatestHeightAndWeight');
 
-    double? weight = latest?['weight'] as double?;
-    double? heightMeters = latest?['height'] as double?;
-    double? heightCm = heightMeters != null ? heightMeters * 100 : null;
+      double? weight = latest?['weight'] as double?;
+      double? heightMeters = latest?['height'] as double?;
+      double? heightCm = heightMeters != null ? heightMeters * 100 : null;
 
-    final currentHealth = HealthBlob.settings;
-    if (heightCm != null || weight != null) {
-      final updatedHealth = currentHealth.copyWith(
-        height: heightCm ?? currentHealth.height,
-        weight: weight ?? currentHealth.weight,
-      );
-      await HealthBlob.instance.update(updatedHealth);
+      final currentHealth = HealthBlob.settings;
+      if (heightCm != null || weight != null) {
+        final updatedHealth = currentHealth.copyWith(
+          height: heightCm ?? currentHealth.height,
+          weight: weight ?? currentHealth.weight,
+        );
+        await HealthBlob.instance.update(updatedHealth);
+      }
+    } catch (e) {
+      logger.error('failed to get height and weight from health connect', {
+        'error': e.toString(),
+      });
     }
 
     final settings = HealthBlob.settings;
@@ -576,6 +582,11 @@ class HealthModule extends TabModule {
         });
         return false;
       }
+    } else {
+      logger.debug('skipping sleep session with invalid time range', {
+        'start': startTime.toIso8601String(),
+        'end': endTime.toIso8601String(),
+      });
     }
 
     return true;
@@ -613,7 +624,7 @@ class HealthModule extends TabModule {
       exerciseRanges.add({'start': sTime, 'end': eTime});
 
       try {
-        await PlatformModule.module.invokeMethod('health.writeWorkoutSession', {
+        await PlatformModule.module.invokeMethod('health.writeExerciseSession', {
           'startTime': sTime.millisecondsSinceEpoch,
           'endTime': eTime.millisecondsSinceEpoch,
           'sportType': exercise.sportType ?? 0,
@@ -622,13 +633,13 @@ class HealthModule extends TabModule {
           'distance': exercise.distance?.toDouble(),
           'skipCount': exercise.sportType == 14 ? exercise.steps : null,
         });
-        logger.info('synced native workout session', {
+        logger.info('synced native exercise session', {
           'title': exercise.title,
           'start': sTime.toIso8601String(),
           'end': eTime.toIso8601String(),
         });
       } catch (e, stack) {
-        logger.error('failed to sync native workout session', {
+        logger.error('failed to sync native exercise session', {
           'error': e.toString(),
           'stack': stack.toString(),
         });

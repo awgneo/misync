@@ -64,9 +64,14 @@ class PlatformModule extends Module {
   Future<void> sync() async {}
 
   Future<Map<String, App>> getApps() async {
-    final List<dynamic>? appsList = await invokeMethod<List<dynamic>>(
-      'notifications.getApps',
-    );
+    List<dynamic>? appsList;
+    try {
+      appsList = await invokeMethod<List<dynamic>>(
+        'notifications.getApps',
+      );
+    } catch (e) {
+      logger.error('failed to fetch installed apps from system: $e');
+    }
     if (appsList != null) {
       final Map<String, App> map = {};
       for (final item in appsList) {
@@ -89,6 +94,10 @@ class PlatformModule extends Module {
             cmd.system = (pb.System()..findDevice = start ? 0 : 1),
       );
     }
-    await invokeMethod('device.updateFindWatchState', start);
+    try {
+      await invokeMethod('device.updateFindWatchState', start);
+    } catch (e) {
+      logger.error('failed to update find watch state: $e');
+    }
   }
 }

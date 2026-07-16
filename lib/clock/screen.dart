@@ -120,11 +120,13 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                         primaryIcon: Icons.alarm_on,
                         enabled: phoneNextAlarm != null,
                         toggled: null, // Read-only mirror of phone state
-                        clicked: () {
-                          PlatformModule.module.invokeMethod(
-                            'device.launchAction',
-                            {'intent': 'android.intent.action.SHOW_ALARMS'},
-                          );
+                        clicked: () async {
+                          try {
+                            await PlatformModule.module.invokeMethod(
+                              'device.launchAction',
+                              {'intent': 'android.intent.action.SHOW_ALARMS'},
+                            );
+                          } catch (_) {}
                         },
                       ),
                     ],

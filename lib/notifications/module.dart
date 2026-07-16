@@ -58,28 +58,16 @@ class NotificationModule extends TabModule {
 
   void _handlePhoneNotificationReceived(Map<String, dynamic> data) async {
     final String package = data['package'] ?? '';
-    final String category = data['category'] ?? '';
+    final String kind = data['kind'] ?? 'standard';
+    final bool call = kind == 'call';
+    final bool sms = kind == 'text';
 
-    // Ignore dialer/phone notifications if category is not call (missed calls, voicemails, transcriptions)
-    final bool isDialerPackage =
-        package.contains('dialer') ||
-        package.contains('telecom') ||
-        package.contains('phone');
-    if (isDialerPackage && category != 'call') {
-      return;
-    }
-
-    final String? defaultSmsPkg = await PlatformModule.module
-        .invokeMethod<String>('notifications.getDefaultSmsPackage');
-    final bool sms = defaultSmsPkg != null && package == defaultSmsPkg;
-    final bool call = category == 'call';
-
+    // See if we allow this notification based on contact/app settings
     final bool allowed = (call || sms)
         ? ContactBlob.enabled
         : (AppsBlob.map[package] == true);
-
     if (!allowed) {
-      return; // Filtered out
+      return;
     }
 
     final String title = data['title'] ?? '';
@@ -95,8 +83,8 @@ class NotificationModule extends TabModule {
     _lastNotification[key] = body;
 
     final String appName =
-        data['appName'] != null && (data['appName'] as String).isNotEmpty
-        ? data['appName']
+        data['app'] != null && (data['app'] as String).isNotEmpty
+        ? data['app']
         : package.split('.').last;
 
     final notification = Notification3()
@@ -118,13 +106,13 @@ class NotificationModule extends TabModule {
 
     logger.info('pushing phone notification to watch', {
       'package': package,
-      'appName': appName,
+      'app': appName,
       'title': title,
-      'body': call ? '[CALL]' : body,
+      'body': body,
       'id': id,
       'key': key,
-      'isCall': call,
-      'isSms': sms,
+      'call': call,
+      'text': sms,
     });
 
     // Handled below based on category
@@ -195,7 +183,7 @@ class NotificationModule extends TabModule {
     }
   }
 
-  void _handleWatchNotificationReply(Command cmd) {
+  Future<void> _handleWatchNotificationReply(Command cmd) async {
     if (!cmd.hasNotification() || !cmd.notification.hasNotificationReply()) {
       return;
     }
@@ -207,10 +195,14 @@ class NotificationModule extends TabModule {
       'message': reply.message,
     });
 
-    PlatformModule.module.invokeMethod('notifications.replyToNotification', {
-      'id': reply.unknown1,
-      'message': reply.message,
-    });
+    try {
+      await PlatformModule.module.invokeMethod(
+        'notifications.replyToNotification',
+        {'id': reply.unknown1, 'message': reply.message},
+      );
+    } catch (e) {
+      logger.error('failed to reply to notification: $e');
+    }
   }
 
   Future<void> _handleWatchNotificationDismiss(Command cmd) async {
@@ -245,10 +237,14 @@ class NotificationModule extends TabModule {
       });
 
       for (var notifId in dismiss.notificationId) {
-        PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
-          {'key': notifId.key, 'id': notifId.id},
-        );
+        try {
+          await PlatformModule.module.invokeMethod(
+            'notifications.dismissNotification',
+            {'key': notifId.key, 'id': notifId.id},
+          );
+        } catch (e) {
+          logger.error('failed to dismiss notification: $e');
+        }
       }
 
       return;
@@ -264,10 +260,14 @@ class NotificationModule extends TabModule {
       });
 
       if (dismiss.notificationId.isNotEmpty) {
-        PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
-          {'key': key, 'id': id},
-        );
+        try {
+          await PlatformModule.module.invokeMethod(
+            'notifications.dismissNotification',
+            {'key': key, 'id': id},
+          );
+        } catch (e) {
+          logger.error('failed to dismiss notification: $e');
+        }
       }
 
       return;
@@ -288,10 +288,14 @@ class NotificationModule extends TabModule {
           {'package': package, 'key': key},
         );
 
-        PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
-          {'key': key, 'id': id},
-        );
+        try {
+          await PlatformModule.module.invokeMethod(
+            'notifications.dismissNotification',
+            {'key': key, 'id': id},
+          );
+        } catch (e) {
+          logger.error('failed to dismiss notification: $e');
+        }
       }
     }
   }
@@ -360,15 +364,23 @@ class NotificationModule extends TabModule {
       'message': text,
     });
 
-    await PlatformModule.module.invokeMethod(
-      'notifications.replyToNotification',
-      {'key': _lastContactKey, 'message': text},
-    );
+    try {
+      await PlatformModule.module.invokeMethod(
+        'notifications.replyToNotification',
+        {'key': _lastContactKey, 'message': text},
+      );
+    } catch (e) {
+      logger.error('failed to reply to notification: $e');
+    }
 
-    await PlatformModule.module.invokeMethod(
-      'notifications.dismissNotification',
-      {'key': _lastContactKey},
-    );
+    try {
+      await PlatformModule.module.invokeMethod(
+        'notifications.dismissNotification',
+        {'key': _lastContactKey},
+      );
+    } catch (e) {
+      logger.error('failed to dismiss notification: $e');
+    }
   }
 
   Future<void> _handleWatchDismiss() async {
@@ -376,10 +388,14 @@ class NotificationModule extends TabModule {
       logger.info('received dismiss from watch Messages app', {
         'key': _lastContactKey,
       });
-      await PlatformModule.module.invokeMethod(
-        'notifications.dismissNotification',
-        {'key': _lastContactKey},
-      );
+      try {
+        await PlatformModule.module.invokeMethod(
+          'notifications.dismissNotification',
+          {'key': _lastContactKey},
+        );
+      } catch (e) {
+        logger.error('failed to dismiss notification: $e');
+      }
     }
   }
 
@@ -447,19 +463,28 @@ class NotificationModule extends TabModule {
 
   Future<void> _setPhoneDnd(bool dnd) async {
     if (!DndBlob.enabled) return;
-    final currentPhoneDnd = await _getPhoneDnd();
-    if (currentPhoneDnd != dnd) {
-      await PlatformModule.module.invokeMethod('notifications.setDnd', {
-        'enabled': dnd,
-      });
+    try {
+      final currentPhoneDnd = await _getPhoneDnd();
+      if (currentPhoneDnd != dnd) {
+        await PlatformModule.module.invokeMethod('notifications.setDnd', {
+          'enabled': dnd,
+        });
+      }
+    } catch (e) {
+      logger.error('failed to set phone DND state: $e');
     }
   }
 
   Future<bool> _getPhoneDnd() async {
-    final dnd = await PlatformModule.module.invokeMethod<bool>(
-      'notifications.getDnd',
-    );
-    return dnd ?? false;
+    try {
+      final dnd = await PlatformModule.module.invokeMethod<bool>(
+        'notifications.getDnd',
+      );
+      return dnd ?? false;
+    } catch (e) {
+      logger.error('failed to get phone DND state: $e');
+      rethrow;
+    }
   }
 
   Future<List<ZenRule>> _getWatchDndRules() async {
@@ -539,6 +564,7 @@ class NotificationModule extends TabModule {
   }
 
   Future<void> saveDndEnabled(bool enabled) async {
+    DndBlob.enabled = enabled;
     await _syncDnd();
     logger.info('dnd sync state updated', {'enabled': enabled});
   }

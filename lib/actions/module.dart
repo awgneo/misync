@@ -61,10 +61,7 @@ class ActionsModule extends TabModule {
 
   Future<void> _handleWatchGetActions() async {
     final List<Map<String, String>> actionList = ActionsBlob.map.values
-        .map((action) => {
-              'name': action.name,
-              'icon': action.icon,
-            })
+        .map((action) => {'name': action.name, 'icon': action.icon})
         .toList();
 
     final actionsPayload = {'response': actionList};
@@ -123,17 +120,18 @@ class ActionsModule extends TabModule {
       extras.addAll(action.extras!);
     }
 
-    final bool? success = await PlatformModule.module.invokeMethod<bool>(
-      'actions.launchAction',
-      {
+    try {
+      await PlatformModule.module.invokeMethod('actions.launchAction', {
         'intent': intent,
         'package': package,
         'uri': action.uri,
         'extras': extras,
-      },
-    );
+      });
+    } catch (e) {
+      logger.error('failed to trigger intent action $name: $e');
+    }
 
-    logger.info('Action trigger result: $success');
+    logger.info('Action ran');
   }
 
   void addAction(Action action) {

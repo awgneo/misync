@@ -60,14 +60,8 @@ class DeviceModule(
     }
 
     override fun onDestroy() {
-        try {
-            context.unregisterReceiver(stopFindPhoneReceiver)
-        } catch (e: Exception) {
-        }
-        try {
-            context.unregisterReceiver(findWatchReceiver)
-        } catch (e: Exception) {
-        }
+        context.unregisterReceiver(stopFindPhoneReceiver)
+        context.unregisterReceiver(findWatchReceiver)
     }
 
     override fun checkPermissions(): Boolean {
@@ -115,32 +109,32 @@ class DeviceModule(
 
             "requestCompanionAssociation" -> {
                 companionManager.associateDevice(activity)
-                result.success(true)
+                result.success(null)
                 true
             }
 
             "observeDevicePresence" -> {
                 companionManager.observeDevicePresence()
-                result.success(true)
+                result.success(null)
                 true
             }
 
             "updateFindWatchState" -> {
                 val enabled = call.arguments as? Boolean ?: false
                 findWatchManager.updateFindWatchTile(enabled)
-                result.success(true)
+                result.success(null)
                 true
             }
 
             "startFindPhone" -> {
                 findPhoneManager.start()
-                result.success(true)
+                result.success(null)
                 true
             }
 
             "stopFindPhone" -> {
                 findPhoneManager.stop()
-                result.success(true)
+                result.success(null)
                 true
             }
 
@@ -156,13 +150,17 @@ class DeviceModule(
                         methodChannel?.invokeMethod("locationUpdate", map)
                     }
                 }
-                result.success(success)
+                if (success) {
+                    result.success(null)
+                } else {
+                    throw IllegalStateException("Failed to start location updates")
+                }
                 true
             }
 
             "stopLocationUpdates" -> {
                 locationManager.stopLocationUpdates()
-                result.success(true)
+                result.success(null)
                 true
             }
 

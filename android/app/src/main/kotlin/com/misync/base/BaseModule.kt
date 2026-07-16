@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
+import android.util.Log
+
 abstract class BaseModule(val name: String) {
     protected var methodChannel: MethodChannel? = null
 
@@ -23,17 +25,23 @@ abstract class BaseModule(val name: String) {
     abstract fun onMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean
 
     fun handleMethodCall(activity: Activity, method: String, call: MethodCall, result: MethodChannel.Result): Boolean {
-        return when (method) {
-            "checkPermissions" -> {
-                result.success(checkPermissions())
-                true
+        return try {
+            when (method) {
+                "checkPermissions" -> {
+                    result.success(checkPermissions())
+                    true
+                }
+                "requestPermissions" -> {
+                    requestPermissions(activity)
+                    result.success(null)
+                    true
+                }
+                else -> onMethodCall(activity, method, call, result)
             }
-            "requestPermissions" -> {
-                requestPermissions(activity)
-                result.success(true)
-                true
-            }
-            else -> onMethodCall(activity, method, call, result)
+        } catch (e: Exception) {
+            Log.e("BaseModule", "Error executing method $method on module $name: ", e)
+            result.error("PLATFORM_ERROR", e.message ?: "Failed to execute method $method", null)
+            true
         }
     }
 

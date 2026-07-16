@@ -20,10 +20,13 @@ class SnapshotsParser {
     const intervalSeconds = 60;
 
     // Reconstruct valid flags for v2 daily records (excluding index 9 which is dynamic)
-    final existMap = <int, bool>{};
+    final flagsMap = <int, int>{};
     // There are 11 variables in v2DataInfoArray with non-null dataType
     // Each nibble (4 bits) in dataValid represents the flags for one variable.
-    // Bit 0 (val & 1) indicates the existence of this variable in the log record.
+    // - Bit 3 (val & 8) represents existence.
+    // - Bit 2 (val & 4) represents the high component.
+    // - Bit 1 (val & 2) represents the middle component.
+    // - Bit 0 (val & 1) represents the low component.
     int varIdx = 0;
     for (int i = 0; i < 12; i++) {
       if (i == 9) continue; // Skip the dynamic variable
@@ -31,13 +34,17 @@ class SnapshotsParser {
       final nibbleIdx = varIdx % 2;
       if (byteIdx < dataValid.length) {
         final b = dataValid[byteIdx];
-        final val = (nibbleIdx == 0) ? ((b & 0xF0) >> 4) : (b & 0x0F);
-        existMap[i] = (val & 1) > 0;
+        flagsMap[i] = (nibbleIdx == 0) ? ((b & 0xF0) >> 4) : (b & 0x0F);
       } else {
-        existMap[i] = false;
+        flagsMap[i] = 0;
       }
       varIdx++;
     }
+
+    bool exists(int i) => ((flagsMap[i] ?? 0) & 8) > 0;
+    bool hasHigh(int i) => ((flagsMap[i] ?? 0) & 4) > 0;
+    bool hasMiddle(int i) => ((flagsMap[i] ?? 0) & 2) > 0;
+    bool hasLow(int i) => ((flagsMap[i] ?? 0) & 1) > 0;
 
     int currentTimestamp = (startTime ~/ intervalSeconds) * intervalSeconds;
 
@@ -45,95 +52,128 @@ class SnapshotsParser {
       final record = Snapshot(currentTimestamp);
 
       // 0. IncludeSleep & abnormalHr & steps (2 bytes)
-      if (existMap[0] == true) {
+      if (exists(0)) {
         if (offset + 2 > bodyData.length) {
           break;
         }
         final val = byteData.getUint16(offset, Endian.little);
         offset += 2;
-        record.steps = val & 0x3FFF;
-        record.isAbnormalHr = ((val >> 14) & 1) > 0;
+        if (hasLow(0)) {
+          record.steps = val & 0x3FFF;
+        }
+        if (hasMiddle(0)) {
+          record.isAbnormalHr = ((val >> 14) & 1) > 0;
+        }
       }
 
       // 1. activityType & calories (1 byte)
-      if (existMap[1] == true) {
+      if (exists(1)) {
         if (offset + 1 > bodyData.length) {
           break;
         }
         final val = byteData.getUint8(offset);
         offset += 1;
-        record.calories = val & 0x3F;
-        record.activityType = (val >> 6) & 3;
+        if (hasLow(1)) {
+          record.calories = val & 0x3F;
+        }
+        if (hasHigh(1)) {
+          record.activityType = (val >> 6) & 3;
+        }
       }
 
       // 2. activityHILevel & sportType (1 byte)
-      if (existMap[2] == true) {
+      if (exists(2)) {
         if (offset + 1 > bodyData.length) {
           break;
         }
         final val = byteData.getUint8(offset);
         offset += 1;
-        record.sportType = val & 0x1F;
-        record.activityHILevel = (val >> 5) & 7;
+        if (hasLow(2)) {
+          record.sportType = val & 0x1F;
+        }
+        if (hasHigh(2)) {
+          record.activityHILevel = (val >> 5) & 7;
+        }
       }
 
       // 3. distance (2 bytes)
-      if (existMap[3] == true) {
-        if (offset + 2 > bodyData.length) {
-          break;
-        }
-        record.distance = byteData.getUint16(offset, Endian.little);
-        offset += 2;
-      }
-
-      // 4. heart rate (1 byte)
-      if (existMap[4] == true) {
-        if (offset + 1 > bodyData.length) {
-          break;
-        }
-        record.hr = byteData.getUint8(offset);
-        offset += 1;
-      }
-
-      // 5. energy (1 byte)
-      if (existMap[5] == true) {
-        if (offset + 1 > bodyData.length) {
-          break;
-        }
-        record.energy = byteData.getUint8(offset);
-        offset += 1;
-      }
-
-      // 6. totalCal & energyState & energyStateValue (2 bytes)
-      if (existMap[6] == true) {
+      if (exists(3)) {
         if (offset + 2 > bodyData.length) {
           break;
         }
         final val = byteData.getUint16(offset, Endian.little);
         offset += 2;
-        record.totalCal = (val >> 10) & 0x3F;
-        record.energyState = (val >> 8) & 3;
-        final rawVal = val & 0xFF;
-        record.energyStateValue =
-            (((rawVal & 128) > 0) ? 1 : -1) * (rawVal & 127);
+        if (hasHigh(3)) {
+          record.distance = val;
+        }
+      }
+
+      // 4. heart rate (1 byte)
+      if (exists(4)) {
+        if (offset + 1 > bodyData.length) {
+          break;
+        }
+        final val = byteData.getUint8(offset);
+        offset += 1;
+        if (hasHigh(4)) {
+          record.hr = val;
+        }
+      }
+
+      // 5. energy (1 byte)
+      if (exists(5)) {
+        if (offset + 1 > bodyData.length) {
+          break;
+        }
+        final val = byteData.getUint8(offset);
+        offset += 1;
+        if (hasHigh(5)) {
+          record.energy = val;
+        }
+      }
+
+      // 6. totalCal & energyState & energyStateValue (2 bytes)
+      if (exists(6)) {
+        if (offset + 2 > bodyData.length) {
+          break;
+        }
+        final val = byteData.getUint16(offset, Endian.little);
+        offset += 2;
+        if (hasHigh(6)) {
+          record.totalCal = (val >> 10) & 0x3F;
+        }
+        if (hasMiddle(6)) {
+          record.energyState = (val >> 8) & 3;
+        }
+        if (hasLow(6)) {
+          final rawVal = val & 0xFF;
+          record.energyStateValue =
+              (((rawVal & 128) > 0) ? 1 : -1) * (rawVal & 127);
+        }
       }
 
       // 7. spo2 (1 byte)
-      if (existMap[7] == true) {
+      if (exists(7)) {
         if (offset + 1 > bodyData.length) {
           break;
         }
-        record.spo2 = byteData.getUint8(offset);
+        final val = byteData.getUint8(offset);
         offset += 1;
+        if (hasHigh(7)) {
+          record.spo2 = val;
+        }
       }
 
       // 8. stress (1 byte)
-      if (existMap[8] == true) {
+      if (exists(8)) {
         if (offset + 1 > bodyData.length) {
           break;
         }
-        record.stress = byteData.getUint8(offset);
+        final val = byteData.getUint8(offset);
         offset += 1;
+        if (hasHigh(8)) {
+          record.stress = val;
+        }
       }
 
       // 9. hrPreAbnormal (1 byte, dynamic)
@@ -146,21 +186,27 @@ class SnapshotsParser {
       }
 
       // 10. lightValue (2 bytes)
-      if (existMap[10] == true) {
+      if (exists(10)) {
         if (offset + 2 > bodyData.length) {
           break;
         }
-        record.lightValue = byteData.getUint16(offset, Endian.little);
+        final val = byteData.getUint16(offset, Endian.little);
         offset += 2;
+        if (hasHigh(10)) {
+          record.lightValue = val;
+        }
       }
 
       // 11. bodyMomentum (2 bytes)
-      if (existMap[11] == true) {
+      if (exists(11)) {
         if (offset + 2 > bodyData.length) {
           break;
         }
-        record.bodyMomentum = byteData.getUint16(offset, Endian.little);
+        final val = byteData.getUint16(offset, Endian.little);
         offset += 2;
+        if (hasHigh(11)) {
+          record.bodyMomentum = val;
+        }
       }
 
       records.add(record);

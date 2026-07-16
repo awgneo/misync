@@ -52,11 +52,16 @@ class DeviceModule extends TabModule {
   }
 
   void _startDeviceCompanionship() async {
-    _deviceAssociated =
-        await PlatformModule.module.invokeMethod(
-          'device.getDeviceAssociated',
-        ) ??
-        false;
+    try {
+      _deviceAssociated =
+          await PlatformModule.module.invokeMethod(
+            'device.getDeviceAssociated',
+          ) ??
+          false;
+    } catch (e) {
+      logger.error('failed to check device association: $e');
+      _deviceAssociated = false;
+    }
     if (_deviceAssociated) {
       _observeDevicePresence();
     }
@@ -82,7 +87,11 @@ class DeviceModule extends TabModule {
 
   void _observeDevicePresence() async {
     if (_deviceAssociated) {
-      await PlatformModule.module.invokeMethod('device.observeDevicePresence');
+      try {
+        await PlatformModule.module.invokeMethod('device.observeDevicePresence');
+      } catch (e) {
+        logger.error('failed to observe device presence: $e');
+      }
     }
   }
 
@@ -339,24 +348,32 @@ class DeviceModule extends TabModule {
     return true;
   }
 
-  void _handleWatchFindPhone(Command cmd) {
+  void _handleWatchFindPhone(Command cmd) async {
     final int findDevice = cmd.system.findDevice;
     logger.info('received find phone request: findDevice=$findDevice');
-    if (findDevice == 0) {
-      PlatformModule.module.invokeMethod('device.startFindPhone');
-    } else {
-      PlatformModule.module.invokeMethod('device.stopFindPhone');
+    try {
+      if (findDevice == 0) {
+        await PlatformModule.module.invokeMethod('device.startFindPhone');
+      } else {
+        await PlatformModule.module.invokeMethod('device.stopFindPhone');
+      }
+    } catch (e) {
+      logger.error('failed to update find phone state: $e');
     }
   }
 
-  void _handleWatchFindWatch(Command cmd) {
+  void _handleWatchFindWatch(Command cmd) async {
     final int findDevice = cmd.system.findDevice;
     logger.info(
       'received find watch update from wrist: findDevice=$findDevice',
     );
     if (findDevice == 1) {
       PlatformModule.module.findingWatch.value = false;
-      PlatformModule.module.invokeMethod('device.updateFindWatchState', false);
+      try {
+        await PlatformModule.module.invokeMethod('device.updateFindWatchState', false);
+      } catch (e) {
+        logger.error('failed to update find watch state: $e');
+      }
     }
   }
 
@@ -369,6 +386,10 @@ class DeviceModule extends TabModule {
         builder: (cmd) => cmd.system = (System()..findDevice = 1),
       );
     }
-    await PlatformModule.module.invokeMethod('device.stopFindPhone');
+    try {
+      await PlatformModule.module.invokeMethod('device.stopFindPhone');
+    } catch (e) {
+      logger.error('failed to stop find phone: $e');
+    }
   }
 }

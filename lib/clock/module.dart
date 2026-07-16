@@ -39,9 +39,15 @@ class ClockModule extends TabModule {
   }
 
   void _startNextAlarm() async {
-    final arguments = await PlatformModule.module.invokeMethod(
-      'clock.getNextAlarm',
-    );
+    dynamic arguments;
+    try {
+      arguments = await PlatformModule.module.invokeMethod(
+        'clock.getNextAlarm',
+      );
+    } catch (e) {
+      logger.error('failed to get phone next alarm: $e');
+      return;
+    }
 
     _setNextAlarm(arguments);
   }
@@ -75,7 +81,12 @@ class ClockModule extends TabModule {
     if (!DeviceModule.module.connection.connected.value) return;
 
     final now = DateTime.now();
-    final bool is24Hour = await PlatformModule.module.invokeMethod<bool>('clock.is24HourFormat') ?? false;
+    bool is24Hour = false;
+    try {
+      is24Hour = await PlatformModule.module.invokeMethod<bool>('clock.is24HourFormat') ?? false;
+    } catch (e) {
+      logger.error('failed to check 24-hour format: $e');
+    }
     logger.info('syncing time, date, and timezone offset: ${now.timeZoneName}, 24h format: $is24Hour');
 
     await DeviceModule.module.connection.send(

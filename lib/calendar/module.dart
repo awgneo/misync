@@ -51,11 +51,16 @@ class CalendarModule extends TabModule {
       return;
     }
 
-    logger.info('syncing ${enabledIds.length} calendars');
-    final List<dynamic>? phoneEvents = await PlatformModule.module.invokeMethod(
-      'calendar.getUpcomingEvents',
-      {'calendarIds': enabledIds},
-    );
+    List<dynamic>? phoneEvents;
+    try {
+      phoneEvents = await PlatformModule.module.invokeMethod(
+        'calendar.getUpcomingEvents',
+        {'calendarIds': enabledIds},
+      );
+    } catch (e) {
+      logger.error('failed to get phone calendar upcoming events: $e');
+      return;
+    }
 
     final List<pb.CalendarEvent> events = [];
     if (phoneEvents != null) {
@@ -90,9 +95,14 @@ class CalendarModule extends TabModule {
   }
 
   Future<List<PhoneCalendar>> getCalendars() async {
-    final List<dynamic>? raw = await PlatformModule.module.invokeMethod(
-      'calendar.getCalendars',
-    );
+    List<dynamic>? raw;
+    try {
+      raw = await PlatformModule.module.invokeMethod(
+        'calendar.getCalendars',
+      );
+    } catch (e) {
+      logger.error('failed to fetch calendar list from phone: $e');
+    }
     if (raw == null) return [];
     return raw
         .map(

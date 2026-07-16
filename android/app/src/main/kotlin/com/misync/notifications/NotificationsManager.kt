@@ -27,41 +27,50 @@ class NotificationsManager(private val context: Context) {
 
     fun setDnd(enabled: Boolean): Boolean {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        return if (notificationManager.isNotificationPolicyAccessGranted) {
-            val filter = if (enabled) {
-                NotificationManager.INTERRUPTION_FILTER_NONE
-            } else {
-                NotificationManager.INTERRUPTION_FILTER_ALL
-            }
-            notificationManager.setInterruptionFilter(filter)
-            true
-        } else {
-            false
+        if (!notificationManager.isNotificationPolicyAccessGranted) {
+            throw SecurityException("Notification policy access not granted")
         }
+        val filter = if (enabled) {
+            NotificationManager.INTERRUPTION_FILTER_PRIORITY
+        } else {
+            NotificationManager.INTERRUPTION_FILTER_ALL
+        }
+        notificationManager.setInterruptionFilter(filter)
+        return true
     }
 
     fun replyToNotification(key: String?, id: Int?, message: String): Boolean {
-        return if (key != null && key.isNotEmpty()) {
-            val repSuccess = NotificationsService.instance?.reply(key, message) ?: false
-            NotificationsService.instance?.declineCall(key)
-            repSuccess
+        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
+        val repSuccess = if (key != null && key.isNotEmpty()) {
+            val success = service.reply(key, message)
+            service.declineCall(key)
+            success
         } else if (id != null) {
-            val repSuccess = NotificationsService.instance?.replyById(id, message) ?: false
-            NotificationsService.instance?.declineCallById(id)
-            repSuccess
+            val success = service.replyById(id, message)
+            service.declineCallById(id)
+            success
         } else {
-            false
+            throw IllegalArgumentException("Both key and id are null")
         }
+        if (!repSuccess) {
+            throw IllegalArgumentException("Notification not found or reply failed")
+        }
+        return true
     }
 
     fun dismissNotification(key: String?, id: Int?): Boolean {
-        return if (key != null && key.isNotEmpty()) {
-            NotificationsService.instance?.dismiss(key) ?: false
+        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
+        val disSuccess = if (key != null && key.isNotEmpty()) {
+            service.dismiss(key)
         } else if (id != null) {
-            NotificationsService.instance?.dismissById(id) ?: false
+            service.dismissById(id)
         } else {
-            false
+            throw IllegalArgumentException("Both key and id are null")
         }
+        if (!disSuccess) {
+            throw IllegalArgumentException("Notification not found or dismiss failed")
+        }
+        return true
     }
 
     fun getDefaultSmsPackage(): String? {

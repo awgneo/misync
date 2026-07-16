@@ -216,14 +216,18 @@ class AppsModule extends TabModule {
     logger.info('watch responded: format=$pixelFormat, size=$size pixels');
 
     // Fetch the app icon raw ARGB bytes from Android
-    final Uint8List? rawBytes = await PlatformModule.module
-        .invokeMethod<Uint8List>('notifications.getAppIcon', {
-          'packageName': package,
-          'size': size,
-        });
+    Uint8List? rawBytes;
+    try {
+      rawBytes = await PlatformModule.module
+          .invokeMethod<Uint8List>('notifications.getAppIcon', {
+            'packageName': package,
+            'size': size,
+          });
+    } catch (e) {
+      logger.error('Failed to retrieve icon bytes from Android for $package: $e');
+    }
 
     if (rawBytes == null || rawBytes.isEmpty) {
-      logger.error('Failed to retrieve icon bytes from Android for $package');
       return;
     }
 

@@ -65,6 +65,7 @@ class HealthModule(
                 activity.startActivity(intent)
             } catch (ex: Exception) {
                 Log.e(TAG, "Failed to launch Health Connect settings: ", ex)
+                throw ex
             }
         }
     }
@@ -111,7 +112,7 @@ class HealthModule(
                 healthManager.writeSleepSession(start, end, stages, result)
                 true
             }
-            "writeWorkoutSession" -> {
+            "writeExerciseSession" -> {
                 val start = call.argument<Long>("startTime")!!
                 val end = call.argument<Long>("endTime")!!
                 val sportType = call.argument<Int>("sportType")!!
@@ -119,7 +120,7 @@ class HealthModule(
                 val calories = call.argument<Double>("calories")
                 val distance = call.argument<Double>("distance")
                 val skipCount = call.argument<Int>("skipCount")?.toLong()
-                healthManager.writeWorkoutSession(start, end, sportType, title, calories, distance, skipCount, result)
+                healthManager.writeExerciseSession(start, end, sportType, title, calories, distance, skipCount, result)
                 true
             }
             "getLatestHeightAndWeight" -> {

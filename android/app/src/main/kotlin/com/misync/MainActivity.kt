@@ -67,30 +67,23 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
 
         // Trigger module lifecycle hooks
-        modules.forEach { it.onCreate() }
-
-        // Force Android to rebind NotificationListenerService by toggling its component state
-        try {
-            val componentName = android.content.ComponentName(applicationContext, NotificationsService::class.java)
-            val packageManager = applicationContext.packageManager
-            packageManager.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
-            )
-            packageManager.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP
-            )
-            Log.d(TAG, "Force reset NotificationsService component enabled setting successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to force reset NotificationsService component: ", e)
+        modules.forEach {
+            try {
+                it.onCreate()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onCreate for module ${it.name}: ", e)
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        modules.forEach { it.onDestroy() }
+        modules.forEach {
+            try {
+                it.onDestroy()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onDestroy for module ${it.name}: ", e)
+            }
+        }
     }
 }
