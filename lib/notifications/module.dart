@@ -82,14 +82,13 @@ class NotificationModule extends TabModule {
 
     _lastNotification[key] = body;
 
-    final String appName =
-        data['app'] != null && (data['app'] as String).isNotEmpty
+    final String app = data['app'] != null && (data['app'] as String).isNotEmpty
         ? data['app']
         : package.split('.').last;
 
     final notification = Notification3()
       ..package = package
-      ..appName = appName
+      ..appName = app
       ..title = title
       ..body = call ? '' : body
       ..id = id & 0xFFFFFFFF
@@ -106,7 +105,7 @@ class NotificationModule extends TabModule {
 
     logger.info('pushing phone notification to watch', {
       'package': package,
-      'app': appName,
+      'app': app,
       'title': title,
       'body': body,
       'id': id,
