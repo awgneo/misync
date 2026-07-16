@@ -1,0 +1,37 @@
+<!-- apps/shared/components/header.ux -->
+<template>
+	<div class="mi-header">
+		<text class="mi-header-title" static>
+			{{ text || title }}
+		</text>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		text: {
+			type: String,
+			default: "",
+		},
+		title: {
+			type: String,
+			default: "",
+		},
+	},
+};
+</script>
+
+<style lang="less">
+.mi-header {
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+}
+.mi-header-title {
+	font-size: 32px;
+	color: #00e5ff;
+	font-weight: bold;
+}
+</style>

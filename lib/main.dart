@@ -4,6 +4,7 @@ import 'notifications/module.dart';
 import 'faces/module.dart';
 import 'health/module.dart';
 import 'actions/module.dart';
+import 'finance/module.dart';
 import 'debug/module.dart';
 import 'storage/module.dart';
 import 'platform/module.dart';
@@ -27,6 +28,7 @@ final List<Module> modules = [
   FacesModule.module,
   HealthModule.module,
   ActionsModule.module,
+  FinanceModule.module,
   DebugModule.module,
 ];
 

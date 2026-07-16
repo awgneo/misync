@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import com.misync.MainActivity
 import com.misync.base.BaseModule
 import com.misync.device.DeviceModule
 import com.misync.health.HealthModule
@@ -15,6 +16,7 @@ import com.misync.calendar.CalendarModule
 import com.misync.clock.ClockModule
 import com.misync.media.MediaModule
 import com.misync.actions.ActionsModule
+import com.misync.finance.FinanceModule
 
 class MainActivity : FlutterActivity() {
     private val TAG = "MainActivity"
@@ -35,7 +37,8 @@ class MainActivity : FlutterActivity() {
             CalendarModule(this),
             ClockModule(this),
             MediaModule(this),
-            ActionsModule(this)
+            ActionsModule(this),
+            FinanceModule(this)
         )
 
         // Register method channel with all modules

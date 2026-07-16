@@ -1,0 +1,80 @@
+<!-- apps/investments/src/components/investment-item.ux -->
+<template>
+	<div class="investment-item {{ classes }}">
+		<text class="stock-symbol">{{ symbol }}</text>
+		<div class="stock-price-container">
+			<text class="stock-price">${{ price }}</text>
+			<text class="stock-change {{ change >= 0 ? 'text-green' : 'text-red' }}">
+				{{ change >= 0 ? '+' : '' }}{{ change }}%
+			</text>
+		</div>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		symbol: {
+			type: String,
+			default: "",
+		},
+		price: {
+			type: Number,
+			default: 0.0,
+		},
+		change: {
+			type: Number,
+			default: 0.0,
+		},
+		classes: {
+			type: String,
+			default: "",
+		},
+	},
+};
+</script>
+
+<style lang="less">
+@import "../../../shared/styles/theme.less";
+
+.investment-item {
+	width: 100%;
+	height: 100%;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	padding-left: 16px;
+	padding-right: 16px;
+	background-color: @bg-default;
+	border-radius: @border-radius;
+	margin-right: 8px;
+}
+.stock-symbol {
+	font-size: 30px;
+	color: #ffffff;
+	font-weight: bold;
+}
+.stock-price-container {
+	flex-direction: row;
+	align-items: center;
+}
+.stock-price {
+	font-size: 28px;
+	color: #ffffff;
+	margin-right: 10px;
+}
+.stock-change {
+	font-size: 26px;
+	font-weight: bold;
+	padding: 4px 8px;
+	border-radius: 6px;
+}
+.text-green {
+	color: #00e676;
+	background-color: rgba(0, 230, 118, 0.1);
+}
+.text-red {
+	color: #ff1744;
+	background-color: rgba(255, 23, 68, 0.1);
+}
+</style>

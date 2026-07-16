@@ -117,6 +117,26 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- Investments Widget Provider -->
+        <receiver
+            android:name=".finance.InvestmentsWidgetProvider"
+            android:exported="true"
+            android:label="MiSync Investments">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.misync.investments.REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/investments_widget_info" />
+        </receiver>
+
+        <!-- Investments Widget Service -->
+        <service
+            android:name=".finance.InvestmentsWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+
         <!-- Health Connect Permission Rationale -->
         <activity-alias
             android:name="androidx.health.platform.client.permission.PermissionRationaleActivity"

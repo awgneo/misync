@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- Watchlist Title Header -->
+    <TextView
+        android:id="@+id/watchlist_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:text="Watchlist Title"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Static Stock Rows -->
+    <!-- Row 1 -->
+    <RelativeLayout
+        android:id="@+id/stock_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/stock_symbol_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="AAPL"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/stock_price_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$175.43"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginRight="8dp" />
+            <TextView
+                android:id="@+id/stock_change_1"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="+1.25%"
+                android:textColor="#00E676"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+    <FrameLayout
+        android:id="@+id/row_divider_1"
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#1C2230"
+        android:visibility="gone"/>
+
+    <!-- Row 2 -->
+    <RelativeLayout
+        android:id="@+id/stock_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/stock_symbol_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="MSFT"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/stock_price_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$420.50"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginRight="8dp" />
+            <TextView
+                android:id="@+id/stock_change_2"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="-0.45%"
+                android:textColor="#FF1744"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+    <FrameLayout
+        android:id="@+id/row_divider_2"
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#1C2230"
+        android:visibility="gone"/>
+
+    <!-- Row 3 -->
+    <RelativeLayout
+        android:id="@+id/stock_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/stock_symbol_3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="TSLA"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/stock_price_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$180.20"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginRight="8dp" />
+            <TextView
+                android:id="@+id/stock_change_3"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="+2.50%"
+                android:textColor="#00E676"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+    <FrameLayout
+        android:id="@+id/row_divider_3"
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#1C2230"
+        android:visibility="gone"/>
+
+    <!-- Row 4 -->
+    <RelativeLayout
+        android:id="@+id/stock_row_4"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/stock_symbol_4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="AMZN"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/stock_price_4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$178.15"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginRight="8dp" />
+            <TextView
+                android:id="@+id/stock_change_4"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="+0.15%"
+                android:textColor="#00E676"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+    <FrameLayout
+        android:id="@+id/row_divider_4"
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#1C2230"
+        android:visibility="gone"/>
+
+    <!-- Row 5 -->
+    <RelativeLayout
+        android:id="@+id/stock_row_5"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/stock_symbol_5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="NVDA"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/stock_price_5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$875.12"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginRight="8dp" />
+            <TextView
+                android:id="@+id/stock_change_5"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="+4.12%"
+                android:textColor="#00E676"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Empty watchlist text view -->
+    <TextView
+        android:id="@+id/page_empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="No investments in this watchlist"
+        android:textColor="#888888"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</LinearLayout>

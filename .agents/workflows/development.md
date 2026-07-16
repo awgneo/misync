@@ -8,13 +8,17 @@ Please review all of the following and make a task list first for all steps:
 
 1. The development guide in DEVELOPMENT.md
 2. The QuickApp guide in .docs/xiaomi_vela_quickapp
-  - All subdirectories and files in guides (ALL MD FILES ALL THE WAY DOWN)
-  - All subdirectories and files in components (ALL MD FILES ALL THE WAY DOWN)
-  - All subdirectories and files in features (ALL MD FILES ALL THE WAY DOWN)
-3. The flutter source code in lib/** (100% of all subdirectories and files; ALL DART FILES ALL THE WAY DOWN!!!)
+  ** PLEASE DO NOT JUST ANALYZE DIRECTORIES, ACTUALLY READ 100% OF ALL OF THE NESTED .MD FILES!!!) **
+  - All subdirectories and files in guides
+  - All subdirectories and files in components
+  - All subdirectories and files in features
+3. The flutter source code in lib/**
+  ** PLEASE DO NOT JUST ANALYZE DIRECTORIES, ACTUALLY READ 100% OF ALL OF THE NESTED .DART FILES!!!) **
 4. A sampling of the native kotlin source code in android/app/src/main/kotlin/**
   - MainActivity.kt
   - base/**
   - A sampling of modules (notifications, media, health)
-5. The messages QuickApp in apps/messages (100% of all subdirectories and files)
+5. The messages QuickApp in apps/messages
+  ** PLEASE DO NOT JUST ANALYZE DIRECTORIES, ACTUALLY READ 100% OF ALL OF THE NESTED FILES!!!) **
 6. The shared QuickApp library in apps/shared
+  ** PLEASE DO NOT JUST ANALYZE DIRECTORIES, ACTUALLY READ 100% OF ALL OF THE NESTED FILES!!!) **

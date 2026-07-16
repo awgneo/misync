@@ -1,0 +1,115 @@
+<!-- apps/investments/src/pages/index/index.ux -->
+<import name="mi-header" src="../../shared/components/header.ux"></import>
+<import name="investment-item" src="../../components/investment-item.ux"></import>
+
+<template>
+	<div class="mi-page">
+		<swiper if="{{ watchlists.length > 0 }}" class="mi-swiper" indicator="{{ true }}">
+			<div for="{{ watchlist in watchlists }}" class="watchlist-slide">
+				<div class="mi-row">
+					<mi-header text="{{ watchlist.name }}"></mi-header>
+				</div>
+				<scroll class="watchlist-scroll" scroll-y="true">
+					<div for="{{ stock in watchlist.investments }}" class="mi-row">
+						<investment-item
+							symbol="{{ stock.symbol }}"
+							price="{{ stock.price }}"
+							change="{{ stock.change }}"
+							classes="mi-last"
+						></investment-item>
+					</div>
+					<div if="{{ !watchlist.investments || watchlist.investments.length === 0 }}" class="empty-container">
+						<text class="empty-text">No stocks in this list</text>
+					</div>
+					<div class="bottom-spacer"></div>
+				</scroll>
+			</div>
+		</swiper>
+		<div if="{{ watchlists.length === 0 }}" class="empty-state">
+			<text class="empty-text">No watchlists configured</text>
+		</div>
+	</div>
+</template>
+
+<script>
+import misync from "../../shared/modules/misync.js";
+
+export default {
+	private: {
+		watchlists: [],
+	},
+
+	onInit() {
+		this.watchlists = [];
+	},
+
+	onReady() {
+		this.handleCreateConnection();
+	},
+
+	handleCreateConnection() {
+		misync.initialize({
+			onOpen: () => this.requestWatchlists(),
+		});
+
+		this.unsubscribe = misync.onMessage((payload) => {
+			if (payload.response) {
+				this.watchlists = payload.response;
+			}
+		});
+	},
+
+	requestWatchlists() {
+		misync.send("getWatchlists");
+	},
+
+	onDestroy() {
+		if (this.unsubscribe) {
+			this.unsubscribe();
+		}
+	},
+};
+</script>
+
+<style lang="less">
+@import "../../shared/styles/theme.less";
+
+.mi-swiper {
+	width: 100%;
+	height: 100%;
+	indicator-color: rgba(255, 255, 255, 0.3);
+	indicator-selected-color: #00e5ff;
+	indicator-size: 10px;
+}
+.watchlist-slide {
+	width: 100%;
+	height: 100%;
+	flex-direction: column;
+	padding: 10px;
+}
+.watchlist-scroll {
+	width: 100%;
+	flex: 1;
+	flex-direction: column;
+}
+.empty-container {
+	width: 100%;
+	height: 200px;
+	justify-content: center;
+	align-items: center;
+}
+.empty-state {
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+}
+.empty-text {
+	font-size: 28px;
+	color: #888888;
+}
+.bottom-spacer {
+	width: 100%;
+	height: 40px;
+}
+</style>
