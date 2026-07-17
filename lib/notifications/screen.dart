@@ -11,7 +11,7 @@ import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
 import '../widgets/tabs.dart';
-import '../widgets/picker.dart';
+import '../widgets/app.dart';
 import '../widgets/modal.dart';
 import '../platform/app.dart' as phone;
 
@@ -120,7 +120,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return MiPicker(
+        return MiApp(
           registeredFilters: AppsBlob.map.keys.toList(),
           onAppSelected: (packageName) {
             widget.module.addApp(packageName);
@@ -219,18 +219,32 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   }
 
   Widget _buildContactTab(bool connected) {
+    final contact = ContactBlob.contact;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         MiItems(
           children: [
             MiItem(
-              title: 'Calls & Texts Sync',
-              subtitle:
-                  'Mirror incoming phone calls and text messages to the watch',
-              primaryIcon: Icons.contact_phone_outlined,
-              enabled: ContactBlob.enabled,
-              toggled: widget.module.saveContactEnabled,
+              title: 'Phone Calls Sync',
+              subtitle: 'Mirror incoming phone calls to the watch',
+              primaryIcon: Icons.call,
+              enabled: contact.callEnabled,
+              toggled: (val) => widget.module.saveContact(callEnabled: val),
+            ),
+            MiItem(
+              title: 'SMS Texts Sync',
+              subtitle: 'Mirror incoming SMS text messages to the watch',
+              primaryIcon: Icons.sms,
+              enabled: contact.textEnabled,
+              toggled: (val) => widget.module.saveContact(textEnabled: val),
+            ),
+            MiItem(
+              title: 'Gmail Emails Sync',
+              subtitle: 'Mirror incoming Gmail emails to the watch',
+              primaryIcon: Icons.email,
+              enabled: contact.emailEnabled,
+              toggled: (val) => widget.module.saveContact(emailEnabled: val),
             ),
           ],
         ),

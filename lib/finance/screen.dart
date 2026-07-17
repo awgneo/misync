@@ -332,7 +332,10 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
                       if (!formKey.currentState!.validate()) return;
                       final name = _watchlistNameController.text.trim();
                       try {
-                        final newId = await widget.module.createWatchlist(name, []);
+                        final newId = await widget.module.createWatchlist(
+                          name,
+                          [],
+                        );
                         await widget.module.sync();
                         if (newId != null) {
                           setState(() {
@@ -342,7 +345,9 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to create watchlist: $e')),
+                            SnackBar(
+                              content: Text('Failed to create watchlist: $e'),
+                            ),
                           );
                         }
                       }
@@ -435,13 +440,23 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
                       if (!formKey.currentState!.validate()) return;
                       final newName = _watchlistNameController.text.trim();
                       try {
-                        final symbols = activeWl.items.map((i) => i.symbol).toList();
-                        await widget.module.saveWatchlist(activeWl.id, newName, symbols);
+                        final symbols = activeWl.items
+                            .map((i) => i.symbol)
+                            .toList();
+                        await widget.module.saveWatchlist(
+                          activeWl.id,
+                          newName,
+                          symbols,
+                        );
                         await widget.module.sync();
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to update watchlist name: $e')),
+                            SnackBar(
+                              content: Text(
+                                'Failed to update watchlist name: $e',
+                              ),
+                            ),
                           );
                         }
                       }
@@ -475,7 +490,8 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
     final confirm = await showMiModal<bool>(
       context: context,
       title: 'Delete Watchlist',
-      label: 'Are you sure you want to delete the watchlist "${activeWl.name}"?',
+      label:
+          'Are you sure you want to delete the watchlist "${activeWl.name}"?',
       confirm: 'Delete',
     );
     if (confirm == true) {
@@ -486,7 +502,7 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
         });
         await widget.module.sync();
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Failed to delete watchlist: $e')),
           );
@@ -494,7 +510,6 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
       }
     }
   }
-
 
   @override
   Widget buildScreen(BuildContext context, bool connected) {

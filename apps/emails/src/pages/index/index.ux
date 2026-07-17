@@ -1,0 +1,59 @@
+<!-- apps/emails/src/pages/index/index.ux -->
+<import name="mi-button" src="../../shared/components/button.ux"></import>
+
+<template>
+	<div class="mi-page">
+		<scroll class="mi-scroll" scroll-y="true">
+			<div class="mi-viewport">
+				<div class="mi-row">
+					<mi-button
+						label="Dismiss"
+						classes="mi-danger mi-last"
+						@tap="handleDismiss"
+					></mi-button>
+				</div>
+				<div class="mi-row">
+					<mi-button
+						label="Delete"
+						classes="mi-danger mi-last"
+						@tap="handleAction('delete')"
+					></mi-button>
+				</div>
+				<div class="mi-row">
+					<mi-button
+						label="Archive"
+						classes="mi-warning mi-last"
+						@tap="handleAction('archive')"
+					></mi-button>
+				</div>
+				<div class="mi-row">
+					<mi-button
+						label="Open"
+						classes="mi-accent mi-last"
+						@tap="handleAction('open')"
+					></mi-button>
+				</div>
+			</div>
+		</scroll>
+	</div>
+</template>
+
+<script>
+import misync from "../../shared/modules/misync.js";
+
+export default {
+	handleAction(actionType) {
+		misync.send(actionType);
+		this.$app.exit();
+	},
+
+	handleDismiss() {
+		misync.send("dismiss");
+		this.$app.exit();
+	},
+};
+</script>
+
+<style lang="less">
+@import "../../shared/styles/theme.less";
+</style>

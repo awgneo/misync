@@ -7,10 +7,12 @@
 			<div for="{{ row in actionRows }}" class="mi-row">
 				<mi-button
 					for="{{ item in row }}"
-					label="{{ item.icon ? item.icon + ' ' + item.name : item.name }}"
+					label="{{ item.name }}"
+					icon="{{ item.icon }}"
 					classes="{{ $idx === 1 ? 'mi-last' : '' }}"
 					@tap="handleActionTap(item.name)"
 				></mi-button>
+				<div if="{{ row.length === 1 }}" class="mi-button mi-last" style="background-color: transparent;"></div>
 			</div>
 		</scroll>
 	</div>
@@ -18,6 +20,7 @@
 
 <script>
 import misync from "../../shared/modules/misync.js";
+import symbols from "../../shared/modules/symbols.js";
 
 export default {
 	private: {
@@ -26,26 +29,39 @@ export default {
 	},
 
 	onInit() {
-		// Register message listener
 		this.unsubscribe = misync.onMessage((payload) => {
-			if (payload.response) {
-				this.actionsList = payload.response;
-				this.updateActionRows();
+			if (payload.actions) {
+				this.loadActions(payload.actions);
 			}
 		});
 
-		// Initialize misync and request actions
-		misync.initialize({
-			onOpen: () => {
-				misync.send("getActions");
-			},
-		});
+		misync.send("getActions");
 	},
 
 	onDestroy() {
 		if (this.unsubscribe) {
 			this.unsubscribe();
 		}
+	},
+
+	loadActions(actions) {
+		// Initialize action list with the local cache path immediately
+		this.actionsList = actions.map((action) => ({
+			...action,
+			icon: action.symbol
+				? `internal://cache/symbols/${action.symbol}.png`
+				: "",
+		}));
+		this.updateActionRows();
+		// Asynchronously load/download icons in the background if they are missing
+		this.actionsList.forEach((action, idx) => {
+			if (action.symbol) {
+				symbols.get(action.symbol, (cachedUri) => {
+					this.actionsList[idx].icon = cachedUri;
+					this.updateActionRows();
+				});
+			}
+		});
 	},
 
 	handleActionTap(name) {

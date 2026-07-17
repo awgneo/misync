@@ -75,6 +75,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/rpk/
+    - assets/font/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -100,7 +101,10 @@ flutter:
   #         weight: 700
   #
   # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+  fonts:
+    - family: Material
+      fonts:
+        - asset: assets/font/material.ttf
 
 flutter_launcher_icons:
   android: "launcher_icon"

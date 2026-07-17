@@ -5,10 +5,12 @@ class MiSync {
   constructor() {
     this.connection = null
     this.messageListeners = []
+    this.sendQueue = []
+    this.isOpen = false
+    this.autoInitialize()
   }
 
-  initialize(options = {}) {
-    const { onOpen, onClose, onError } = options
+  autoInitialize() {
     try {
       this.connection = interconnect.instance()
 
@@ -23,20 +25,45 @@ class MiSync {
 
       this.connection.onopen = (event) => {
         console.log('MiSync connection opened')
-        if (onOpen) onOpen(event)
+        this.isOpen = true
+        this.flushQueue()
       }
 
       this.connection.onclose = (event) => {
         console.log('MiSync connection closed:', event ? event.code : 'unknown')
-        if (onClose) onClose(event)
+        this.isOpen = false
       }
 
       this.connection.onerror = (event) => {
         console.error('MiSync connection error:', event ? event.code : 'unknown')
-        if (onError) onError(event)
+        this.isOpen = false
       }
+
+      // Check current connection state immediately
+      this.connection.getReadyState({
+        success: (data) => {
+          if (data.status === 1) {
+            console.log('MiSync connection already open')
+            this.isOpen = true
+            this.flushQueue()
+          }
+        },
+        fail: (data, code) => {
+          console.warn('MiSync getReadyState fail:', code, data)
+        }
+      })
+
     } catch (error) {
       console.error('MiSync initialization error:', error)
+    }
+  }
+
+  flushQueue() {
+    if (this.sendQueue.length > 0) {
+      console.log('MiSync flushing send queue of size:', this.sendQueue.length)
+      const queue = this.sendQueue
+      this.sendQueue = []
+      queue.forEach(msg => this.send(msg.command, msg.data))
     }
   }
 
@@ -50,8 +77,9 @@ class MiSync {
 
   // Unified send command
   send(command, data = {}) {
-    if (!this.connection) {
-      console.warn('MiSync connection not initialized.')
+    if (!this.isOpen) {
+      console.log('MiSync connection not open yet. Queuing message:', command)
+      this.sendQueue.push({ command, data })
       return
     }
     try {
@@ -59,11 +87,21 @@ class MiSync {
         data: { command, ...data },
         fail: (response, code) => {
           console.error(`Send failed. Code: ${code}, Detail: ${response}`)
+          // If disconnected, queue it back
+          if (code === 1006) {
+            this.isOpen = false
+            this.sendQueue.push({ command, data })
+          }
         }
       })
     } catch (error) {
       console.error('MiSync send error:', error)
     }
+  }
+
+  // Backward compatibility: keep initialize as a no-op in case other scripts reference it
+  initialize() {
+    console.log('MiSync.initialize() is now automated and runs on module load.')
   }
 }
 

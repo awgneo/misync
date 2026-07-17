@@ -6,7 +6,7 @@ class Action {
   final String package;
   final String? uri;
   final Map<String, String>? extras;
-  final String icon;
+  final String symbol;
 
   Action({
     required this.name,
@@ -14,7 +14,7 @@ class Action {
     required this.package,
     this.uri,
     this.extras,
-    required this.icon,
+    required this.symbol,
   });
 
   factory Action.fromJson(Map<String, dynamic> json) {
@@ -30,7 +30,7 @@ class Action {
       package: json['package'] as String? ?? '',
       uri: json['uri'] as String?,
       extras: extrasMap,
-      icon: json['icon'] as String? ?? '⚡',
+      symbol: json['symbol'] as String? ?? 'bolt',
     );
   }
 
@@ -40,7 +40,7 @@ class Action {
     'package': package,
     if (uri != null) 'uri': uri,
     if (extras != null) 'extras': extras,
-    'icon': icon,
+    'symbol': symbol,
   };
 }
 
@@ -57,26 +57,26 @@ class ActionsBlob extends Blob<Map<String, Action>> {
             name: 'Settings',
             intent: 'android.settings.SETTINGS',
             package: 'com.android.settings',
-            icon: '⚙️',
+            symbol: 'settings',
           ),
           'Camera': Action(
             name: 'Camera',
             intent: 'android.media.action.STILL_IMAGE_CAMERA',
             package: '',
-            icon: '📷',
+            symbol: 'photo_camera',
           ),
           'Maps': Action(
             name: 'Maps',
             intent: 'android.intent.action.VIEW',
             package: 'com.google.android.apps.maps',
             uri: 'geo:0,0?q=',
-            icon: '📍',
+            symbol: 'map',
           ),
           'Music': Action(
             name: 'Music',
             intent: 'android.intent.action.MUSIC_PLAYER',
             package: '',
-            icon: '🎵',
+            symbol: 'music_note',
           ),
         },
       );

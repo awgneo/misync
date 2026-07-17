@@ -9,6 +9,9 @@ import android.os.Build
 import android.app.RemoteInput
 import android.app.Notification
 import android.util.Log
+import android.app.KeyguardManager
+import android.content.Context
+import com.misync.actions.DismissKeyguardActivity
 
 class NotificationsService : NotificationListenerService() {
     private val TAG = "NotificationsService"
@@ -134,6 +137,7 @@ class NotificationsService : NotificationListenerService() {
         val kind = when {
             isCall -> "call"
             defaultSmsPkg != null && packageName == defaultSmsPkg -> "text"
+            packageName == "com.google.android.gm" -> "email"
             else -> "standard"
         }
 
@@ -447,5 +451,67 @@ class NotificationsService : NotificationListenerService() {
 
     private fun isCallNotification(packageName: String, category: String?): Boolean {
         return (category ?: "") == Notification.CATEGORY_CALL || isCallPackage(packageName)
+    }
+
+    fun triggerNotificationAction(key: String, actionKeyword: String): Boolean {
+        Log.d(TAG, "triggerNotificationAction called for key: $key, keyword: $actionKeyword")
+        val activeNotifications = activeNotifications ?: return false
+        val sbn = activeNotifications.find { it.key == key } ?: return false
+        val actions = sbn.notification.actions ?: return false
+
+        val targetSemanticAction = when (actionKeyword.lowercase()) {
+            "archive" -> 5
+            "delete" -> 4
+            else -> -1
+        }
+
+        if (targetSemanticAction != -1) {
+            for (action in actions) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    if (action.semanticAction == targetSemanticAction) {
+                        try {
+                            action.actionIntent.send()
+                            Log.d(TAG, "Triggered semantic action $targetSemanticAction for key: $key")
+                            return true
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error triggering semantic action $targetSemanticAction", e)
+                        }
+                    }
+                }
+            }
+        }
+
+        for (action in actions) {
+            val title = action.title?.toString()?.lowercase() ?: continue
+            if (title.contains(actionKeyword.lowercase())) {
+                try {
+                    action.actionIntent.send()
+                    Log.d(TAG, "Triggered keyword action '${action.title}' for key: $key")
+                    return true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error triggering keyword action '${action.title}'", e)
+                }
+            }
+        }
+
+        Log.w(TAG, "No action matching keyword '$actionKeyword' found for key: $key")
+        return false
+    }
+
+    fun openNotificationOnPhone(key: String): Boolean {
+        Log.d(TAG, "openNotificationOnPhone called for key: $key")
+        
+        val activeNotifications = activeNotifications ?: return false
+        val sbn = activeNotifications.find { it.key == key } ?: return false
+        val contentIntent = sbn.notification.contentIntent
+
+        try {
+            DismissKeyguardActivity.launch(this, targetPendingIntent = contentIntent)
+            cancelNotification(sbn.key)
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error launching notification intent from service", e)
+        }
+        return false
     }
 }

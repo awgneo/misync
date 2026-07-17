@@ -3,6 +3,7 @@
 @border-radius: 12px;
 @accent-color: #00e5ff;
 @danger-color: #b71c1c;
+@warning-color: #ff9800;
 @bg-active: #ffffff;
 @text-active: #000000;
 @font-size-normal: 28px;
@@ -66,6 +67,7 @@
 
 /* Core Button Styling (.mi-button) */
 .mi-button {
+  flex-direction: row;
   justify-content: center;
   align-items: center;
   border-radius: @border-radius;
@@ -75,10 +77,16 @@
   margin-right: 8px;
 }
 
+.mi-button-icon {
+  width: 36px;
+  height: 36px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+
 .mi-button-text {
   font-size: @font-size-normal;
   color: #ffffff;
-  font-weight: bold;
 }
 
 /* Button Variants */
@@ -109,6 +117,10 @@
 
 .mi-danger {
   background-color: @danger-color !important;
+}
+
+.mi-warning {
+  background-color: @warning-color !important;
 }
 
 .mi-button-text-accent {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:archive/archive.dart';
@@ -84,6 +85,8 @@ class AppsModule extends TabModule {
         await _handleWatchAppStatusRequest(cmd);
       } else if (cmd.subtype == ThirdPartyAppSubtype.rpkInstalled.value) {
         await _handleWatchAppInstallResult(cmd);
+      } else if (cmd.subtype == ThirdPartyAppSubtype.sendWearMessage.value) {
+        await _handleWatchAppMessage(cmd);
       }
     } else if (cmd.type == CmdType.notification.value &&
         cmd.subtype == NotificationSubtype.iconQuery.value &&
@@ -154,6 +157,98 @@ class AppsModule extends TabModule {
     AppsBlob.instance.update(updatedApps);
   }
 
+  Future<void> _handleWatchAppMessage(pb.Command cmd) async {
+    if (!cmd.hasThirdPartyApp() || !cmd.thirdPartyApp.hasMessage()) {
+      return;
+    }
+
+    final message = cmd.thirdPartyApp.message;
+    final String text = utf8.decode(message.content);
+    try {
+      final data = jsonDecode(text) as Map<String, dynamic>;
+      final command = data['command']?.toString();
+      if (command == 'getSymbol') {
+        final name = data['name']?.toString() ?? '';
+        if (name.isNotEmpty) {
+          await _handleWatchGetSymbol(message.appInfo.packageName, name);
+        }
+      }
+    } catch (e) {
+      logger.error('failed to parse third-party message in AppsModule: $e');
+    }
+  }
+
+  Future<void> _handleWatchGetSymbol(String watchPackage, String name) async {
+    logger.info('watch requested symbol: $name for package: $watchPackage');
+
+    final pngBytes = await renderSymbolToPng(name);
+    if (pngBytes == null || pngBytes.isEmpty) {
+      logger.error('failed to render symbol: $name');
+      return;
+    }
+
+    final base64String = base64Encode(pngBytes);
+    final payload = {'name': name, 'symbol': base64String};
+    final jsonPayload = jsonEncode(payload);
+
+    final appInfo = pb.ThirdPartyAppInfo()..packageName = watchPackage;
+    final installed = AppsBlob.instance.value[watchPackage];
+    if (installed != null && installed.fingerprint.isNotEmpty) {
+      appInfo.fingerprint = installed.fingerprint;
+    }
+
+    final appMessage = pb.ThirdPartyAppMessage()
+      ..appInfo = appInfo
+      ..content = Uint8List.fromList(utf8.encode(jsonPayload));
+
+    logger.info('sending rendered symbol $name to watch app $watchPackage');
+
+    await DeviceModule.module.connection.send(
+      type: CmdType.thirdPartyApp,
+      subtype: ThirdPartyAppSubtype.sendPhoneMessage,
+      builder: (cmd) =>
+          cmd.thirdPartyApp = (pb.ThirdPartyApp()..message = appMessage),
+    );
+  }
+
+  Future<Uint8List?> renderSymbolToPng(String name, {int size = 64}) async {
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+
+      final painter = TextPainter(
+        text: TextSpan(
+          text: name,
+          style: const TextStyle(
+            fontFamily: 'Material',
+            fontSize:
+                54, // slightly smaller than the 64x64 canvas to avoid clipping
+            fontWeight:
+                FontWeight.w500, // clean weight for smartwatch readability
+            color: Colors.white,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      painter.layout(maxWidth: size.toDouble());
+
+      // Center the symbol glyph in the square
+      final xOffset = (size.toDouble() - painter.width) / 2;
+      final yOffset = (size.toDouble() - painter.height) / 2;
+      painter.paint(canvas, Offset(xOffset, yOffset));
+
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(size, size);
+      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+      return byteData.buffer.asUint8List();
+    } catch (e) {
+      logger.error('Failed to render symbol $name: $e');
+      return null;
+    }
+  }
+
   Future<void> _sendWatchAppStatus(
     String package, {
     List<int>? fingerprint,
@@ -218,13 +313,14 @@ class AppsModule extends TabModule {
     // Fetch the app icon raw ARGB bytes from Android
     Uint8List? rawBytes;
     try {
-      rawBytes = await PlatformModule.module
-          .invokeMethod<Uint8List>('notifications.getAppIcon', {
-            'packageName': package,
-            'size': size,
-          });
+      rawBytes = await PlatformModule.module.invokeMethod<Uint8List>(
+        'notifications.getAppIcon',
+        {'packageName': package, 'size': size},
+      );
     } catch (e) {
-      logger.error('Failed to retrieve icon bytes from Android for $package: $e');
+      logger.error(
+        'Failed to retrieve icon bytes from Android for $package: $e',
+      );
     }
 
     if (rawBytes == null || rawBytes.isEmpty) {

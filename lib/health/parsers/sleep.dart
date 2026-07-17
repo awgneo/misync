@@ -168,8 +168,9 @@ class SleepParser {
 
     int reportVariablesSize = 0;
     if (id.version >= 1) reportVariablesSize += 1; // isSleepFinish
-    if (id.version >= 1)
+    if (id.version >= 1) {
       reportVariablesSize += 8; // bedTime (4) + wakeupTime (4)
+    }
     if (id.version >= 4) reportVariablesSize += 1; // sleepQuality
     if (id.version >= 5) {
       reportVariablesSize +=

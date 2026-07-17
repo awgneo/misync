@@ -63,32 +63,23 @@ export default {
 		inputText: "",
 	},
 
+	onInit() {
+		// Subscribe to messages first to prevent race condition
+		this.messageUnsubscribe = misync.onMessage((payload) => {
+			if (payload.replies) {
+				this.replies = payload.replies;
+			}
+		});
+
+		misync.send("getReplies");
+	},
+
 	onRefresh() {
 		this.inputText = ""; // Clear input on refresh/new notification
 		const keyboard = this.$element("keyboard-component");
 		if (keyboard && typeof keyboard.reset === "function") {
 			keyboard.reset();
 		}
-		this.requestReplies();
-	},
-
-	onReady() {
-		this.handleCreateConnection();
-	},
-
-	handleCreateConnection() {
-		misync.initialize({
-			onOpen: () => this.requestReplies(),
-		});
-
-		this.messageUnsubscribe = misync.onMessage((payload) => {
-			if (payload.response) {
-				this.replies = payload.response;
-			}
-		});
-	},
-
-	requestReplies() {
 		misync.send("getReplies");
 	},
 

@@ -175,6 +175,21 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 true
             }
 
+            "triggerNotificationAction" -> {
+                val key = call.argument<String>("key")
+                val action = call.argument<String>("action") ?: ""
+                val success = notificationsManager.triggerNotificationAction(key, action)
+                result.success(success)
+                true
+            }
+
+            "openNotificationOnPhone" -> {
+                val key = call.argument<String>("key")
+                val success = notificationsManager.openNotificationOnPhone(key)
+                result.success(success)
+                true
+            }
+
             "getAppIcon" -> {
                 val packageName = call.argument<String>("packageName") ?: ""
                 val size = call.argument<Int>("size") ?: 96

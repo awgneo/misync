@@ -1,37 +1,38 @@
 <template>
-  <div 
-    class="mi-button {{pressed ? 'mi-button-pressed' : ''}} {{classes}}" 
-    onclick="handleTap"
-  >
-    <text 
-      class="mi-button-text {{pressed ? 'mi-button-text-pressed' : ''}} {{(classes && classes.indexOf('mi-accent') !== -1) ? 'mi-button-text-accent' : ''}}" 
-      static
-    >
-      {{label}}
-    </text>
-  </div>
+	<div
+		class="mi-button {{ pressed ? 'mi-button-pressed' : '' }} {{ classes }}"
+		onclick="handleTap"
+	>
+		<image if="{{ icon }}" class="mi-button-icon" src="{{ icon }}"></image>
+		<text
+			class="mi-button-text {{ pressed ? 'mi-button-text-pressed' : '' }} {{ (classes && classes.indexOf('mi-accent') !== -1) ? 'mi-button-text-accent' : '' }}"
+			static
+		>
+			{{ label }}
+		</text>
+	</div>
 </template>
 
 <script>
-  import vibrator from '@system.vibrator'
+import vibrator from "@system.vibrator";
 
-  export default {
-    props: ['label', 'classes'],
-    data: {
-      pressed: false
-    },
-    handleTap() {
-      vibrator.vibrate({ mode: 'short' })
-      this.pressed = true
-      const self = this
-      setTimeout(() => {
-        self.pressed = false
-      }, 100)
-      this.$emit('tap', { label: this.label })
-    }
-  }
+export default {
+	props: ["label", "classes", "icon"],
+	data: {
+		pressed: false,
+	},
+	handleTap() {
+		vibrator.vibrate({ mode: "short" });
+		this.pressed = true;
+		const self = this;
+		setTimeout(() => {
+			self.pressed = false;
+		}, 100);
+		this.$emit("tap", { label: this.label });
+	},
+};
 </script>
 
 <style lang="less">
-  @import '../styles/theme.less';
+@import "../styles/theme.less";
 </style>

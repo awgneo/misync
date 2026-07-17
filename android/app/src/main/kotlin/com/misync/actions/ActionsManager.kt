@@ -27,14 +27,6 @@ class ActionsManager(private val context: Context) {
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-        if (intentAction == "net.dinglisch.android.taskerm.ACTION_TASK") {
-            context.sendBroadcast(intent)
-        } else {
-            try {
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                context.sendBroadcast(intent)
-            }
-        }
+        DismissKeyguardActivity.launch(context, targetIntent = intent)
     }
 }

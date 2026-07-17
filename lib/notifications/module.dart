@@ -61,11 +61,20 @@ class NotificationModule extends TabModule {
     final String kind = data['kind'] ?? 'standard';
     final bool call = kind == 'call';
     final bool sms = kind == 'text';
+    final bool isEmail = kind == 'email';
 
     // See if we allow this notification based on contact/app settings
-    final bool allowed = (call || sms)
-        ? ContactBlob.enabled
-        : (AppsBlob.map[package] == true);
+    final bool allowed;
+    if (call) {
+      allowed = ContactBlob.contact.callEnabled;
+    } else if (sms) {
+      allowed = ContactBlob.contact.textEnabled;
+    } else if (isEmail) {
+      allowed = ContactBlob.contact.emailEnabled;
+    } else {
+      allowed = AppsBlob.map[package] == true;
+    }
+
     if (!allowed) {
       return;
     }
@@ -112,6 +121,7 @@ class NotificationModule extends TabModule {
       'key': key,
       'call': call,
       'text': sms,
+      'email': isEmail,
     });
 
     // Handled below based on category
@@ -123,7 +133,7 @@ class NotificationModule extends TabModule {
             ..notification2 = (Notification2()..notification3 = notification)),
     );
 
-    if (data['replyable'] == true) {
+    if (data['replyable'] == true || isEmail) {
       _lastContactTime = DateTime.now();
       _lastContactKey = key;
     }
@@ -274,7 +284,14 @@ class NotificationModule extends TabModule {
 
     // 3. Active popup swipe (<= 5 seconds) -> check package directly
     if (dismiss.notificationId.isNotEmpty) {
-      if (replyable) {
+      if (package == 'com.google.android.gm') {
+        logger.info(
+          'watch swiped email notification (launching watch emails app)',
+          {'package': package, 'key': key},
+        );
+
+        AppsModule.module.launchApp('com.misync.emails');
+      } else if (replyable) {
         logger.info(
           'watch swiped replyable notification (launching watch replies app)',
           {'package': package, 'key': key},
@@ -307,7 +324,8 @@ class NotificationModule extends TabModule {
     }
 
     final msg = cmd.thirdPartyApp.message;
-    if (msg.appInfo.packageName != messagesPackage) {
+    final String targetPkg = msg.appInfo.packageName;
+    if (targetPkg != messagesPackage && targetPkg != 'com.misync.emails') {
       return;
     }
 
@@ -315,24 +333,66 @@ class NotificationModule extends TabModule {
     final data = jsonDecode(text) as Map<String, dynamic>;
     final command = data['command']?.toString();
 
-    logger.info('received message from watch Messages app', {'payload': data});
+    if (targetPkg == 'com.misync.emails') {
+      logger.info('received message from watch Emails app', {'payload': data});
+      if (command == 'dismiss') {
+        await _handleWatchDismiss();
+      } else if (command == 'archive' || command == 'delete') {
+        await _handleWatchEmailAction(command!);
+      } else if (command == 'open') {
+        await _handleWatchEmailOpen();
+      }
+    } else {
+      logger.info('received message from watch Messages app', {
+        'payload': data,
+      });
 
-    if (command == 'getReplies') {
-      await _handleWatchGetReplies();
-    } else if (command == 'reply') {
-      final replyText = data['text']?.toString() ?? '';
-      await _handleWatchReply(replyText);
-    } else if (command == 'dismiss') {
-      await _handleWatchDismiss();
+      if (command == 'getReplies') {
+        await _handleWatchGetReplies();
+      } else if (command == 'reply') {
+        final replyText = data['text']?.toString() ?? '';
+        await _handleWatchReply(replyText);
+      } else if (command == 'dismiss') {
+        await _handleWatchDismiss();
+      }
+    }
+  }
+
+  Future<void> _handleWatchEmailAction(String action) async {
+    if (_lastContactKey != null && _lastContactKey!.isNotEmpty) {
+      logger.info('received email action from watch Emails app', {
+        'key': _lastContactKey,
+        'action': action,
+      });
+      try {
+        await PlatformModule.module.invokeMethod(
+          'notifications.triggerNotificationAction',
+          {'key': _lastContactKey, 'action': action},
+        );
+      } catch (e) {
+        logger.error('failed to trigger notification action: $e');
+      }
+    }
+  }
+
+  Future<void> _handleWatchEmailOpen() async {
+    if (_lastContactKey != null && _lastContactKey!.isNotEmpty) {
+      logger.info('received email open from watch Emails app', {
+        'key': _lastContactKey,
+      });
+      try {
+        await PlatformModule.module.invokeMethod(
+          'notifications.openNotificationOnPhone',
+          {'key': _lastContactKey},
+        );
+      } catch (e) {
+        logger.error('failed to open notification on phone: $e');
+      }
     }
   }
 
   Future<void> _handleWatchGetReplies() async {
-    final repliesPayload = {
-      'response': RepliesBlob.list,
-      'sender': '',
-      'text': '',
-    };
+    final repliesPayload = {'replies': RepliesBlob.list};
 
     final jsonPayload = jsonEncode(repliesPayload);
     final appInfo = ThirdPartyAppInfo()..packageName = messagesPackage;
@@ -453,10 +513,17 @@ class NotificationModule extends TabModule {
   }
 
   Future<void> _syncContact() async {
-    if (ContactBlob.enabled) {
+    final contact = ContactBlob.contact;
+    if (contact.callEnabled || contact.textEnabled) {
       await AppsModule.module.enableInternalApp(messagesPackage);
     } else {
       await AppsModule.module.disableInternalApp(messagesPackage);
+    }
+
+    if (contact.emailEnabled) {
+      await AppsModule.module.enableInternalApp('com.misync.emails');
+    } else {
+      await AppsModule.module.disableInternalApp('com.misync.emails');
     }
   }
 
@@ -556,10 +623,20 @@ class NotificationModule extends TabModule {
     }
   }
 
-  Future<void> saveContactEnabled(bool enabled) async {
-    ContactBlob.enabled = enabled;
+  Future<void> saveContact({
+    bool? callEnabled,
+    bool? textEnabled,
+    bool? emailEnabled,
+  }) async {
+    final old = ContactBlob.contact;
+    final updated = Contact(
+      callEnabled: callEnabled ?? old.callEnabled,
+      textEnabled: textEnabled ?? old.textEnabled,
+      emailEnabled: emailEnabled ?? old.emailEnabled,
+    );
+    ContactBlob.contact = updated;
     await _syncContact();
-    logger.info('contact sync state updated', {'enabled': enabled});
+    logger.info('contact sync state updated', updated.toJson());
   }
 
   Future<void> saveDndEnabled(bool enabled) async {

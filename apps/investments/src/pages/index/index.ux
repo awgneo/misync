@@ -40,8 +40,11 @@
 				</scroll>
 			</div>
 		</swiper>
-		<div if="{{ watchlists.length === 0 }}" class="empty-state">
+		<div if="{{ watchlists.length === 0 && !isLoading }}" class="empty-state">
 			<text class="empty-text">No watchlists configured</text>
+		</div>
+		<div if="{{ isLoading }}" class="empty-state">
+			<text class="empty-text">Loading...</text>
 		</div>
 	</div>
 </template>
@@ -53,32 +56,22 @@ export default {
 	private: {
 		watchlists: [],
 		currentIndex: 0,
+		isLoading: true,
 	},
 
 	onInit() {
-		this.watchlists = [];
-		this.currentIndex = 0;
 		this.startX = 0;
 		this.startY = 0;
-	},
 
-	onReady() {
-		this.handleCreateConnection();
-	},
-
-	handleCreateConnection() {
-		misync.initialize({
-			onOpen: () => this.requestWatchlists(),
-		});
-
+		// Subscribe to messages first to prevent race condition
 		this.unsubscribe = misync.onMessage((payload) => {
-			if (payload.response) {
-				this.watchlists = payload.response;
+			if (payload.watchlists) {
+				this.watchlists = payload.watchlists;
+				this.isLoading = false;
 			}
 		});
-	},
 
-	requestWatchlists() {
+		// Query watchlists directly
 		misync.send("getWatchlists");
 	},
 

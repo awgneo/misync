@@ -69,6 +69,42 @@ build-icon() {
   dart run flutter_launcher_icons || abort "Failed to generate launcher icons." 2
 }
 
+build-fonts() {
+  local font_dir="assets/font"
+  local font_file="$font_dir/material.ttf"
+  local font_url="https://raw.githubusercontent.com/google/material-design-icons/master/variablefont/MaterialSymbolsOutlined%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf"
+  local codepoints_file="$font_dir/material.txt"
+  local codepoints_url="https://raw.githubusercontent.com/google/material-design-icons/master/variablefont/MaterialSymbolsOutlined%5BFILL%2CGRAD%2Copsz%2Cwght%5D.codepoints"
+
+  mkdir -p "$font_dir"
+
+  # Clean up old filename if it exists
+  if [ -f "$font_dir/MaterialSymbolsOutlined.ttf" ]; then
+    rm "$font_dir/MaterialSymbolsOutlined.ttf"
+  fi
+
+  info "Checking for Material Symbols Variable Font updates..."
+  local curl_opts=("-L" "-o" "$font_file")
+  if [ -f "$font_file" ]; then
+    curl_opts+=("-z" "$font_file")
+  fi
+  curl "${curl_opts[@]}" "$font_url" || warning "Failed to check or download symbols font."
+
+  info "Checking for Material Symbols codepoints updates..."
+  local curl_opts_txt=("-L" "-o" "$codepoints_file")
+  if [ -f "$codepoints_file" ]; then
+    curl_opts_txt+=("-z" "$codepoints_file")
+  fi
+  curl "${curl_opts_txt[@]}" "$codepoints_url" || warning "Failed to check or download codepoints list."
+  
+  if [ -f "$font_file" ] && [ -f "$codepoints_file" ]; then
+    success "Material Symbols font and dictionary are ready."
+  else
+    error "Font files are missing!"
+    return 1
+  fi
+}
+
 build-apk() {
   local sources_dir=".apks"
   local apk_path="$sources_dir/com.xiaomi.wear.apk"
@@ -124,6 +160,7 @@ build() {
   build-watch || exit $?
   build-proto || exit $?
   build-icon || exit $?
+  build-fonts || exit $?
   success "Build completed successfully."
 }
 
@@ -185,6 +222,7 @@ misync-usage() {
   echo "build-watch|Build watch apps (Messages) and copy RPK to assets."
   echo "build-proto|Compile Protocol Buffer schemas."
   echo "build-icon|Generate launcher icons."
+  echo "build-fonts|Download or update Material Symbols font."
   echo "clean|Clean watch app and Flutter build artifacts."
   echo "analyze|Run static analysis checks."
   echo "debug|Run Flutter app in debug mode on connected device."
@@ -199,6 +237,7 @@ misync-flow() {
     build-watch) build-watch; return $?;;
     build-proto) build-proto; return $?;;
     build-icon) build-icon; return $?;;
+    build-fonts) build-fonts; return $?;;
     clean) clean; return $?;;
     analyze) analyze; return $?;;
     debug) build && debug; return $?;;

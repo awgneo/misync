@@ -82,7 +82,7 @@ class FinanceModule extends TabModule {
         )
         .toList();
 
-    final payload = {'response': watchlistsJson};
+    final payload = {'watchlists': watchlistsJson};
     final jsonPayload = jsonEncode(payload);
 
     final appInfo = pb.ThirdPartyAppInfo()

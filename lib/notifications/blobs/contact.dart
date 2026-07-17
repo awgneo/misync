@@ -1,6 +1,34 @@
 import '../../storage/blob.dart';
 
-class ContactBlob extends Blob<bool> {
+class Contact {
+  final bool callEnabled;
+  final bool textEnabled;
+  final bool emailEnabled;
+
+  Contact({
+    this.callEnabled = true,
+    this.textEnabled = true,
+    this.emailEnabled = true,
+  });
+
+  factory Contact.fromJson(Map<String, dynamic> json) {
+    return Contact(
+      callEnabled: json['callEnabled'] ?? true,
+      textEnabled: json['textEnabled'] ?? true,
+      emailEnabled: json['emailEnabled'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'callEnabled': callEnabled,
+      'textEnabled': textEnabled,
+      'emailEnabled': emailEnabled,
+    };
+  }
+}
+
+class ContactBlob extends Blob<Contact> {
   static final ContactBlob _instance = ContactBlob._();
   static ContactBlob get instance => _instance;
 
@@ -8,20 +36,29 @@ class ContactBlob extends Blob<bool> {
       : super(
           module: 'notifications',
           name: 'contact',
-          defaultValue: true,
+          defaultValue: Contact(),
         );
 
-  static bool get enabled => _instance.value;
-  static set enabled(bool value) {
+  static Contact get contact => _instance.value;
+  static set contact(Contact value) {
     _instance.update(value);
   }
 
   @override
-  bool parse(dynamic json) {
-    if (json is bool) return json;
-    return true;
+  Contact parse(dynamic json) {
+    if (json is Map<String, dynamic>) {
+      return Contact.fromJson(Map<String, dynamic>.from(json));
+    }
+    if (json is bool) {
+      return Contact(
+        callEnabled: json,
+        textEnabled: json,
+        emailEnabled: json,
+      );
+    }
+    return Contact();
   }
 
   @override
-  dynamic serialize(bool value) => value;
+  dynamic serialize(Contact value) => value.toJson();
 }

@@ -73,6 +73,22 @@ class NotificationsManager(private val context: Context) {
         return true
     }
 
+    fun triggerNotificationAction(key: String?, action: String): Boolean {
+        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
+        if (key == null || key.isEmpty()) {
+            throw IllegalArgumentException("Key is null or empty")
+        }
+        return service.triggerNotificationAction(key, action)
+    }
+
+    fun openNotificationOnPhone(key: String?): Boolean {
+        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
+        if (key == null || key.isEmpty()) {
+            throw IllegalArgumentException("Key is null or empty")
+        }
+        return service.openNotificationOnPhone(key)
+    }
+
 
     fun getAppIcon(packageName: String, size: Int): ByteArray {
         val pm = context.packageManager

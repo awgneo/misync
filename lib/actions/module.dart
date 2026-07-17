@@ -61,10 +61,10 @@ class ActionsModule extends TabModule {
 
   Future<void> _handleWatchGetActions() async {
     final List<Map<String, String>> actionList = ActionsBlob.map.values
-        .map((action) => {'name': action.name, 'icon': action.icon})
+        .map((action) => {'name': action.name, 'symbol': action.symbol})
         .toList();
 
-    final actionsPayload = {'response': actionList};
+    final actionsPayload = {'actions': actionList};
 
     final jsonPayload = jsonEncode(actionsPayload);
     final appInfo = ThirdPartyAppInfo()..packageName = 'com.misync.actions';
