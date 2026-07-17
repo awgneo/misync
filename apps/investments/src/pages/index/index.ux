@@ -11,6 +11,11 @@
 			if="{{ watchlists.length > 0 }}"
 			class="mi-swiper"
 			indicator="{{ true }}"
+			loop="false"
+			index="{{ currentIndex }}"
+			@change="handleSwiperChange"
+			@touchstart="handleTouchStart"
+			@touchmove="handleTouchMove"
 		>
 			<div for="{{ watchlist in watchlists }}" class="watchlist-slide">
 				<div class="mi-row">
@@ -47,10 +52,14 @@ import misync from "../../shared/modules/misync.js";
 export default {
 	private: {
 		watchlists: [],
+		currentIndex: 0,
 	},
 
 	onInit() {
 		this.watchlists = [];
+		this.currentIndex = 0;
+		this.startX = 0;
+		this.startY = 0;
 	},
 
 	onReady() {
@@ -71,6 +80,28 @@ export default {
 
 	requestWatchlists() {
 		misync.send("getWatchlists");
+	},
+
+	handleSwiperChange(e) {
+		this.currentIndex = e.index;
+	},
+
+	handleTouchStart(e) {
+		if (e.touches && e.touches.length > 0) {
+			this.startX = e.touches[0].clientX;
+			this.startY = e.touches[0].clientY;
+		}
+	},
+
+	handleTouchMove(e) {
+		if (this.currentIndex === 0 && e.touches && e.touches.length > 0) {
+			const touch = e.touches[0];
+			const deltaX = touch.clientX - this.startX;
+			const deltaY = touch.clientY - this.startY;
+			if (this.startX < 50 && deltaX > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
+				this.$app.exit();
+			}
+		}
 	},
 
 	onDestroy() {

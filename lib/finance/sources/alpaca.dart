@@ -165,4 +165,64 @@ class AlpacaSource implements InvestmentSource {
       client.close();
     }
   }
+
+  @override
+  Future<String> createWatchlist(
+    String apiKey,
+    String secretKey,
+    String name,
+    List<String> symbols,
+  ) async {
+    final client = HttpClient();
+    try {
+      final uri = Uri.parse('$_base/v2/watchlists');
+      final req = await client.postUrl(uri);
+      req.headers.set('APCA-API-KEY-ID', apiKey);
+      req.headers.set('APCA-API-SECRET-KEY', secretKey);
+      req.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+
+      final body = jsonEncode({
+        'name': name,
+        'symbols': symbols,
+      });
+      req.write(body);
+
+      final resp = await req.close();
+      final resStr = await resp.transform(utf8.decoder).join();
+      if (resp.statusCode != 200) {
+        throw HttpException(
+          'Failed to create watchlist: ${resp.statusCode} - $resStr',
+        );
+      }
+      final data = jsonDecode(resStr);
+      return data['id'] as String;
+    } finally {
+      client.close();
+    }
+  }
+
+  @override
+  Future<void> deleteWatchlist(
+    String apiKey,
+    String secretKey,
+    String watchlistId,
+  ) async {
+    final client = HttpClient();
+    try {
+      final uri = Uri.parse('$_base/v2/watchlists/$watchlistId');
+      final req = await client.deleteUrl(uri);
+      req.headers.set('APCA-API-KEY-ID', apiKey);
+      req.headers.set('APCA-API-SECRET-KEY', secretKey);
+
+      final resp = await req.close();
+      if (resp.statusCode != 204 && resp.statusCode != 200) {
+        final err = await resp.transform(utf8.decoder).join();
+        throw HttpException(
+          'Failed to delete watchlist: ${resp.statusCode} - $err',
+        );
+      }
+    } finally {
+      client.close();
+    }
+  }
 }

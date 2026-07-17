@@ -136,6 +136,50 @@ class FinanceModule extends TabModule {
     }
   }
 
+  Future<String?> createWatchlist(
+    String name,
+    List<String> symbols,
+  ) async {
+    final sourceId = FinanceBlob.getSource('investments');
+    if (sourceId == 'alpaca') {
+      final investments = InvestmentsBlob.investments;
+      try {
+        final source = AlpacaSource();
+        final id = await source.createWatchlist(
+          investments.apiKey,
+          investments.secretKey,
+          name,
+          symbols,
+        );
+        logger.info('watchlist created successfully on Alpaca');
+        return id;
+      } catch (e) {
+        logger.error('failed to create watchlist on Alpaca: $e');
+        rethrow;
+      }
+    }
+    return null;
+  }
+
+  Future<void> deleteWatchlist(String watchlistId) async {
+    final sourceId = FinanceBlob.getSource('investments');
+    if (sourceId == 'alpaca') {
+      final investments = InvestmentsBlob.investments;
+      try {
+        final source = AlpacaSource();
+        await source.deleteWatchlist(
+          investments.apiKey,
+          investments.secretKey,
+          watchlistId,
+        );
+        logger.info('watchlist deleted successfully from Alpaca');
+      } catch (e) {
+        logger.error('failed to delete watchlist from Alpaca: $e');
+        rethrow;
+      }
+    }
+  }
+
   @override
   Future<void> sync() async {
     await _syncInvestments();
