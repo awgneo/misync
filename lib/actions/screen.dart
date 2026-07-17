@@ -346,9 +346,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.action != null
-                        ? 'Edit Shortcut Action'
-                        : 'Add Shortcut Action',
+                    widget.action != null ? 'Edit Action' : 'Add Action',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -372,7 +370,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                         controller: _nameController,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          labelText: 'Action Label (e.g. Mute Phone)',
+                          labelText: 'Name',
                           labelStyle: const TextStyle(color: Colors.grey),
                           filled: true,
                           fillColor: const Color(0xFF141822),
@@ -417,7 +415,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Action Trigger Type',
+                'Trigger',
                 style: TextStyle(color: Colors.grey, fontSize: 13),
               ),
               const SizedBox(height: 6),
@@ -458,7 +456,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                   DropdownMenuItem(
                     value: 2,
                     child: Text(
-                      'Run Intent',
+                      'Send Intent',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -488,7 +486,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Target Application',
+                              'Application',
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12,
@@ -497,7 +495,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                             const SizedBox(height: 4),
                             Text(
                               _selectedPackage.isEmpty
-                                  ? 'None Selected'
+                                  ? 'None'
                                   : _selectedAppName,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -525,7 +523,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                           ),
                         ),
                         onPressed: _pickApp,
-                        child: const Text('Pick App'),
+                        child: const Text('Select'),
                       ),
                     ],
                   ),
@@ -535,7 +533,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                   controller: _uriController,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Deep Link Link / URL (e.g. spotify:play)',
+                    labelText: 'Link',
                     labelStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: const Color(0xFF141822),
@@ -565,8 +563,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                   controller: _intentController,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText:
-                        'Intent Action (e.g. net.dinglisch.android.taskerm.ACTION_TASK)',
+                    labelText: 'Action',
                     labelStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: const Color(0xFF141822),
@@ -596,7 +593,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                   controller: _packageController,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Target Package Name (Optional)',
+                    labelText: 'Package (Optional)',
                     labelStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: const Color(0xFF141822),
@@ -620,7 +617,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                   maxLines: 3,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Intent Extras (Key=Value, one per line)',
+                    labelText: 'Extras (Key=Value)',
                     labelStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: const Color(0xFF141822),

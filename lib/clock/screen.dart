@@ -9,6 +9,7 @@ import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
 import '../widgets/tabs.dart';
+import '../widgets/display.dart';
 import '../platform/module.dart';
 import 'dart:async';
 
@@ -209,25 +210,51 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                   ),
                 )
               else
-                MiItems(
-                  children: list.map((id) {
-                    final city = clocks.firstWhere(
-                      (c) => c.id == id,
-                      orElse: () => const Clock(
-                        id: '',
-                        timezone: '',
-                        name: '',
-                        country: '',
-                      ),
-                    );
-                    if (city.id.isEmpty) return const SizedBox.shrink();
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141822),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF26324D)),
+                  ),
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: list.length,
+                    // ignore: deprecated_member_use
+                    onReorder: (oldIndex, newIndex) {
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      final updated = List<String>.from(list);
+                      final item = updated.removeAt(oldIndex);
+                      updated.insert(newIndex, item);
+                      widget.module.saveClocks(updated);
+                    },
+                    itemBuilder: (context, index) {
+                      final id = list[index];
+                      final city = clocks.firstWhere(
+                        (c) => c.id == id,
+                        orElse: () => const Clock(
+                          id: '',
+                          timezone: '',
+                          name: '',
+                          country: '',
+                        ),
+                      );
+                      if (city.id.isEmpty) return const SizedBox.shrink(key: ValueKey('empty'));
 
-                    return MiItem(
-                      title: city.name,
-                      subtitle: '${city.country} (${city.timezone})',
-                      delete: () => widget.module.deleteClock(id),
-                    );
-                  }).toList(),
+                      return MiItem(
+                        key: ValueKey('clock_${city.id}_$index'),
+                        title: city.name,
+                        subtitle: '${city.country} (${city.timezone})',
+                        delete: () => widget.module.deleteClock(id),
+                        order: ReorderableDragStartListener(
+                          index: index,
+                          child: const Icon(Icons.drag_handle, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  ),
                 ),
             ],
           ),
@@ -355,7 +382,7 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                widget.alarm != null ? 'Edit Watch Alarm' : 'Add Watch Alarm',
+                widget.alarm != null ? 'Edit Alarm' : 'Add Alarm',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -369,98 +396,41 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
             ],
           ),
           const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _pickTime,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF141822),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF26324D)),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    formattedTime,
-                    style: const TextStyle(
-                      color: Color(0xFF00E5FF),
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Tap to change time',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          MiDisplay(text: formattedTime, onTap: _pickTime),
           const SizedBox(height: 24),
-          const Text(
-            'Repeat Mode',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<int>(
-            initialValue: _repeatOption,
-            dropdownColor: const Color(0xFF0F111A),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: const Color(0xFF141822),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF26324D)),
+          MiItems(
+            children: [
+              MiItem(
+                title: 'Repeat',
+                primaryIcon: Icons.repeat,
+                options: const {
+                  0: 'Once',
+                  1: 'Daily',
+                  2: 'Weekdays (Mon - Fri)',
+                  3: 'Weekends (Sat - Sun)',
+                  4: 'Custom Days...',
+                },
+                value: _repeatOption,
+                selected: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _repeatOption = val as int;
+                    });
+                  }
+                },
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-              ),
-            ),
-            items: const [
-              DropdownMenuItem(
-                value: 0,
-                child: Text('Once', style: TextStyle(color: Colors.white)),
-              ),
-              DropdownMenuItem(
-                value: 1,
-                child: Text('Daily', style: TextStyle(color: Colors.white)),
-              ),
-              DropdownMenuItem(
-                value: 2,
-                child: Text(
-                  'Weekdays (Mon - Fri)',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              DropdownMenuItem(
-                value: 3,
-                child: Text(
-                  'Weekends (Sat - Sun)',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              DropdownMenuItem(
-                value: 4,
-                child: Text(
-                  'Custom Days...',
-                  style: TextStyle(color: Colors.white),
-                ),
+              MiItem(
+                title: 'Smart Wake',
+                subtitle: 'Wakes you up during light sleep',
+                primaryIcon: Icons.snooze,
+                enabled: _smartWake,
+                toggled: (val) {
+                  setState(() {
+                    _smartWake = val;
+                  });
+                },
               ),
             ],
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _repeatOption = val;
-                });
-              }
-            },
           ),
           if (_repeatOption == 4) ...[
             const SizedBox(height: 20),
@@ -481,94 +451,33 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
               }),
             ),
           ],
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Smart Wake',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Wakes you up during light sleep',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-              ),
-              Switch(
-                value: _smartWake,
-                onChanged: (val) {
-                  setState(() {
-                    _smartWake = val;
-                  });
-                },
-                activeThumbColor: const Color(0xFF00E5FF),
-                activeTrackColor: const Color(
-                  0xFF00E5FF,
-                ).withValues(alpha: 0.3),
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
-              ),
-            ],
-          ),
           const SizedBox(height: 32),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF141822),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: const Color(0xFF00E5FF),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF00E5FF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pop({
-                      'hour': _selectedTime.hour,
-                      'minute': _selectedTime.minute,
-                      'repeatMode': finalRepeatMode,
-                      'repeatFlags': finalRepeatFlags,
-                      'smart': _smartWake ? 1 : 2,
-                    });
-                  },
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+              minimumSize: const Size(double.infinity, 0),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop({
+                'hour': _selectedTime.hour,
+                'minute': _selectedTime.minute,
+                'repeatMode': finalRepeatMode,
+                'repeatFlags': finalRepeatFlags,
+                'smart': _smartWake ? 1 : 2,
+              });
+            },
+            child: const Text(
+              'Save',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -667,7 +576,7 @@ class _AddClockSheetState extends State<_AddClockSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Add World Clock',
+                'Add Clock',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -736,10 +645,6 @@ class _AddClockSheetState extends State<_AddClockSheet> {
                             color: Colors.grey,
                             fontSize: 13,
                           ),
-                        ),
-                        trailing: const Icon(
-                          Icons.add_circle_outline,
-                          color: Color(0xFF00E5FF),
                         ),
                         onTap: () {
                           Navigator.of(context).pop(city);

@@ -83,11 +83,17 @@ class ClockModule extends TabModule {
     final now = DateTime.now();
     bool is24Hour = false;
     try {
-      is24Hour = await PlatformModule.module.invokeMethod<bool>('clock.is24HourFormat') ?? false;
+      is24Hour =
+          await PlatformModule.module.invokeMethod<bool>(
+            'clock.is24HourFormat',
+          ) ??
+          false;
     } catch (e) {
       logger.error('failed to check 24-hour format: $e');
     }
-    logger.info('syncing time, date, and timezone offset: ${now.timeZoneName}, 24h format: $is24Hour');
+    logger.info(
+      'syncing time, date, and timezone offset: ${now.timeZoneName}, 24h format: $is24Hour',
+    );
 
     await DeviceModule.module.connection.send(
       type: CmdType.system,
@@ -364,14 +370,40 @@ class ClockModule extends TabModule {
   }
 
   Future<void> addClock(String cityId) async {
-    if (!DeviceModule.module.connection.connected.value) return;
-
     final list = List<String>.from(ClocksBlob.list);
     if (list.contains(cityId)) return;
     list.add(cityId);
+    await saveClocks(list);
+  }
 
-    logger.info('syncing world clocks list to watch: $list');
-    final pClocks = pb.WorldClocks()..worldClock.addAll(list);
+  Future<void> deleteClock(String cityId) async {
+    final list = List<String>.from(ClocksBlob.list);
+    list.remove(cityId);
+    await saveClocks(list);
+  }
+
+  Future<void> saveClocks(List<String> list) async {
+    if (!DeviceModule.module.connection.connected.value) {
+      logger.error('saveClocks failed: device not connected');
+      return;
+    }
+
+    final oldList = List<String>.from(ClocksBlob.list);
+
+    if (oldList.isNotEmpty) {
+      final deleteClocks = pb.WorldClocks()..worldClock.addAll(oldList);
+      await DeviceModule.module.connection.send(
+        type: CmdType.schedule,
+        subtype: ScheduleSubtype.deleteWorldClock,
+        response: true,
+        builder: (cmd) =>
+            cmd.schedule = (pb.Schedule()..worldClocks = deleteClocks),
+      );
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    final reversedList = list.reversed.toList();
+    final pClocks = pb.WorldClocks()..worldClock.addAll(reversedList);
 
     final result = await DeviceModule.module.connection.send(
       type: CmdType.schedule,
@@ -382,25 +414,9 @@ class ClockModule extends TabModule {
 
     if (result != null) {
       await ClocksBlob.instance.update(list);
-    }
-  }
-
-  Future<void> deleteClock(String cityId) async {
-    if (!DeviceModule.module.connection.connected.value) return;
-
-    logger.info('deleting world clock from watch: $cityId');
-    final pClocks = pb.WorldClocks()..worldClock.add(cityId);
-
-    final result = await DeviceModule.module.connection.send(
-      type: CmdType.schedule,
-      subtype: ScheduleSubtype.deleteWorldClock,
-      response: true,
-      builder: (cmd) => cmd.schedule = (pb.Schedule()..worldClocks = pClocks),
-    );
-
-    if (result != null) {
-      final list = List<String>.from(ClocksBlob.list)..remove(cityId);
-      await ClocksBlob.instance.update(list);
+      logger.info('world clocks updated successfully');
+    } else {
+      logger.error('failed to update world clocks on watch');
     }
   }
 }
