@@ -27,6 +27,8 @@ class AppsModule extends TabModule {
   static AppsModule get module => _module;
   AppsModule._();
 
+  final Map<String, Uint8List> appIcons = {};
+
   @override
   Future<void> start() async {
     _startInternalApps();
@@ -61,6 +63,11 @@ class AppsModule extends TabModule {
         final manifestString = utf8.decode(manifestFile.content as List<int>);
         final manifestJson = jsonDecode(manifestString) as Map<String, dynamic>;
         final versionCode = manifestJson['versionCode'] as int? ?? 1;
+
+        final logoFile = archive.findFile('common/logo.png');
+        if (logoFile != null) {
+          appIcons[package] = Uint8List.fromList(logoFile.content as List<int>);
+        }
 
         final current = updatedApps[package];
         updatedApps[package] = App(
@@ -585,6 +592,11 @@ class AppsModule extends TabModule {
 
     if (package.isEmpty) {
       throw StateError('Package identifier is missing');
+    }
+
+    final logoFile = archive.findFile('common/logo.png');
+    if (logoFile != null) {
+      appIcons[package] = Uint8List.fromList(logoFile.content as List<int>);
     }
 
     logger.info(

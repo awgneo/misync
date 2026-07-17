@@ -9,6 +9,7 @@ import '../widgets/button.dart';
 import '../widgets/modal.dart';
 import '../widgets/app.dart';
 import '../widgets/symbol.dart';
+import '../widgets/popup.dart';
 
 class ActionsScreen extends Screen<ActionsModule> {
   const ActionsScreen(super.module, {super.key});
@@ -23,11 +24,10 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
   }
 
   Future<void> _addAction() async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const _ActionSetupSheet(),
+    final result = await MiPopup.show<Map<String, dynamic>>(
+      context,
+      title: 'Add Action',
+      child: const _ActionSetupSheet(),
     );
 
     if (result != null) {
@@ -45,11 +45,10 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
   }
 
   Future<void> _editAction(Action action) async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _ActionSetupSheet(action: action),
+    final result = await MiPopup.show<Map<String, dynamic>>(
+      context,
+      title: 'Edit Action',
+      child: _ActionSetupSheet(action: action),
     );
 
     if (result != null) {
@@ -244,21 +243,18 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
   }
 
   void _pickApp() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return MiApp(
-          registeredFilters: const [],
-          onAppSelected: (package) {
-            setState(() {
-              _selectedPackage = package;
-              _selectedAppName = package.split('.').last.toUpperCase();
-            });
-          },
-        );
-      },
+    MiPopup.show(
+      context,
+      title: 'Select App',
+      child: MiApp(
+        removed: _selectedPackage.isNotEmpty ? [_selectedPackage] : const [],
+        selected: (package) {
+          setState(() {
+            _selectedPackage = package;
+            _selectedAppName = package.split('.').last.toUpperCase();
+          });
+        },
+      ),
     );
   }
 
@@ -324,105 +320,162 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F111A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    widget.action != null ? 'Edit Action' : 'Add Action',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        filled: true,
+                        fillColor: const Color(0xFF141822),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF26324D),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF26324D),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF00E5FF),
+                          ),
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter a name';
+                        }
+                        return null;
+                      },
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey),
-                    onPressed: () => Navigator.of(context).pop(),
+                  const SizedBox(width: 16),
+                  MiSymbol(
+                    currentSymbol: _symbolController.text,
+                    onSymbolChanged: (newSymbol) {
+                      setState(() {
+                        _symbolController.text = newSymbol;
+                      });
+                    },
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Name',
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          filled: true,
-                          fillColor: const Color(0xFF141822),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF26324D),
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF26324D),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF00E5FF),
-                            ),
-                          ),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Please enter a name';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    MiSymbol(
-                      currentSymbol: _symbolController.text,
-                      onSymbolChanged: (newSymbol) {
-                        setState(() {
-                          _symbolController.text = newSymbol;
-                        });
-                      },
-                    ),
-                  ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Trigger',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<int>(
+              initialValue: _typeSelection,
+              dropdownColor: const Color(0xFF0F111A),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF141822),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF26324D)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF26324D)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF00E5FF)),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Trigger',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+              style: const TextStyle(color: Colors.white),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('Launch Application')),
+                DropdownMenuItem(value: 1, child: Text('Open URI / Link')),
+                DropdownMenuItem(value: 2, child: Text('Send Intent (Advanced)')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _typeSelection = val;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+
+            if (_typeSelection == 0) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Application',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _selectedPackage.isEmpty
+                              ? 'None'
+                              : _selectedAppName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        if (_selectedPackage.isNotEmpty)
+                          Text(
+                            _selectedPackage,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00E5FF),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: _pickApp,
+                    child: const Text('Select'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<int>(
-                initialValue: _typeSelection,
-                dropdownColor: const Color(0xFF0F111A),
+            ] else if (_typeSelection == 1) ...[
+              TextFormField(
+                controller: _uriController,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
+                  labelText: 'Link',
+                  labelStyle: const TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: const Color(0xFF141822),
                   border: OutlineInputBorder(
@@ -438,227 +491,114 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                     borderSide: const BorderSide(color: Color(0xFF00E5FF)),
                   ),
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 0,
-                    child: Text(
-                      'Launch App',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 1,
-                    child: Text(
-                      'Open Link',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 2,
-                    child: Text(
-                      'Send Intent',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _typeSelection = val;
-                    });
+                validator: (val) {
+                  if (_typeSelection == 1 &&
+                      (val == null || val.trim().isEmpty)) {
+                    return 'Please enter a URL / deep link';
                   }
+                  return null;
                 },
               ),
-              const SizedBox(height: 20),
-
-              if (_typeSelection == 0) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF141822),
+            ] else ...[
+              TextFormField(
+                controller: _intentController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Action',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF141822),
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF26324D)),
+                    borderSide: const BorderSide(color: Color(0xFF26324D)),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Application',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _selectedPackage.isEmpty
-                                  ? 'None'
-                                  : _selectedAppName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            if (_selectedPackage.isNotEmpty)
-                              Text(
-                                _selectedPackage,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00E5FF),
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: _pickApp,
-                        child: const Text('Select'),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else if (_typeSelection == 1) ...[
-                TextFormField(
-                  controller: _uriController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Link',
-                    labelStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: const Color(0xFF141822),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                    ),
-                  ),
-                  validator: (val) {
-                    if (_typeSelection == 1 &&
-                        (val == null || val.trim().isEmpty)) {
-                      return 'Please enter a URL / deep link';
-                    }
-                    return null;
-                  },
-                ),
-              ] else ...[
-                TextFormField(
-                  controller: _intentController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Action',
-                    labelStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: const Color(0xFF141822),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                    ),
-                  ),
-                  validator: (val) {
-                    if (_typeSelection == 2 &&
-                        (val == null || val.trim().isEmpty)) {
-                      return 'Please enter an intent action';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _packageController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Package (Optional)',
-                    labelStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: const Color(0xFF141822),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _extrasController,
-                  maxLines: 3,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Extras (Key=Value)',
-                    labelStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: const Color(0xFF141822),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF26324D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 32),
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: const Color(0xFF00E5FF),
-                  minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF00E5FF)),
                   ),
                 ),
-                onPressed: _save,
-                child: const Text(
-                  'Save',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                validator: (val) {
+                  if (_typeSelection == 2 &&
+                      (val == null || val.trim().isEmpty)) {
+                    return 'Please enter an intent action';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _packageController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Package (Optional)',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF141822),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _extrasController,
+                maxLines: null,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Extras (Optional, e.g. key=value)',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF141822),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF00E5FF)),
                   ),
                 ),
               ),
             ],
-          ),
+
+            const SizedBox(height: 32),
+            TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: const Color(0xFF00E5FF),
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _save,
+              child: const Text(
+                'Save',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

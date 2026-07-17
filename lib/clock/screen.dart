@@ -10,6 +10,7 @@ import '../widgets/items.dart';
 import '../widgets/button.dart';
 import '../widgets/tabs.dart';
 import '../widgets/display.dart';
+import '../widgets/popup.dart';
 import '../platform/module.dart';
 import 'dart:async';
 
@@ -22,11 +23,10 @@ class ClockScreen extends Screen<ClockModule> {
 
 class _ClockScreenState extends ScreenState<ClockScreen> {
   Future<void> _createAlarm() async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const _AlarmSetupSheet(),
+    final result = await MiPopup.show<Map<String, dynamic>>(
+      context,
+      title: 'Add Alarm',
+      child: const _AlarmSetupSheet(),
     );
 
     if (result != null) {
@@ -47,11 +47,10 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
   }
 
   Future<void> _editAlarm(WatchAlarm alarm) async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _AlarmSetupSheet(alarm: alarm),
+    final result = await MiPopup.show<Map<String, dynamic>>(
+      context,
+      title: 'Edit Alarm',
+      child: _AlarmSetupSheet(alarm: alarm),
     );
 
     if (result != null) {
@@ -241,7 +240,9 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                           country: '',
                         ),
                       );
-                      if (city.id.isEmpty) return const SizedBox.shrink(key: ValueKey('empty'));
+                      if (city.id.isEmpty) {
+                        return const SizedBox.shrink(key: ValueKey('empty'));
+                      }
 
                       return MiItem(
                         key: ValueKey('clock_${city.id}_$index'),
@@ -250,7 +251,10 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
                         delete: () => widget.module.deleteClock(id),
                         order: ReorderableDragStartListener(
                           index: index,
-                          child: const Icon(Icons.drag_handle, color: Colors.grey),
+                          child: const Icon(
+                            Icons.drag_handle,
+                            color: Colors.grey,
+                          ),
                         ),
                       );
                     },
@@ -264,11 +268,10 @@ class _ClockScreenState extends ScreenState<ClockScreen> {
   }
 
   Future<void> _addClock() async {
-    final result = await showModalBottomSheet<Clock>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const _AddClockSheet(),
+    final result = await MiPopup.show<Clock>(
+      context,
+      title: 'Add Clock',
+      child: const _AddClockSheet(),
     );
 
     if (result != null) {
@@ -363,124 +366,94 @@ class _AlarmSetupSheetState extends State<_AlarmSetupSheet> {
     final displayMin = _selectedTime.minute.toString().padLeft(2, '0');
     final formattedTime = '$displayHour:$displayMin $period';
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F111A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                widget.alarm != null ? 'Edit Alarm' : 'Add Alarm',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          MiDisplay(text: formattedTime, onTap: _pickTime),
-          const SizedBox(height: 24),
-          MiItems(
-            children: [
-              MiItem(
-                title: 'Repeat',
-                primaryIcon: Icons.repeat,
-                options: const {
-                  0: 'Once',
-                  1: 'Daily',
-                  2: 'Weekdays (Mon - Fri)',
-                  3: 'Weekends (Sat - Sun)',
-                  4: 'Custom Days...',
-                },
-                value: _repeatOption,
-                selected: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _repeatOption = val as int;
-                    });
-                  }
-                },
-              ),
-              MiItem(
-                title: 'Smart Wake',
-                subtitle: 'Wakes you up during light sleep',
-                primaryIcon: Icons.snooze,
-                enabled: _smartWake,
-                toggled: (val) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        MiDisplay(text: formattedTime, onTap: _pickTime),
+        const SizedBox(height: 24),
+        MiItems(
+          children: [
+            MiItem(
+              title: 'Repeat',
+              primaryIcon: Icons.repeat,
+              options: const {
+                0: 'Once',
+                1: 'Daily',
+                2: 'Weekdays (Mon - Fri)',
+                3: 'Weekends (Sat - Sun)',
+                4: 'Custom Days...',
+              },
+              value: _repeatOption,
+              selected: (val) {
+                if (val != null) {
                   setState(() {
-                    _smartWake = val;
+                    _repeatOption = val as int;
                   });
-                },
-              ),
-            ],
-          ),
-          if (_repeatOption == 4) ...[
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(7, (index) {
-                final flagVal = 1 << index;
-                final active = (_customFlags & flagVal) != 0;
-                return _DayToggle(
-                  label: _dayLabels[index],
-                  active: active,
-                  onTap: () {
-                    setState(() {
-                      _customFlags ^= flagVal;
-                    });
-                  },
-                );
-              }),
+                }
+              },
+            ),
+            MiItem(
+              title: 'Smart Wake',
+              subtitle: 'Wakes you up during light sleep',
+              primaryIcon: Icons.snooze,
+              enabled: _smartWake,
+              toggled: (val) {
+                setState(() {
+                  _smartWake = val;
+                });
+              },
             ),
           ],
-          const SizedBox(height: 32),
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: const Color(0xFF00E5FF),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              minimumSize: const Size(double.infinity, 0),
-            ),
-            onPressed: () {
-              Navigator.of(context).pop({
-                'hour': _selectedTime.hour,
-                'minute': _selectedTime.minute,
-                'repeatMode': finalRepeatMode,
-                'repeatFlags': finalRepeatFlags,
-                'smart': _smartWake ? 1 : 2,
-              });
-            },
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+        ),
+        if (_repeatOption == 4) ...[
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final flagVal = 1 << index;
+              final active = (_customFlags & flagVal) != 0;
+              return _DayToggle(
+                label: _dayLabels[index],
+                active: active,
+                onTap: () {
+                  setState(() {
+                    _customFlags ^= flagVal;
+                  });
+                },
+              );
+            }),
           ),
         ],
-      ),
+        const SizedBox(height: 32),
+        TextButton(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            backgroundColor: const Color(0xFF00E5FF),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            minimumSize: const Size(double.infinity, 0),
+          ),
+          onPressed: () {
+            Navigator.of(context).pop({
+              'hour': _selectedTime.hour,
+              'minute': _selectedTime.minute,
+              'repeatMode': finalRepeatMode,
+              'repeatFlags': finalRepeatFlags,
+              'smart': _smartWake ? 1 : 2,
+            });
+          },
+          child: const Text(
+            'Save',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -554,107 +527,74 @@ class _AddClockSheetState extends State<_AddClockSheet> {
           c.timezone.toLowerCase().contains(q);
     }).toList();
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F111A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.7,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Add Clock',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _searchController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Search city or country...',
-              hintStyle: const TextStyle(color: Colors.grey),
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              filled: true,
-              fillColor: const Color(0xFF141822),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF26324D)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _searchController,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Search city or country...',
+            hintStyle: const TextStyle(color: Colors.grey),
+            prefixIcon: const Icon(Icons.search, color: Colors.grey),
+            filled: true,
+            fillColor: const Color(0xFF141822),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF26324D)),
             ),
-            onChanged: (val) {
-              setState(() {
-                _query = val;
-              });
-            },
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+            ),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: filtered.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No matching cities found',
-                      style: TextStyle(color: Colors.grey),
+          onChanged: (val) {
+            setState(() {
+              _query = val;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        filtered.isEmpty
+            ? const Center(
+                child: Text(
+                  'No matching cities found',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final city = filtered[index];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final city = filtered[index];
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        title: Text(
-                          city.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${city.country} (${city.timezone})',
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        onTap: () {
-                          Navigator.of(context).pop(city);
-                        },
-                      );
+                    title: Text(
+                      city.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${city.country} (${city.timezone})',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).pop(city);
                     },
-                  ),
-          ),
-        ],
-      ),
+                  );
+                },
+              ),
+      ],
     );
   }
 }

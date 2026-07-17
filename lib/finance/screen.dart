@@ -6,6 +6,7 @@ import '../widgets/items.dart';
 import '../widgets/item.dart';
 import '../widgets/button.dart';
 import '../widgets/modal.dart';
+import '../widgets/popup.dart';
 import 'module.dart';
 import 'blobs/finance.dart';
 import 'blobs/investments.dart';
@@ -61,100 +62,64 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
     _apiKeyController.text = investments.apiKey;
     _secretKeyController.text = investments.secretKey;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF141822),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(top: BorderSide(color: Color(0xFF26324D))),
+    MiPopup.show(
+      context,
+      title: 'Alpaca API Credentials',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _apiKeyController,
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('API Key ID'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'API Key ID is required';
+                }
+                return null;
+              },
             ),
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    'Alpaca API Credentials',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _apiKeyController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('API Key ID'),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'API Key ID is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _secretKeyController,
-                    style: const TextStyle(color: Colors.white),
-                    obscureText: true,
-                    decoration: _buildInputDecoration('Secret Key'),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Secret Key is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (!_formKey.currentState!.validate()) return;
-                      await _saveCredentials();
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _secretKeyController,
+              style: const TextStyle(color: Colors.white),
+              obscureText: true,
+              decoration: _buildInputDecoration('Secret Key'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Secret Key is required';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                if (!_formKey.currentState!.validate()) return;
+                await _saveCredentials();
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Save',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -164,108 +129,64 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
     _symbolController.clear();
     final formKey = GlobalKey<FormState>();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF141822),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(top: BorderSide(color: Color(0xFF26324D))),
+    MiPopup.show(
+      context,
+      title: 'Add Symbol',
+      child: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _symbolController,
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('Symbol (e.g., AAPL)'),
+              textCapitalization: TextCapitalization.characters,
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Symbol is required';
+                }
+                return null;
+              },
             ),
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    'Add Stock Symbol',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _symbolController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration(
-                      'Stock Symbol (e.g., AAPL)',
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Symbol is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final targetSymbol = _symbolController.text
-                          .trim()
-                          .toUpperCase();
-                      final wl = watchlists.firstWhere(
-                        (w) => w.id == _selectedWatchlistId,
-                      );
-                      final exists = wl.items.any(
-                        (i) => i.symbol == targetSymbol,
-                      );
-                      if (!exists) {
-                        final symbols = wl.items.map((i) => i.symbol).toList()
-                          ..add(targetSymbol);
-                        await widget.module.saveWatchlist(
-                          wl.id,
-                          wl.name,
-                          symbols,
-                        );
-                        await widget.module.sync();
-                      }
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Add',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final targetSymbol = _symbolController.text
+                    .trim()
+                    .toUpperCase();
+                final wl = watchlists.firstWhere(
+                  (w) => w.id == _selectedWatchlistId,
+                );
+                final exists = wl.items.any((i) => i.symbol == targetSymbol);
+                if (!exists) {
+                  final symbols = wl.items.map((i) => i.symbol).toList()
+                    ..add(targetSymbol);
+                  await widget.module.saveWatchlist(wl.id, wl.name, symbols);
+                  await widget.module.sync();
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Add',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -273,107 +194,66 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
     _watchlistNameController.clear();
     final formKey = GlobalKey<FormState>();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF141822),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(top: BorderSide(color: Color(0xFF26324D))),
+    MiPopup.show(
+      context,
+      title: 'Create Watchlist',
+      child: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _watchlistNameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('Watchlist Name'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Watchlist Name is required';
+                }
+                return null;
+              },
             ),
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    'Create Watchlist',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _watchlistNameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Watchlist Name'),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Watchlist Name is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final name = _watchlistNameController.text.trim();
-                      try {
-                        final newId = await widget.module.createWatchlist(
-                          name,
-                          [],
-                        );
-                        await widget.module.sync();
-                        if (newId != null) {
-                          setState(() {
-                            _selectedWatchlistId = newId;
-                          });
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to create watchlist: $e'),
-                            ),
-                          );
-                        }
-                      }
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Create',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final name = _watchlistNameController.text.trim();
+                try {
+                  final newId = await widget.module.createWatchlist(name, []);
+                  await widget.module.sync();
+                  if (newId != null) {
+                    setState(() {
+                      _selectedWatchlistId = newId;
+                    });
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to create watchlist: $e')),
+                    );
+                  }
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Create',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -381,115 +261,75 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
     _watchlistNameController.text = activeWl.name;
     final formKey = GlobalKey<FormState>();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF141822),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(top: BorderSide(color: Color(0xFF26324D))),
+    MiPopup.show(
+      context,
+      title: 'Edit Name',
+      child: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _watchlistNameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('Watchlist Name'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Watchlist Name is required';
+                }
+                return null;
+              },
             ),
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(2),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final newName = _watchlistNameController.text.trim();
+                try {
+                  final symbols = activeWl.items.map((i) => i.symbol).toList();
+                  await widget.module.saveWatchlist(
+                    activeWl.id,
+                    newName,
+                    symbols,
+                  );
+                  await widget.module.sync();
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to update watchlist name: $e'),
                       ),
-                    ),
-                  ),
-                  const Text(
-                    'Edit Watchlist Name',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _watchlistNameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Watchlist Name'),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Watchlist Name is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final newName = _watchlistNameController.text.trim();
-                      try {
-                        final symbols = activeWl.items
-                            .map((i) => i.symbol)
-                            .toList();
-                        await widget.module.saveWatchlist(
-                          activeWl.id,
-                          newName,
-                          symbols,
-                        );
-                        await widget.module.sync();
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Failed to update watchlist name: $e',
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+                    );
+                  }
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Save',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
   Future<void> _deleteActiveWatchlist(InvestmentsWatchlist activeWl) async {
     final confirm = await showMiModal<bool>(
       context: context,
-      title: 'Delete Watchlist',
+      title: 'Delete',
       label:
           'Are you sure you want to delete the watchlist "${activeWl.name}"?',
       confirm: 'Delete',
@@ -547,18 +387,6 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-            child: Text(
-              'FINANCE SUBTYPES SOURCES',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
           MiItems(
             children: [
               MiItem(
@@ -631,7 +459,7 @@ class _FinanceScreenState extends ScreenState<FinanceScreen> {
                     pressed: () => _showAddSymbolModal(watchlists),
                   ),
                   MiButton(
-                    label: 'Edit Name',
+                    label: 'Edit Watchlist Name',
                     icon: Icons.edit,
                     pressed: () => _showEditWatchlistNameModal(activeWl),
                   ),

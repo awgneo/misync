@@ -5,6 +5,7 @@ import '../screen.dart';
 import '../widgets/panel.dart';
 import '../widgets/items.dart';
 import '../widgets/item.dart';
+import '../widgets/popup.dart';
 
 class HealthScreen extends Screen<HealthModule> {
   const HealthScreen(super.module, {super.key});
@@ -63,11 +64,10 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
     required String suffix,
     required ValueChanged<int> onSave,
   }) async {
-    final result = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _GoalSetupSheet(
+    final result = await MiPopup.show<int>(
+      context,
+      title: 'Edit $title',
+      child: _GoalSetupSheet(
         title: title,
         initialValue: initialValue,
         suffix: suffix,
@@ -121,9 +121,8 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
               MiItems(
                 children: [
                   MiItem(
-                    title: 'Sync Health Data',
-                    subtitle:
-                        'Fetch activity, sleep, and workouts from band and sync directly to Google Health Connect',
+                    title: 'Health Sync',
+                    subtitle: 'Sync watch health data to Health Connect',
                     primaryIcon: Icons.favorite,
                     enabled: isEnabled,
                     toggled: (value) async {
@@ -134,7 +133,7 @@ class _HealthScreenState extends ScreenState<HealthScreen> {
                     },
                   ),
                   MiItem(
-                    title: 'Use Imperial Units',
+                    title: 'Imperial Units',
                     subtitle: 'Display weight in lbs and height in feet/inches',
                     primaryIcon: Icons.straighten,
                     enabled: currentSettings.imperial,
@@ -334,111 +333,81 @@ class _GoalSetupSheetState extends State<_GoalSetupSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F111A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Edit ${widget.title}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            decoration: InputDecoration(
-              suffixText: ' ${widget.suffix}',
-              suffixStyle: const TextStyle(color: Colors.grey),
-              filled: true,
-              fillColor: const Color(0xFF141822),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF26324D)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          decoration: InputDecoration(
+            suffixText: ' ${widget.suffix}',
+            suffixStyle: const TextStyle(color: Colors.grey),
+            filled: true,
+            fillColor: const Color(0xFF141822),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF26324D)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF00E5FF)),
             ),
           ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF141822),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: Color(0xFF26324D)),
-                    ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: const Color(0xFF141822),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFF26324D)),
                   ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: const Color(0xFF00E5FF),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  final parsed = int.tryParse(_controller.text);
+                  if (parsed != null && parsed > 0) {
+                    Navigator.of(context).pop(parsed);
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text(
+                  'Save',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF00E5FF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    final parsed = int.tryParse(_controller.text);
-                    if (parsed != null && parsed > 0) {
-                      Navigator.of(context).pop(parsed);
-                    } else {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

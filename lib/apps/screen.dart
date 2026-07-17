@@ -80,12 +80,23 @@ class _AppsScreenState extends ScreenState<AppsScreen> {
             final app = entry.value;
             final displayName = app.name;
 
+            final logoBytes = widget.module.appIcons[package];
+            final Widget? iconWidget = logoBytes != null
+                ? Image.memory(
+                    logoBytes,
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.contain,
+                  )
+                : null;
+
             return MiItem(
               title: displayName,
               subtitle: package,
-              primaryIcon: app.external
-                  ? Icons.apps
-                  : Icons.settings_applications,
+              primaryIcon: iconWidget ??
+                  (app.external
+                      ? Icons.apps
+                      : Icons.settings_applications),
               delete: app.external
                   ? () => widget.module.uninstallApp(package)
                   : null,

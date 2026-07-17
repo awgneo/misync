@@ -12,7 +12,7 @@ import '../widgets/items.dart';
 import '../widgets/button.dart';
 import '../widgets/tabs.dart';
 import '../widgets/app.dart';
-import '../widgets/modal.dart';
+import '../widgets/popup.dart';
 import '../platform/app.dart' as phone;
 
 class NotificationsScreen extends Screen<NotificationModule> {
@@ -115,30 +115,39 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
   }
 
   void _addApp() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return MiApp(
-          registeredFilters: AppsBlob.map.keys.toList(),
-          onAppSelected: (packageName) {
-            widget.module.addApp(packageName);
-          },
-        );
-      },
+    MiPopup.show(
+      context,
+      title: 'Select App',
+      child: MiApp(
+        removed: AppsBlob.map.keys.toList(),
+        selected: (packageName) {
+          widget.module.addApp(packageName);
+        },
+      ),
     );
   }
 
-  void _addReply() async {
-    final reply = await showMiModal<String>(
-      context: context,
-      title: 'Add Quick Reply',
-      label: 'Reply text (e.g., Yes, I will be late)',
-      confirm: 'Add',
+  Future<void> _addReply() async {
+    final reply = await MiPopup.show<String>(
+      context,
+      title: 'Add Reply',
+      child: _ReplySetupSheet(module: widget.module),
     );
     if (reply != null && reply.trim().isNotEmpty) {
       final replies = List<String>.from(RepliesBlob.list)..add(reply.trim());
+      widget.module.saveReplies(replies);
+    }
+  }
+
+  Future<void> _editReply(int index, String currentReply) async {
+    final reply = await MiPopup.show<String>(
+      context,
+      title: 'Edit Reply',
+      child: _ReplySetupSheet(module: widget.module, reply: currentReply),
+    );
+    if (reply != null && reply.trim().isNotEmpty) {
+      final replies = List<String>.from(RepliesBlob.list);
+      replies[index] = reply.trim();
       widget.module.saveReplies(replies);
     }
   }
@@ -226,22 +235,22 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
         MiItems(
           children: [
             MiItem(
-              title: 'Phone Calls Sync',
+              title: 'Call Sync',
               subtitle: 'Mirror incoming phone calls to the watch',
               primaryIcon: Icons.call,
               enabled: contact.callEnabled,
               toggled: (val) => widget.module.saveContact(callEnabled: val),
             ),
             MiItem(
-              title: 'SMS Texts Sync',
-              subtitle: 'Mirror incoming SMS text messages to the watch',
+              title: 'Text Sync',
+              subtitle: 'Mirror incoming text messages to the watch',
               primaryIcon: Icons.sms,
               enabled: contact.textEnabled,
               toggled: (val) => widget.module.saveContact(textEnabled: val),
             ),
             MiItem(
-              title: 'Gmail Emails Sync',
-              subtitle: 'Mirror incoming Gmail emails to the watch',
+              title: 'Email Sync',
+              subtitle: 'Mirror incoming emails to the watch',
               primaryIcon: Icons.email,
               enabled: contact.emailEnabled,
               toggled: (val) => widget.module.saveContact(emailEnabled: val),
@@ -329,7 +338,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           border: Border.all(color: const Color(0xFF26324D)),
         ),
         child: const Text(
-          'No quick replies configured yet.',
+          'No replies configured yet.',
           style: TextStyle(color: Colors.grey),
         ),
       );
@@ -360,6 +369,7 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
           return MiItem(
             key: ValueKey('reply_${reply}_$index'),
             title: reply,
+            clicked: () => _editReply(index, reply),
             delete: () {
               final updated = List<String>.from(replies)..removeAt(index);
               widget.module.saveReplies(updated);
@@ -424,6 +434,101 @@ class _NotificationsScreenState extends ScreenState<NotificationsScreen> {
               },
             );
           }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReplySetupSheet extends StatefulWidget {
+  final String? reply;
+  final NotificationModule module;
+
+  const _ReplySetupSheet({
+    required this.module,
+    this.reply,
+  });
+
+  @override
+  State<_ReplySetupSheet> createState() => _ReplySetupSheetState();
+}
+
+class _ReplySetupSheetState extends State<_ReplySetupSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.reply ?? '');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final remainingHeight = screenHeight - keyboardHeight;
+    const estimatedHeight = 250.0;
+
+    widget.module.logger.debug(
+      'Reply sheet height check: screenHeight=$screenHeight, keyboardHeight=$keyboardHeight, remainingHeight=$remainingHeight',
+    );
+    if (remainingHeight < estimatedHeight) {
+      widget.module.logger.error(
+        'Potential bottom overflow in Reply sheet: remaining height ($remainingHeight) < estimated height ($estimatedHeight)',
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: 'Reply text (e.g., Yes, I will be late)',
+            labelStyle: const TextStyle(color: Colors.grey),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Color(0xFF26324D)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00E5FF),
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              final text = _controller.text.trim();
+              if (text.isNotEmpty) {
+                Navigator.of(context).pop(text);
+              }
+            },
+            child: Text(
+              widget.reply == null ? 'Add' : 'Save',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ),
       ],
     );
