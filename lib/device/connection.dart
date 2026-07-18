@@ -350,6 +350,7 @@ class DeviceConnection extends ChangeNotifier {
             deviceId: '',
             deviceModel: '',
             syncIntervalMinutes: 15,
+            trustedPhoneNumber: '',
           ),
         );
       } else {

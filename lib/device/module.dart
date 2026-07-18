@@ -342,6 +342,7 @@ class DeviceModule extends TabModule {
         deviceId: creds.deviceId,
         deviceModel: creds.model,
         syncIntervalMinutes: SettingsBlob.syncIntervalMinutes,
+        trustedPhoneNumber: SettingsBlob.trustedPhoneNumber,
       ),
     );
 

@@ -268,6 +268,40 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                       deviceId: current.deviceId,
                       deviceModel: current.deviceModel,
                       syncIntervalMinutes: val as int,
+                      trustedPhoneNumber: current.trustedPhoneNumber,
+                    ),
+                  );
+                }
+              },
+            ),
+            MiItem(
+              title: 'Trusted Contact Number',
+              subtitle: SettingsBlob.trustedPhoneNumber.isNotEmpty
+                  ? SettingsBlob.trustedPhoneNumber
+                  : 'Disabled (Tap to configure)',
+              primaryIcon: Icons.phone,
+              clicked: () async {
+                final number = await showMiModal<String>(
+                  context: context,
+                  title: 'Trusted Contact',
+                  body:
+                      'Enter the phone number of a trusted contact. When the watch disconnects, your phone will send them a SMS with its location.',
+                  label: 'Phone Number',
+                  text: SettingsBlob.trustedPhoneNumber,
+                  confirm: 'Save',
+                  cancel: 'Cancel',
+                );
+
+                if (number != null) {
+                  final current = SettingsBlob.instance.value;
+                  await SettingsBlob.instance.update(
+                    Settings(
+                      authKeyHex: current.authKeyHex,
+                      watchMac: current.watchMac,
+                      deviceId: current.deviceId,
+                      deviceModel: current.deviceModel,
+                      syncIntervalMinutes: current.syncIntervalMinutes,
+                      trustedPhoneNumber: number,
                     ),
                   );
                 }

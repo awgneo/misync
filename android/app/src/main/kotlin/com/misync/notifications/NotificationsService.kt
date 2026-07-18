@@ -17,8 +17,8 @@ class NotificationsService : NotificationListenerService() {
     private val TAG = "NotificationsService"
 
     companion object {
-        const val ACTION_NOTIFICATION_RECEIVED = "com.misync.action.NOTIFICATION_RECEIVED"
-        const val ACTION_NOTIFICATION_REMOVED = "com.misync.action.NOTIFICATION_REMOVED"
+        const val ACTION_NOTIFICATION_RECEIVED = "com.misync.notifications.NOTIFICATION_RECEIVED"
+        const val ACTION_NOTIFICATION_REMOVED = "com.misync.notifications.NOTIFICATION_REMOVED"
         const val EXTRA_PACKAGE = "package"
         const val EXTRA_TITLE = "title"
         const val EXTRA_BODY = "body"
