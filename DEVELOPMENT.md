@@ -88,6 +88,7 @@ On the Android native layer, the project enforces a strict **Module-to-Manager c
 2. **Concrete Feature Modules**: Subclasses of `BaseModule` (e.g., `NotificationsModule.kt`, `MediaModule.kt`, `DeviceModule.kt`). These modules:
    * **Must not** implement business logic or query system APIs directly.
    * Are strictly responsible for MethodChannel method routing, checking/requesting runtime permissions, and forwarding requests to their respective `*Manager` instances.
+   * **Note**: Native Kotlin classes use the plural **`*Modules`** suffix (e.g., `NotificationsModule.kt`), whereas their corresponding Dart classes use the singular **`*Module`** suffix (e.g., `NotificationModule.dart` / `NotificationModule` singleton).
 3. **Manager Classes**: Encapsulate all native platform APIs, system interactions, listeners, and geocoders (e.g., `CompanionManager`, `LocationManager`, `SettingsManager`, `NotificationsManager`, `MediaManager`). 
    * Handlers and calculations belong exclusively in a `Manager` to ensure readability and decopling from Flutter method routing.
 4. **Module Registration in MainActivity**: Avoid adding ad-hoc platform channel handlers inside `MainActivity.kt`. Instead, instantiate and add your custom Kotlin modules to the registration loop inside `configureFlutterEngine()`:
@@ -126,6 +127,7 @@ val weight = weightResponse.records.maxByOrNull { it.time }?.weight?.inKilograms
 ### Writing Data (Activity & Workouts)
 1. **Activity Streams**: Periodic tasks write cumulative records (like step counts, sleep cycles, and heart rates) into Health Connect database intervals.
 2. **Workouts (Exercise Sessions)**: Health Connect uses a modular structure for workouts. An `ExerciseSessionRecord` holds only metadata (duration, sport type, title). To write calories and distance, separate records (`ActiveCaloriesBurnedRecord`, `DistanceRecord`, and `StepsRecord`) must be created covering the exact same duration and inserted in a batch list.
+3. **De-duplication & Overlaps**: To avoid recording workout steps twice (once in the activity stream and once in the workout session record), the health sync engine checks step timestamps. If a daily activity log overlaps with a recorded workout session time range, the daily steps snapshot is skipped, preventing double counting in Health Connect.
 
 ### Manifest Declarations
 Every Health Connect record type read or written by the app must be declared in [AndroidManifest.xml](file:///Users/awgneo/Repositories/awgneo/misync/android/app/src/main/AndroidManifest.xml):
@@ -198,6 +200,27 @@ For **Packet Type 3 (Secure Command)**, the payload is encrypted using **AES-CCM
 
 To successfully query device statistics or execute edits, the app must authenticate the secure channel in two sequential stages.
 
+```mermaid
+sequenceDiagram
+    participant Phone as Phone (Dart/Kotlin)
+    participant Watch as Watch (Vela OS)
+
+    Note over Phone,Watch: Stage 1: Basic Handshake (Key Exchange)
+    Phone->>Watch: PhoneNonce (Random 16 bytes, subtype 26)
+    Watch->>Phone: WatchNonce (Random 16 bytes, subtype 26)
+    Note over Phone,Watch: Derive basic sessionKeys via HKDF-SHA256
+    Phone->>Watch: AuthStep3 (Encrypted nonces HMAC + encrypted Phone Info, subtype 27)
+    Watch->>Phone: AuthStep4 (Confirm status, subtype 27)
+
+    Note over Phone,Watch: Stage 2: Secondary Handshake (Mi Fitness Protocol)
+    Phone->>Watch: AppVerify (Random 16-byte appNonce, subtype 26)
+    Watch->>Phone: DeviceVerify (deviceNonce + confirm HMAC, subtype 26)
+    Note over Phone,Watch: Derive secondarySessionKeys via HKDF-SHA256
+    Phone->>Watch: AppConfirm (AuthDeviceInfo, subtype 27 encrypted via secondarySessionKeys)
+    Watch->>Phone: DeviceConfirm (Confirm status, subtype 27)
+    Note over Phone,Watch: Permanently upgrade channel keys to secondarySessionKeys
+```
+
 ### Stage 1: Basic Handshake (Key Exchange)
 1.  **Phone Nonce (subtype 26)**: Phone generates a random 16-byte nonce and sends it to the watch.
 2.  **Watch Nonce (subtype 26)**: Watch responds with its 16-byte nonce.
@@ -239,7 +262,7 @@ Represents an installed system application with type safety.
 The root scrolling container for tab screens. Handles consistent padding, margins, and floating action button stack placement.
 
 ### 3. `MiButton` & `MiButtons` (`lib/widgets/button.dart`)
-Floating Action Button controller. Renders a single FAB if only one child is supplied, or compiles a premium slide-up mini FAB list menu when there are two or more children.
+Floating Action Button controller. `MiButton` acts as a data configuration object (with label, icon, pressed callback, and optional color) rather than a widget, while `MiButtons` is the stateful widget that compiles a single FAB or slide-up mini FAB list menu when there are multiple entries.
 
 ### 4. `MiItems` (`lib/widgets/items.dart`)
 A dark, rounded-corner container (`#141822`) used to group multiple items inside a sleek card block. It automatically draws consistent divider lines (`#26324D`) between adjacent child items.
@@ -263,16 +286,16 @@ A DRY bottom drawer listing all system applications, with built-in alphabetical 
 When building features that read or write files to/from the watch (like daily logs, watch faces, quick replies, or assets), use `DeviceConnection`'s specialized binary transport methods rather than standard command/response envelopes.
 
 ### Downloading Data from Watch
-Use `DeviceModule.instance.connection.downloadData` to request and stream raw files from the watch:
+Use `DeviceModule.module.connection.downloadData` to request and stream raw files from the watch:
 ```dart
-final Uint8List? fileData = await DeviceModule.instance.connection.downloadData(cmd: requestCommand);
+final Uint8List? fileData = await DeviceModule.module.connection.downloadData(cmd: requestCommand);
 ```
 - **Mechanism**: Send the trigger command (such as `getFitnessFile`). The connection manager prepares a timeout listener, groups incoming fragmented L1 SPP packets, reasssembles the parts sequentially, and resolves the returned byte array.
 
 ### Uploading Data to Watch
-Use `DeviceModule.instance.connection.uploadData` to package and upload raw files to the watch:
+Use `DeviceModule.module.connection.uploadData` to package and upload raw files to the watch:
 ```dart
-final bool success = await DeviceModule.instance.connection.uploadData(type: fileTypeInt, bytes: payloadBytes);
+final bool success = await DeviceModule.module.connection.uploadData(type: fileTypeInt, bytes: payloadBytes);
 ```
 - **Mechanism**: Initiates a chunked file handshake with the watch. It sends an MD5 checksum of the data payload to start, splits the byte stream into structured parts (framed with index metadata), handles individual packet acknowledgments to guarantee receipt, and transmits a finish transaction command. Useful for watch face RPK installations and large asset pushes.
 

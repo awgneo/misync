@@ -1,8 +1,8 @@
 {
-  "package": "com.misync.investments",
-  "name": "Investments",
-  "versionName": "1.0.5",
-  "versionCode": 11,
+  "package": "com.misync.wallet",
+  "name": "Wallet",
+  "versionName": "1.0.6",
+  "versionCode": 12,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "simulationVersion": "default",

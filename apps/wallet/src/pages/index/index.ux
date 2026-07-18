@@ -1,14 +1,10 @@
-<!-- apps/investments/src/pages/index/index.ux -->
 <import name="mi-header" src="../../shared/components/header.ux"></import>
-<import
-	name="investment-item"
-	src="../../components/investment-item.ux"
-></import>
+<import name="mi-text" src="../../shared/components/text.ux"></import>
 
 <template>
 	<div class="mi-page">
 		<swiper
-			if="{{ watchlists.length > 0 }}"
+			if="{{ passes.length > 0 }}"
 			class="mi-swiper"
 			indicator="{{ true }}"
 			loop="false"
@@ -17,31 +13,18 @@
 			@touchstart="handleTouchStart"
 			@touchmove="handleTouchMove"
 		>
-			<div for="{{ watchlist in watchlists }}" class="watchlist-slide">
+			<div for="{{ pass in passes }}" class="pass-slide">
 				<div class="mi-row">
-					<mi-header text="{{ watchlist.name }}"></mi-header>
+					<mi-header text="{{ pass.organizationName }}"></mi-header>
 				</div>
-				<scroll class="watchlist-scroll" scroll-y="true">
-					<div for="{{ stock in watchlist.investments }}" class="mi-row">
-						<investment-item
-							symbol="{{ stock.symbol }}"
-							price="{{ stock.price }}"
-							change="{{ stock.change }}"
-							classes="mi-last"
-						></investment-item>
-					</div>
-					<div
-						if="{{ !watchlist.investments || watchlist.investments.length === 0 }}"
-						class="empty-container"
-					>
-						<text class="empty-text">No stocks in this list</text>
-					</div>
-					<div class="bottom-spacer"></div>
-				</scroll>
+				<div class="mi-qrcode-container">
+					<qrcode value="{{ pass.barcodeMessage }}" class="mi-qrcode"></qrcode>
+				</div>
+				<mi-text text="{{ pass.description }}"></mi-text>
 			</div>
 		</swiper>
-		<div if="{{ watchlists.length === 0 && !isLoading }}" class="empty-state">
-			<text class="empty-text">No watchlists configured</text>
+		<div if="{{ passes.length === 0 && !isLoading }}" class="empty-state">
+			<text class="empty-text">No passes available</text>
 		</div>
 		<div if="{{ isLoading }}" class="empty-state">
 			<text class="empty-text">Loading...</text>
@@ -54,7 +37,7 @@ import misync from "../../shared/modules/misync.js";
 
 export default {
 	private: {
-		watchlists: [],
+		passes: [],
 		currentIndex: 0,
 		isLoading: true,
 	},
@@ -65,14 +48,14 @@ export default {
 
 		// Subscribe to messages first to prevent race condition
 		this.unsubscribe = misync.onMessage((payload) => {
-			if (payload.watchlists) {
-				this.watchlists = payload.watchlists;
+			if (payload.passes) {
+				this.passes = payload.passes;
 				this.isLoading = false;
 			}
 		});
 
-		// Query watchlists directly
-		misync.send("getWatchlists");
+		// Query passes directly
+		misync.send("getPasses");
 	},
 
 	handleSwiperChange(e) {
@@ -91,7 +74,11 @@ export default {
 			const touch = e.touches[0];
 			const deltaX = touch.clientX - this.startX;
 			const deltaY = touch.clientY - this.startY;
-			if (this.startX < 50 && deltaX > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
+			if (
+				this.startX < 50 &&
+				deltaX > 30 &&
+				Math.abs(deltaX) > Math.abs(deltaY)
+			) {
 				this.$app.exit();
 			}
 		}
@@ -108,21 +95,11 @@ export default {
 <style lang="less">
 @import "../../shared/styles/theme.less";
 
-.watchlist-slide {
+.pass-slide {
 	width: 100%;
 	height: 100%;
 	flex-direction: column;
 	padding: 10px;
-}
-.watchlist-scroll {
-	width: 100%;
-	flex: 1;
-	flex-direction: column;
-}
-.empty-container {
-	width: 100%;
-	height: 200px;
-	justify-content: center;
 	align-items: center;
 }
 .empty-state {
@@ -134,9 +111,5 @@ export default {
 .empty-text {
 	font-size: @font-size-small;
 	color: #888888;
-}
-.bottom-spacer {
-	width: 100%;
-	height: 40px;
 }
 </style>

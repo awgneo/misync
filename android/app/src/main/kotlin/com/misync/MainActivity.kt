@@ -3,6 +3,7 @@ package com.misync
 import android.os.Bundle
 import android.util.Log
 import android.content.pm.PackageManager
+import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -17,6 +18,7 @@ import com.misync.clock.ClockModule
 import com.misync.media.MediaModule
 import com.misync.actions.ActionsModule
 import com.misync.finance.FinanceModule
+import com.misync.wallet.WalletModule
 
 class MainActivity : FlutterActivity() {
     private val TAG = "MainActivity"
@@ -38,7 +40,8 @@ class MainActivity : FlutterActivity() {
             ClockModule(this),
             MediaModule(this),
             ActionsModule(this),
-            FinanceModule(this)
+            FinanceModule(this),
+            WalletModule(this)
         )
 
         // Register method channel with all modules
@@ -67,6 +70,15 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        var pendingUri: String? = null
+        val action = intent?.action
+        val data = intent?.data
+        if (Intent.ACTION_VIEW == action && data != null) {
+            pendingUri = data.toString()
+            Log.d(TAG, "Consuming onCreate ACTION_VIEW intent with URI: $pendingUri")
+            intent?.data = null
+        }
+
         super.onCreate(savedInstanceState)
 
         // Trigger module lifecycle hooks
@@ -76,6 +88,28 @@ class MainActivity : FlutterActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error in onCreate for module ${it.name}: ", e)
             }
+        }
+
+        if (pendingUri != null) {
+            val walletModule = modules.find { it is WalletModule } as? WalletModule
+            walletModule?.handleIncomingIntent(pendingUri)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        val action = intent.action
+        val data = intent.data
+        var pendingUri: String? = null
+        if (Intent.ACTION_VIEW == action && data != null) {
+            pendingUri = data.toString()
+            Log.d(TAG, "Consuming onNewIntent ACTION_VIEW intent with URI: $pendingUri")
+            intent.data = null
+        }
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (pendingUri != null) {
+            val walletModule = modules.find { it is WalletModule } as? WalletModule
+            walletModule?.handleIncomingIntent(pendingUri)
         }
     }
 

@@ -44,8 +44,7 @@ build-watch() {
           cp "$rpk" "../../assets/rpk/$pkg.rpk" || exit 1
           success "Copied RPK: $pkg.rpk"
         else
-          error "No RPK file found in dist/ for $name"
-          exit 1
+          abort "No RPK file found in dist/ for $name" 1
         fi
       ) || abort "Failed to build $name watch app." 2
     fi
@@ -100,8 +99,7 @@ build-fonts() {
   if [ -f "$font_file" ] && [ -f "$codepoints_file" ]; then
     success "Material Symbols font and dictionary are ready."
   else
-    error "Font files are missing!"
-    return 1
+    abort "Font files are missing!" 1
   fi
 }
 
@@ -182,8 +180,7 @@ get-device() {
   local device
   device=$(adb devices | grep -v "List" | grep "device" | awk '{print $1}' | head -n 1)
   if [ -z "$device" ]; then
-    error "No connected Android devices found via adb."
-    return 1
+    abort "No connected Android devices found via adb." 1
   fi
   echo "$device"
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'module.dart';
 
@@ -10,7 +11,7 @@ abstract class Blob<T> extends ChangeNotifier {
   bool _hasLoaded = false;
 
   Blob({required this.module, required this.name, required this.defaultValue}) {
-    StorageModule.module.addListener(_onStorageChanged);
+    StorageModule.module.register(this);
   }
 
   T parse(dynamic json);
@@ -25,16 +26,17 @@ abstract class Blob<T> extends ChangeNotifier {
 
   void load() {
     _hasLoaded = true;
-    final json = StorageModule.module.readJson(module, name);
-    if (json != null) {
+    final jsonStr = StorageModule.module.preferences.getString(
+      'misync.$module.$name',
+    );
+    if (jsonStr != null) {
       try {
-        _value = parse(json);
+        _value = parse(jsonDecode(jsonStr));
       } catch (_) {
         _value = defaultValue;
       }
     } else {
       _value = defaultValue;
-      update(defaultValue);
     }
     notifyListeners();
   }
@@ -42,17 +44,16 @@ abstract class Blob<T> extends ChangeNotifier {
   Future<void> update(T newValue) async {
     _value = newValue;
     _hasLoaded = true;
-    await StorageModule.module.save(module, name, serialize(newValue));
+    await StorageModule.module.preferences.setString(
+      'misync.$module.$name',
+      jsonEncode(serialize(newValue)),
+    );
     notifyListeners();
-  }
-
-  void _onStorageChanged() {
-    load();
   }
 
   @override
   void dispose() {
-    StorageModule.module.removeListener(_onStorageChanged);
+    StorageModule.module.unregister(this);
     super.dispose();
   }
 }

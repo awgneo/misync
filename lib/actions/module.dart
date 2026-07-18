@@ -65,7 +65,6 @@ class ActionsModule extends TabModule {
         .toList();
 
     final actionsPayload = {'actions': actionList};
-
     final jsonPayload = jsonEncode(actionsPayload);
     final appInfo = ThirdPartyAppInfo()..packageName = 'com.misync.actions';
     final installed =
