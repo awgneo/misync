@@ -30,7 +30,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        
+
         // Initialize modules
         modules = listOf(
             DeviceModule(this),
@@ -70,15 +70,6 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        var pendingUri: String? = null
-        val action = intent?.action
-        val data = intent?.data
-        if (Intent.ACTION_VIEW == action && data != null) {
-            pendingUri = data.toString()
-            Log.d(TAG, "Consuming onCreate ACTION_VIEW intent with URI: $pendingUri")
-            intent?.data = null
-        }
-
         super.onCreate(savedInstanceState)
 
         // Trigger module lifecycle hooks
@@ -90,26 +81,28 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        if (pendingUri != null) {
-            val walletModule = modules.find { it is WalletModule } as? WalletModule
-            walletModule?.handleIncomingIntent(pendingUri)
+        intent?.let {
+            dispatchIntent(it)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
-        val action = intent.action
-        val data = intent.data
-        var pendingUri: String? = null
-        if (Intent.ACTION_VIEW == action && data != null) {
-            pendingUri = data.toString()
-            Log.d(TAG, "Consuming onNewIntent ACTION_VIEW intent with URI: $pendingUri")
-            intent.data = null
-        }
         super.onNewIntent(intent)
         setIntent(intent)
-        if (pendingUri != null) {
-            val walletModule = modules.find { it is WalletModule } as? WalletModule
-            walletModule?.handleIncomingIntent(pendingUri)
+        dispatchIntent(intent)
+    }
+
+    private fun dispatchIntent(intent: Intent) {
+        for (module in modules) {
+            try {
+                if (module.onIntent(intent)) {
+                    Log.d(TAG, "Intent consumed by module: ${module.name}")
+                    intent.data = null
+                    break
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error routing intent to module ${module.name}: ", e)
+            }
         }
     }
 

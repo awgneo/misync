@@ -25,8 +25,16 @@ class ActionsManager(private val context: Context) {
         extras?.forEach { (key, value) ->
             intent.putExtra(key, value)
         }
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-        DismissKeyguardActivity.launch(context, targetIntent = intent)
+        val pm = context.packageManager
+        val activities = pm.queryIntentActivities(intent, 0)
+        if (activities.isNotEmpty()) {
+            Log.d(TAG, "Routing intent as Activity")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            DismissKeyguardActivity.launch(context, targetIntent = intent)
+        } else {
+            Log.d(TAG, "Routing intent as Broadcast")
+            context.sendBroadcast(intent)
+        }
     }
 }

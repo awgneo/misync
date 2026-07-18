@@ -17,6 +17,7 @@ abstract class BaseModule(val name: String) {
 
     open fun onCreate() {}
     open fun onDestroy() {}
+    open fun onIntent(intent: android.content.Intent): Boolean = false
 
     abstract fun checkPermissions(): Boolean
     abstract fun requestPermissions(activity: Activity)

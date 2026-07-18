@@ -97,6 +97,22 @@ class NotificationsService : NotificationListenerService() {
         val key = sbn.key
         val category = notification.category ?: ""
 
+        // Filter out transient Gmail action confirmation notifications (e.g. "Archived", "Deleted", "Undo")
+        if (packageName == "com.google.android.gm") {
+            val cleanBody = body.lowercase().trim().replace(".", "")
+            val cleanTitle = title.lowercase().trim().replace(".", "")
+            if (cleanBody == "archived" || cleanTitle == "archived" ||
+                cleanBody == "deleted" || cleanTitle == "deleted" ||
+                cleanBody == "1 archived" || cleanTitle == "1 archived" ||
+                cleanBody == "1 deleted" || cleanTitle == "1 deleted" ||
+                cleanBody == "undo" || cleanTitle == "undo" ||
+                cleanBody == "marked read" || cleanTitle == "marked read" ||
+                cleanBody == "marked unread" || cleanTitle == "marked unread") {
+                Log.d(TAG, "Filtering out Gmail transient action confirmation: title=$title, body=$body")
+                return
+            }
+        }
+
         // 1. Voicemails & Missed Calls Filter
         val isDialer = isCallPackage(packageName)
         if (isDialer && category != Notification.CATEGORY_CALL) {

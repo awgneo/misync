@@ -160,6 +160,20 @@ class _ActionsScreenState extends ScreenState<ActionsScreen> {
   }
 }
 
+class _ExtraRow {
+  final TextEditingController keyController;
+  final TextEditingController valueController;
+
+  _ExtraRow({String key = '', String value = ''})
+      : keyController = TextEditingController(text: key),
+        valueController = TextEditingController(text: value);
+
+  void dispose() {
+    keyController.dispose();
+    valueController.dispose();
+  }
+}
+
 class _ActionSetupSheet extends StatefulWidget {
   final Action? action;
   const _ActionSetupSheet({this.action});
@@ -174,7 +188,7 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
   late final TextEditingController _uriController;
   late final TextEditingController _intentController;
   late final TextEditingController _packageController;
-  late final TextEditingController _extrasController;
+  final List<_ExtraRow> _extraRows = [];
   late final TextEditingController _symbolController;
 
   int _typeSelection =
@@ -199,13 +213,11 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
       text: widget.action?.package ?? '',
     );
 
-    final extrasBuf = StringBuffer();
     widget.action?.extras?.forEach((k, v) {
       if (k != 'task_name') {
-        extrasBuf.writeln('$k=$v');
+        _extraRows.add(_ExtraRow(key: k, value: v));
       }
     });
-    _extrasController = TextEditingController(text: extrasBuf.toString());
 
     if (widget.action != null) {
       final a = widget.action!;
@@ -238,7 +250,9 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
     _uriController.dispose();
     _intentController.dispose();
     _packageController.dispose();
-    _extrasController.dispose();
+    for (final row in _extraRows) {
+      row.dispose();
+    }
     super.dispose();
   }
 
@@ -288,17 +302,12 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
       package = _packageController.text.trim();
       if (intent.isEmpty) return;
 
-      final lines = _extrasController.text.split('\n');
       final Map<String, String> parsedExtras = {};
-      for (final line in lines) {
-        if (line.trim().isEmpty) continue;
-        final index = line.indexOf('=');
-        if (index != -1) {
-          final k = line.substring(0, index).trim();
-          final v = line.substring(index + 1).trim();
-          if (k.isNotEmpty) {
-            parsedExtras[k] = v;
-          }
+      for (final row in _extraRows) {
+        final k = row.keyController.text.trim();
+        final v = row.valueController.text.trim();
+        if (k.isNotEmpty) {
+          parsedExtras[k] = v;
         }
       }
       if (parsedExtras.isNotEmpty) {
@@ -553,29 +562,106 @@ class _ActionSetupSheetState extends State<_ActionSetupSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _extrasController,
-                maxLines: null,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Extras (Optional, e.g. key=value)',
-                  labelStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: const Color(0xFF141822),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Extras (Optional)',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF26324D)),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _extraRows.add(_ExtraRow());
+                      });
+                    },
+                    icon: const Icon(Icons.add, size: 16, color: Color(0xFF00E5FF)),
+                    label: const Text(
+                      'Add',
+                      style: TextStyle(color: Color(0xFF00E5FF), fontSize: 13),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                  ),
-                ),
+                ],
               ),
+              const SizedBox(height: 6),
+              ..._extraRows.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final row = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: row.keyController,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Key',
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            filled: true,
+                            fillColor: const Color(0xFF141822),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF26324D)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF26324D)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: row.valueController,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Value',
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            filled: true,
+                            fillColor: const Color(0xFF141822),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF26324D)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF26324D)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.redAccent, size: 20),
+                        onPressed: () {
+                          setState(() {
+                            row.dispose();
+                            _extraRows.removeAt(idx);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
 
             const SizedBox(height: 32),

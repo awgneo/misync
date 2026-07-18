@@ -37,63 +37,20 @@ class WalletModule(private val context: Context) : BaseModule("wallet") {
 
     override fun requestPermissions(activity: Activity) {}
 
-    fun handleIncomingIntent(uriString: String) {
-        Log.d(TAG, "Saving pending pkpass URI: $uriString")
-        pendingPassUri = uriString
-        // Try to dispatch immediately in case Flutter is already initialized
-        handlePkpassUri(uriString)
-    }
-
-    private fun forwardToGoogleWallet(uriString: String) {
-        try {
-            val uri = Uri.parse(uriString)
-            val baseIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.apple.pkpass")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    override fun onIntent(intent: Intent): Boolean {
+        val action = intent.action
+        val data = intent.data
+        if (Intent.ACTION_VIEW == action && data != null) {
+            val uriString = data.toString()
+            val type = intent.type ?: context.contentResolver.getType(data)
+            if (uriString.contains(".pkpass") || type == "application/vnd.apple.pkpass") {
+                Log.d(TAG, "Saving pending pkpass URI and handling: $uriString")
+                pendingPassUri = uriString
+                handlePkpassUri(uriString)
+                return true
             }
-
-            val pm = context.packageManager
-            val resolveInfos = pm.queryIntentActivities(baseIntent, 0)
-            
-            val targetIntents = mutableListOf<Intent>()
-            var googleWalletIntent: Intent? = null
-
-            for (info in resolveInfos) {
-                val pkgName = info.activityInfo.packageName
-                if (pkgName != context.packageName) {
-                    val targetIntent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "application/vnd.apple.pkpass")
-                        setClassName(pkgName, info.activityInfo.name)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    targetIntents.add(targetIntent)
-                    if (pkgName.contains("wallet", ignoreCase = true) || pkgName.contains("google", ignoreCase = true)) {
-                        googleWalletIntent = targetIntent
-                    }
-                }
-            }
-
-            if (googleWalletIntent != null) {
-                context.startActivity(googleWalletIntent)
-                Log.d(TAG, "Directly launched Google Wallet handler: ${googleWalletIntent.component}")
-            } else if (targetIntents.isNotEmpty()) {
-                if (targetIntents.size == 1) {
-                    context.startActivity(targetIntents[0])
-                } else {
-                    val firstIntent = targetIntents.removeAt(0)
-                    val chooserIntent = Intent.createChooser(firstIntent, "Open Pass with").apply {
-                        putExtra(Intent.EXTRA_INITIAL_INTENTS, targetIntents.toTypedArray())
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(chooserIntent)
-                }
-            } else {
-                Log.w(TAG, "No other handlers found for pkpass")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to forward pkpass intent: ", e)
         }
+        return false
     }
 
     private fun handlePkpassUri(uriString: String) {
@@ -121,6 +78,62 @@ class WalletModule(private val context: Context) : BaseModule("wallet") {
             } else {
                 Log.e(TAG, "Failed to parse pkpass URI: $uriString")
             }
+        }
+    }
+
+    private fun forwardToGoogleWallet(uriString: String) {
+        try {
+            val uri = Uri.parse(uriString)
+            val baseIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.apple.pkpass")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            val pm = context.packageManager
+            val resolveInfos = pm.queryIntentActivities(baseIntent, 0)
+
+            val targetIntents = mutableListOf<Intent>()
+            var googleWalletIntent: Intent? = null
+
+            for (info in resolveInfos) {
+                val pkgName = info.activityInfo.packageName
+                if (pkgName != context.packageName) {
+                    val targetIntent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "application/vnd.apple.pkpass")
+                        setClassName(pkgName, info.activityInfo.name)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    targetIntents.add(targetIntent)
+                    if (pkgName.contains("wallet", ignoreCase = true) || pkgName.contains(
+                            "google",
+                            ignoreCase = true
+                        )
+                    ) {
+                        googleWalletIntent = targetIntent
+                    }
+                }
+            }
+
+            if (googleWalletIntent != null) {
+                context.startActivity(googleWalletIntent)
+                Log.d(TAG, "Directly launched Google Wallet handler: ${googleWalletIntent.component}")
+            } else if (targetIntents.isNotEmpty()) {
+                if (targetIntents.size == 1) {
+                    context.startActivity(targetIntents[0])
+                } else {
+                    val firstIntent = targetIntents.removeAt(0)
+                    val chooserIntent = Intent.createChooser(firstIntent, "Open Pass with").apply {
+                        putExtra(Intent.EXTRA_INITIAL_INTENTS, targetIntents.toTypedArray())
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(chooserIntent)
+                }
+            } else {
+                Log.w(TAG, "No other handlers found for pkpass")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to forward pkpass intent: ", e)
         }
     }
 
@@ -153,6 +166,7 @@ class WalletModule(private val context: Context) : BaseModule("wallet") {
                 }
                 true
             }
+
             else -> false
         }
     }
