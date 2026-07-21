@@ -5,6 +5,8 @@ import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter/services.dart';
 import 'package:misync/screen.dart';
 import 'blobs/settings.dart';
+import 'blobs/trusted.dart';
+import 'blobs/sync.dart';
 import 'proto/constants.dart';
 import 'proto/xiaomi.pb.dart';
 import 'blobs/device.dart';
@@ -47,6 +49,7 @@ class DeviceModule extends TabModule {
     connection.connected.addListener(_watchConnectionChanged);
     connection.listen(_receiveWatchCommand);
     SettingsBlob.instance.addListener(_settingsChanged);
+    SyncBlob.instance.addListener(_startSyncInterval);
     connection.connect();
     _startSyncInterval();
   }
@@ -81,6 +84,10 @@ class DeviceModule extends TabModule {
       case 'stopFindPhone':
         logger.info('stopFindPhone request from native side');
         await stopFindPhone();
+        break;
+      case 'deviceDisappeared':
+        logger.info('deviceDisappeared event from native side');
+        await _handleDeviceDisappeared();
         break;
     }
   }
@@ -178,7 +185,7 @@ class DeviceModule extends TabModule {
   }
 
   void _startSyncInterval() {
-    final interval = SettingsBlob.syncIntervalMinutes;
+    final interval = SyncBlob.syncIntervalMinutes;
     // See if we already have this interval set up
     if (_syncInterval == interval) {
       return;
@@ -341,8 +348,6 @@ class DeviceModule extends TabModule {
         watchMac: creds.macAddress,
         deviceId: creds.deviceId,
         deviceModel: creds.model,
-        syncIntervalMinutes: SettingsBlob.syncIntervalMinutes,
-        trustedPhoneNumber: SettingsBlob.trustedPhoneNumber,
       ),
     );
 
@@ -391,6 +396,102 @@ class DeviceModule extends TabModule {
       await PlatformModule.module.invokeMethod('device.stopFindPhone');
     } catch (e) {
       logger.error('failed to stop find phone: $e');
+    }
+  }
+
+  Future<void> updateSyncInterval(int minutes) async {
+    final current = SyncBlob.instance.value;
+    await SyncBlob.instance.update(
+      current.copyWith(syncIntervalMinutes: minutes),
+    );
+  }
+
+  Future<void> toggleTrustedAlerts(bool enabled) async {
+    final current = TrustedBlob.instance.value;
+    await TrustedBlob.instance.update(
+      current.copyWith(enabled: enabled),
+    );
+  }
+
+  Future<void> addTrustedContact(String name, String phone) async {
+    final current = TrustedBlob.instance.value;
+    final updatedList = List<Map<String, String>>.from(current.contacts);
+    if (!updatedList.any((c) => c['phone'] == phone)) {
+      updatedList.add({'name': name, 'phone': phone});
+      await TrustedBlob.instance.update(
+        current.copyWith(contacts: updatedList),
+      );
+    }
+  }
+
+  Future<void> removeTrustedContact(int index) async {
+    final current = TrustedBlob.instance.value;
+    final updatedList = List<Map<String, String>>.from(current.contacts);
+    if (index >= 0 && index < updatedList.length) {
+      updatedList.removeAt(index);
+      await TrustedBlob.instance.update(
+        current.copyWith(contacts: updatedList),
+      );
+    }
+  }
+
+  Future<void> pickContact() async {
+    try {
+      final Map? contactMap = await PlatformModule.module
+          .invokeMethod<Map>('notifications.pickContact');
+      if (contactMap != null) {
+        final String name = (contactMap['name'] ?? '').toString().trim();
+        final String phone = (contactMap['phone'] ?? '').toString().trim();
+        if (phone.isNotEmpty) {
+          final String displayName = name.isNotEmpty ? name : phone;
+          await addTrustedContact(displayName, phone);
+        }
+      }
+    } catch (e) {
+      logger.error('failed to pick contact: $e');
+    }
+  }
+
+  Future<void> _handleDeviceDisappeared() async {
+    final bool enabled = TrustedBlob.enabled;
+    if (!enabled) {
+      logger.info('deviceDisappeared: trusted alerts disabled, skipping');
+      return;
+    }
+
+    final contacts = TrustedBlob.contacts;
+    final List<String> phoneNumbers = contacts
+        .map((c) => (c['phone'] ?? '').trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    if (phoneNumbers.isEmpty) {
+      logger.info('deviceDisappeared: no trusted contacts configured, skipping');
+      return;
+    }
+
+    try {
+      final Map? loc = await PlatformModule.module.invokeMethod<Map>('device.getLocation');
+      final double? lat = loc?['latitude'] as double?;
+      final double? lon = loc?['longitude'] as double?;
+
+      final String message;
+      if (lat != null && lon != null) {
+        message = "AWG left their phone behind! Last seen coordinates: https://maps.google.com/?q=$lat,$lon";
+      } else {
+        message = "AWG left their phone behind! (Unable to acquire GPS lock)";
+      }
+
+      final bool? success = await PlatformModule.module.invokeMethod<bool>(
+        'notifications.sendText',
+        {
+          'recipients': phoneNumbers,
+          'message': message,
+        },
+      );
+      logger.info('deviceDisappeared: emergency alert text dispatched to ${phoneNumbers.length} contacts: $success');
+    } catch (e) {
+      logger.error('deviceDisappeared: failed to handle event: $e');
     }
   }
 }

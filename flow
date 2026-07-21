@@ -171,9 +171,11 @@ clean() {
 }
 
 analyze() {
-  info "Running static analysis..."
-  flutter analyze || abort "Static analysis failed." 2
-  success "Static analysis completed successfully."
+  info "Running Flutter static analysis..."
+  flutter analyze || abort "Flutter static analysis failed." 2
+  info "Analyzing Android Kotlin codebase..."
+  flutter build apk --debug || abort "Kotlin analysis and compilation failed." 2
+  success "Flutter and Kotlin static analysis completed successfully."
 }
 
 get-device() {

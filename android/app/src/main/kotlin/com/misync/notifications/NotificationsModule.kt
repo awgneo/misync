@@ -210,8 +210,77 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 true
             }
 
+            "sendText" -> {
+                val recipients: List<String> = when (val raw = call.argument<Any>("phoneNumber") ?: call.argument<Any>("recipients") ?: call.argument<Any>("numbers")) {
+                    is List<*> -> raw.mapNotNull { it?.toString() }
+                    is String -> listOf(raw)
+                    else -> emptyList()
+                }
+                val message = call.argument<String>("message") ?: ""
+                val success = notificationsManager.sendText(recipients, message)
+                result.success(success)
+                true
+            }
+
+            "pickContact" -> {
+                val currentActivity = activity
+                if (currentActivity != null) {
+                    pendingContactResult = result
+                    val intent = Intent(Intent.ACTION_PICK, android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+                    currentActivity.startActivityForResult(intent, REQUEST_CODE_PICK_CONTACT)
+                } else {
+                    result.success(null)
+                }
+                true
+            }
+
+            "getNotificationMeta" -> {
+                val key = call.argument<String>("key") ?: ""
+                val metaMap = notificationsManager.getNotificationMeta(key)
+                result.success(metaMap)
+                true
+            }
+
             else -> false
         }
+    }
+
+    private var activity: Activity? = null
+    private var pendingContactResult: MethodChannel.Result? = null
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode == REQUEST_CODE_PICK_CONTACT) {
+            val result = pendingContactResult
+            pendingContactResult = null
+            if (resultCode == Activity.RESULT_OK && data != null && data.data != null) {
+                try {
+                    val contactUri = data.data!!
+                    val projection = arrayOf(
+                        android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                    )
+                    context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val nameCol = cursor.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                            val numCol = cursor.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+                            val name = if (nameCol != -1) cursor.getString(nameCol) else ""
+                            val number = if (numCol != -1) cursor.getString(numCol) else ""
+                            result?.success(mapOf("name" to name, "phone" to number))
+                            return true
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error resolving picked contact", e)
+                }
+            }
+            result?.success(null)
+            return true
+        }
+        return false
+    }
+
+    companion object {
+        const val REQUEST_CODE_PICK_CONTACT = 9001
     }
 
     private fun isNotificationServiceEnabled(): Boolean {

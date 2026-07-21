@@ -349,8 +349,6 @@ class DeviceConnection extends ChangeNotifier {
             watchMac: '',
             deviceId: '',
             deviceModel: '',
-            syncIntervalMinutes: 15,
-            trustedPhoneNumber: '',
           ),
         );
       } else {

@@ -103,7 +103,7 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
                     SizedBox(height: 8),
                     Text(
                       'Open a .pkpass file from an airline app or browser link. MiSync will automatically capture the barcode data.',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
                   ],

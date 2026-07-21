@@ -5,16 +5,12 @@ class Settings {
   final String watchMac;
   final String deviceId;
   final String deviceModel;
-  final int syncIntervalMinutes; // Sync frequency: e.g. 0 (disabled), 5, 10, 15, 30, 60
-  final String trustedPhoneNumber;
 
   const Settings({
     required this.authKeyHex,
     required this.watchMac,
     required this.deviceId,
     required this.deviceModel,
-    required this.syncIntervalMinutes,
-    required this.trustedPhoneNumber,
   });
 }
 
@@ -31,8 +27,6 @@ class SettingsBlob extends Blob<Settings> {
           watchMac: '',
           deviceId: '',
           deviceModel: '',
-          syncIntervalMinutes: 15,
-          trustedPhoneNumber: '',
         ),
       );
 
@@ -40,8 +34,6 @@ class SettingsBlob extends Blob<Settings> {
   static String get watchMac => _instance.value.watchMac;
   static String get deviceId => _instance.value.deviceId;
   static String get deviceModel => _instance.value.deviceModel;
-  static int get syncIntervalMinutes => _instance.value.syncIntervalMinutes;
-  static String get trustedPhoneNumber => _instance.value.trustedPhoneNumber;
 
   @override
   Settings parse(dynamic json) {
@@ -51,8 +43,6 @@ class SettingsBlob extends Blob<Settings> {
       watchMac: map['watchMac'] ?? '',
       deviceId: map['deviceId'] ?? '',
       deviceModel: map['deviceModel'] ?? '',
-      syncIntervalMinutes: map['syncIntervalMinutes'] ?? 15,
-      trustedPhoneNumber: map['trustedPhoneNumber'] ?? '',
     );
   }
 
@@ -62,7 +52,5 @@ class SettingsBlob extends Blob<Settings> {
     'watchMac': value.watchMac,
     'deviceId': value.deviceId,
     'deviceModel': value.deviceModel,
-    'syncIntervalMinutes': value.syncIntervalMinutes,
-    'trustedPhoneNumber': value.trustedPhoneNumber,
   };
 }

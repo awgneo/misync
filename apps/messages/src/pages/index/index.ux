@@ -58,12 +58,16 @@
 import misync from "../../shared/modules/misync.js";
 
 export default {
+	public: {
+		key: "",
+	},
 	private: {
 		replies: [],
 		inputText: "",
 	},
 
 	onInit() {
+		console.log("[Messages] onInit key:", this.key);
 		// Subscribe to messages first to prevent race condition
 		this.messageUnsubscribe = misync.onMessage((payload) => {
 			if (payload.replies) {
@@ -75,6 +79,7 @@ export default {
 	},
 
 	onRefresh() {
+		console.log("[Messages] onRefresh key:", this.key);
 		this.inputText = ""; // Clear input on refresh/new notification
 		const keyboard = this.$element("keyboard-component");
 		if (keyboard && typeof keyboard.reset === "function") {
@@ -101,12 +106,14 @@ export default {
 	},
 
 	handleReply(replyText) {
-		misync.send("reply", { text: replyText });
+		console.log("[Messages] handleReply key:", this.key, "text:", replyText);
+		misync.send("reply", { key: this.key, text: replyText });
 		this.$app.exit();
 	},
 
 	handleDismiss() {
-		misync.send("dismiss");
+		console.log("[Messages] handleDismiss key:", this.key);
+		misync.send("dismiss", { key: this.key });
 		this.$app.exit();
 	},
 

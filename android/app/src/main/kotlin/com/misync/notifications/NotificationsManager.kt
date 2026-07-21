@@ -17,6 +17,47 @@ import java.io.ByteArrayOutputStream
 class NotificationsManager(private val context: Context) {
     private val TAG = "NotificationsManager"
 
+    fun sendText(recipients: List<String>, message: String): Boolean {
+        var success = false
+        val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.getSystemService(SmsManager::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            SmsManager.getDefault()
+        }
+
+        for (recipient in recipients) {
+            val number = recipient.trim()
+            if (number.isNotEmpty()) {
+                try {
+                    smsManager.sendTextMessage(number, null, message, null, null)
+                    Log.d(TAG, "SMS text sent to $number successfully")
+                    success = true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send SMS to $number", e)
+                }
+            }
+        }
+        return success
+    }
+
+    fun getNotificationMeta(key: String): Map<String, Any>? {
+        val service = NotificationsService.instance ?: return null
+        val meta = service.getMeta(key) ?: return null
+        return mapOf(
+            "key" to meta.key,
+            "id" to meta.id,
+            "package" to meta.`package`,
+            "app" to meta.app,
+            "title" to meta.title,
+            "body" to meta.body,
+            "category" to meta.category,
+            "phone" to meta.phone,
+            "replyable" to meta.replyable,
+            "kind" to meta.kind
+        )
+    }
+
     fun getDnd(): Boolean {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val filter = notificationManager.currentInterruptionFilter
@@ -41,52 +82,32 @@ class NotificationsManager(private val context: Context) {
 
     fun replyToNotification(key: String?, id: Int?, message: String): Boolean {
         val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        val repSuccess = if (key != null && key.isNotEmpty()) {
-            val success = service.reply(key, message)
-            service.declineCall(key)
-            success
-        } else if (id != null) {
-            val success = service.replyById(id, message)
-            service.declineCallById(id)
-            success
-        } else {
-            throw IllegalArgumentException("Both key and id are null")
-        }
-        if (!repSuccess) {
+        val targetKey = key ?: ""
+        val success = service.reply(targetKey, message)
+        service.declineCall(targetKey)
+        if (!success) {
             throw IllegalArgumentException("Notification not found or reply failed")
         }
         return true
     }
 
     fun dismissNotification(key: String?, id: Int?): Boolean {
-        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        val disSuccess = if (key != null && key.isNotEmpty()) {
-            service.dismiss(key)
-        } else if (id != null) {
-            service.dismissById(id)
-        } else {
-            throw IllegalArgumentException("Both key and id are null")
-        }
-        if (!disSuccess) {
-            throw IllegalArgumentException("Notification not found or dismiss failed")
-        }
+        val service = NotificationsService.instance ?: return false
+        val targetKey = key ?: ""
+        service.dismiss(targetKey)
         return true
     }
 
     fun triggerNotificationAction(key: String?, action: String): Boolean {
         val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        if (key == null || key.isEmpty()) {
-            throw IllegalArgumentException("Key is null or empty")
-        }
-        return service.triggerNotificationAction(key, action)
+        val targetKey = key ?: ""
+        return service.triggerNotificationAction(targetKey, action)
     }
 
     fun openNotificationOnPhone(key: String?): Boolean {
         val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        if (key == null || key.isEmpty()) {
-            throw IllegalArgumentException("Key is null or empty")
-        }
-        return service.openNotificationOnPhone(key)
+        val targetKey = key ?: ""
+        return service.openNotificationOnPhone(targetKey)
     }
 
 

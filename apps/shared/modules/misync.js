@@ -77,21 +77,15 @@ class MiSync {
 
   // Unified send command
   send(command, data = {}) {
-    if (!this.isOpen) {
-      console.log('MiSync connection not open yet. Queuing message:', command)
-      this.sendQueue.push({ command, data })
-      return
-    }
     try {
+      if (!this.connection) {
+        this.connection = interconnect.instance()
+      }
+      console.log('MiSync sending command:', command, JSON.stringify(data))
       this.connection.send({
         data: { command, ...data },
         fail: (response, code) => {
           console.error(`Send failed. Code: ${code}, Detail: ${response}`)
-          // If disconnected, queue it back
-          if (code === 1006) {
-            this.isOpen = false
-            this.sendQueue.push({ command, data })
-          }
         }
       })
     } catch (error) {

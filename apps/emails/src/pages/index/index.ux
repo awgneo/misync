@@ -42,13 +42,19 @@
 import misync from "../../shared/modules/misync.js";
 
 export default {
+	public: {
+		key: "",
+	},
+
 	handleAction(actionType) {
-		misync.send(actionType);
+		console.log("[Emails] handleAction:", actionType, "key:", this.key);
+		misync.send(actionType, { key: this.key });
 		this.$app.exit();
 	},
 
 	handleDismiss() {
-		misync.send("dismiss");
+		console.log("[Emails] handleDismiss key:", this.key);
+		misync.send("dismiss", { key: this.key });
 		this.$app.exit();
 	},
 };

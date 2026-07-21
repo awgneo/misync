@@ -41,6 +41,14 @@ class DeviceModule(
         }
     }
 
+    private val deviceDisappearedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.misync.DEVICE_DISAPPEARED") {
+                methodChannel?.invokeMethod("deviceDisappeared", null)
+            }
+        }
+    }
+
     override fun onCreate() {
         // Register stop find phone
         val stopFilter = IntentFilter("com.misync.STOP_FIND_PHONE")
@@ -57,11 +65,20 @@ class DeviceModule(
         } else {
             context.registerReceiver(findWatchReceiver, watchFilter)
         }
+
+        // Register device disappeared
+        val disappearedFilter = IntentFilter("com.misync.DEVICE_DISAPPEARED")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(deviceDisappearedReceiver, disappearedFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(deviceDisappearedReceiver, disappearedFilter)
+        }
     }
 
     override fun onDestroy() {
         context.unregisterReceiver(stopFindPhoneReceiver)
         context.unregisterReceiver(findWatchReceiver)
+        context.unregisterReceiver(deviceDisappearedReceiver)
     }
 
     override fun checkPermissions(): Boolean {

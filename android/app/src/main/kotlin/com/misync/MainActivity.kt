@@ -116,4 +116,18 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        for (module in modules) {
+            try {
+                if (module.onActivityResult(requestCode, resultCode, data)) {
+                    Log.d(TAG, "ActivityResult consumed by module: ${module.name}")
+                    break
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error routing ActivityResult to module ${module.name}: ", e)
+            }
+        }
+    }
 }

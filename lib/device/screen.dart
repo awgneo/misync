@@ -3,6 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'module.dart';
 import 'blobs/settings.dart';
 import 'blobs/device.dart';
+import 'blobs/trusted.dart';
+import 'blobs/sync.dart';
 import '../screen.dart';
 import '../platform/module.dart';
 import '../widgets/panel.dart';
@@ -10,6 +12,7 @@ import '../widgets/modal.dart';
 import '../widgets/item.dart';
 import '../widgets/items.dart';
 import '../widgets/button.dart';
+import '../widgets/tabs.dart';
 
 class DeviceScreen extends Screen<DeviceModule> {
   const DeviceScreen(super.module, {super.key});
@@ -65,6 +68,16 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
     final bool isPaired =
         SettingsBlob.authKeyHex.isNotEmpty && SettingsBlob.watchMac.isNotEmpty;
 
+    return MiTabs(
+      tabs: [
+        MiTab(label: 'Device', child: _buildDeviceTab(connected, isPaired)),
+        MiTab(label: 'Trusted', child: _buildTrustedTab()),
+        MiTab(label: 'Sync', child: _buildSyncTab(connected)),
+      ],
+    );
+  }
+
+  Widget _buildDeviceTab(bool connected, bool isPaired) {
     return ListenableBuilder(
       listenable: Listenable.merge([
         widget.module.connection,
@@ -100,6 +113,95 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                     ? Colors.redAccent
                     : (connected ? const Color(0xFF00E5FF) : Colors.grey),
               ),
+            ],
+          );
+        }
+
+        return MiPanel(
+          buttons: panelActions,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isPaired) _buildUnpairedView() else _buildPairedView(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTrustedTab() {
+    return ListenableBuilder(
+      listenable: TrustedBlob.instance,
+      builder: (context, _) {
+        final contacts = TrustedBlob.contacts;
+        final enabled = TrustedBlob.enabled;
+
+        return MiPanel(
+          buttons: MiButtons(
+            children: [
+              MiButton(
+                label: 'Add Contact',
+                icon: Icons.person_add,
+                pressed: () => widget.module.pickContact(),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MiItems(
+                children: [
+                  MiItem(
+                    title: 'Lost Phone Alert',
+                    subtitle:
+                        'Automatically dispatches location SMS to trusted contacts when watch disconnects',
+                    primaryIcon: Icons.shield,
+                    enabled: enabled,
+                    toggled: (val) => widget.module.toggleTrustedAlerts(val),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              MiItems(
+                children: [
+                  if (contacts.isEmpty)
+                    const MiItem(
+                      title: 'No Trusted Contacts Added',
+                      subtitle:
+                          'Tap "Add Contact" to pick trusted emergency recipients from your phone contacts.',
+                      primaryIcon: Icons.people_outline,
+                    )
+                  else
+                    ...contacts.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final contact = entry.value;
+                      final name = contact['name'] ?? 'Contact';
+                      final phone = contact['phone'] ?? '';
+
+                      return MiItem(
+                        title: name,
+                        subtitle: phone,
+                        primaryIcon: Icons.person,
+                        delete: () => widget.module.removeTrustedContact(index),
+                      );
+                    }),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSyncTab(bool connected) {
+    return ListenableBuilder(
+      listenable: SyncBlob.instance,
+      builder: (context, _) {
+        return MiPanel(
+          buttons: MiButtons(
+            children: [
               MiButton(
                 label: 'Sync All Now',
                 icon: Icons.sync,
@@ -115,15 +217,33 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
                 },
               ),
             ],
-          );
-        }
-
-        return MiPanel(
-          buttons: panelActions,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!isPaired) _buildUnpairedView() else _buildPairedView(),
+              MiItems(
+                children: [
+                  MiItem(
+                    title: 'Sync Frequency',
+                    subtitle: 'Background auto-sync interval',
+                    primaryIcon: Icons.sync,
+                    options: const {
+                      0: 'Disabled',
+                      5: 'Every 5 Minutes',
+                      10: 'Every 10 Minutes',
+                      15: 'Every 15 Minutes',
+                      30: 'Every 30 Minutes',
+                      60: 'Every Hour',
+                    },
+                    value: SyncBlob.syncIntervalMinutes,
+                    selected: (val) {
+                      if (val != null) {
+                        widget.module.updateSyncInterval(val as int);
+                      }
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -244,68 +364,6 @@ class _DeviceScreenState extends ScreenState<DeviceScreen> {
               title: 'Auth Key (Hex)',
               subtitle: SettingsBlob.authKeyHex,
               primaryIcon: Icons.vpn_key,
-            ),
-            MiItem(
-              title: 'Sync Frequency',
-              subtitle: 'Background auto-sync interval',
-              primaryIcon: Icons.sync,
-              options: const {
-                0: 'Disabled (Manual Sync)',
-                5: 'Every 5 Minutes',
-                10: 'Every 10 Minutes',
-                15: 'Every 15 Minutes',
-                30: 'Every 30 Minutes',
-                60: 'Every Hour',
-              },
-              value: SettingsBlob.syncIntervalMinutes,
-              selected: (val) async {
-                if (val != null) {
-                  final current = SettingsBlob.instance.value;
-                  await SettingsBlob.instance.update(
-                    Settings(
-                      authKeyHex: current.authKeyHex,
-                      watchMac: current.watchMac,
-                      deviceId: current.deviceId,
-                      deviceModel: current.deviceModel,
-                      syncIntervalMinutes: val as int,
-                      trustedPhoneNumber: current.trustedPhoneNumber,
-                    ),
-                  );
-                }
-              },
-            ),
-            MiItem(
-              title: 'Trusted Contact Number',
-              subtitle: SettingsBlob.trustedPhoneNumber.isNotEmpty
-                  ? SettingsBlob.trustedPhoneNumber
-                  : 'Disabled (Tap to configure)',
-              primaryIcon: Icons.phone,
-              clicked: () async {
-                final number = await showMiModal<String>(
-                  context: context,
-                  title: 'Trusted Contact',
-                  body:
-                      'Enter the phone number of a trusted contact. When the watch disconnects, your phone will send them a SMS with its location.',
-                  label: 'Phone Number',
-                  text: SettingsBlob.trustedPhoneNumber,
-                  confirm: 'Save',
-                  cancel: 'Cancel',
-                );
-
-                if (number != null) {
-                  final current = SettingsBlob.instance.value;
-                  await SettingsBlob.instance.update(
-                    Settings(
-                      authKeyHex: current.authKeyHex,
-                      watchMac: current.watchMac,
-                      deviceId: current.deviceId,
-                      deviceModel: current.deviceModel,
-                      syncIntervalMinutes: current.syncIntervalMinutes,
-                      trustedPhoneNumber: number,
-                    ),
-                  );
-                }
-              },
             ),
           ],
         ),
