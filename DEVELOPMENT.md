@@ -338,3 +338,70 @@ sequenceDiagram
 - **Finished state**: Defined in `WorkoutStatus.finished` (value `3`). Once received, the application invokes the native MethodChannel method `device.stopLocationUpdates` to unregister location listeners and save the phone's battery.
 - **Field serialization**: The native `LocationManager` is strictly responsible for packaging lat, lon, speed, bearing, and accuracy into a serializable `Map<String, Any>` (including fetching vertical accuracy for APIs $\ge 26$), while `DeviceModule.kt` acts simply as a channel dispatcher.
 
+---
+
+## 12. Watch QuickApp Ecosystem & `MiPage` Shared Module
+
+Companion watch apps in Vela OS are built using the QuickApp (HAP framework) standard and communicate with the phone via `@system.interconnect`.
+
+### 1. `MiPage` Shared Module (`apps/shared/modules/mipage.js`)
+To handle consistent edge-swipe gesture exits across all watch apps (`messages`, `emails`, `investments`, `actions`, `calculator`, `wallet`), every QuickApp page wraps its options in `MiPage`:
+
+```javascript
+import misync from "../../shared/modules/misync.js";
+import MiPage from "../../shared/modules/mipage.js";
+
+const page = MiPage({
+  public: { id: "" },
+  onInit() { ... },
+  handleAction() { ... }
+});
+
+export default page;
+```
+
+#### Template Binding
+Top-level `<div class="mi-page">` container must bind touch events:
+```html
+<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
+```
+
+#### Left-Edge Swipe Exit Mechanics
+When a swipe originates within 50px of the left screen edge (`startX < 50`) and moves right (`deltaX > 30`), `MiPage` invokes `this.$app.exit()` directly. This cleanly closes the watch QuickApp without sending premature `dismiss` or `reply` commands back to the phone.
+
+#### Linter Clean Export Pattern (`ts(2528)`)
+To avoid AIoT IDE TypeScript language service false positives (`ts(2528) - A module cannot have multiple default exports`), always assign `MiPage(...)` to a local variable (`const page = MiPage(...)`) before `export default page;`.
+
+---
+
+## 13. Android 16 Stateless Notification Architecture
+
+Notification synchronization between Android status bar and Vela OS relies on Android 16 system API capabilities and native filtering.
+
+### 1. Companion Bridging & `FLAG_LOCAL_ONLY` Filtering
+Android applications (like Gmail, Messages, and WhatsApp) mark transient "Undo archive", progress, or local status notifications with `Notification.FLAG_LOCAL_ONLY` (`256`). `NotificationsService.kt` filters these out statelessly in `processSbn`:
+
+```kotlin
+val flags = notification.flags
+if ((flags and Notification.FLAG_LOCAL_ONLY) != 0 ||
+    (flags and Notification.FLAG_FOREGROUND_SERVICE) != 0 ||
+    (flags and Notification.FLAG_GROUP_SUMMARY) != 0 ||
+    (title.isBlank() && body.isBlank())
+) {
+    return // Drop local-only, foreground service, group summary, or empty notification
+}
+```
+
+### 2. Removal Reason Inspection (`onNotificationRemoved`)
+`NotificationsService.kt` overrides the API 26+ method:
+```kotlin
+override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int)
+```
+Android OS passes the exact system `reason` code (`REASON_ACTION_CLICK` = 18, `REASON_LISTENER_CANCEL` = 16, `REASON_CANCEL` = 2, `REASON_APP_CANCEL` = 8), allowing native removal handling without maintaining custom state maps in Dart.
+
+### 3. QuickApp Notification Interconnect Commands
+- **`getDismissedId`**: Interconnect command invoked by watch apps (`messages`, `emails`) on `onInit` and `onRefresh`. Returns `{ "dismissedId": _dismissedId ?? 0 }`.
+- **`getReplies`**: Interconnect command invoked exclusively by `com.misync.messages`. Returns `{ "replies": [...] }`.
+- **`NotificationMeta` Extension**: `NotificationMeta` extracts available action titles (`actions`), action presence (`hasArchive`, `hasDelete`), raw semantic action integer list (`semanticActions`), and clearable status (`isClearable`).
+
+
