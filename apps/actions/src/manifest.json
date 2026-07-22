@@ -1,8 +1,8 @@
 {
   "package": "com.misync.actions",
   "name": "Actions",
-  "versionName": "1.0.2",
-  "versionCode": 9,
+  "versionName": "1.0.4",
+  "versionCode": 11,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "simulationVersion": "default",

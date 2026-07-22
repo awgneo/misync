@@ -2,7 +2,7 @@
 <import name="mi-button" src="../../shared/components/button.ux"></import>
 
 <template>
-	<div class="mi-page">
+	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
 		<scroll class="mi-scroll" scroll-y="true">
 			<div class="mi-viewport">
 				<div class="mi-row">
@@ -40,24 +40,41 @@
 
 <script>
 import misync from "../../shared/modules/misync.js";
+import MiPage from "../../shared/modules/mipage.js";
 
-export default {
+const page = MiPage({
 	public: {
-		key: "",
+		id: "",
+	},
+
+	onInit() {
+		this.messageUnsubscribe = misync.onMessage((payload) => {
+			if (payload.dismissedId) {
+				this.id = payload.dismissedId;
+			}
+		});
+
+		misync.send("getDismissedId");
+	},
+
+	onRefresh() {
+		misync.send("getDismissedId");
 	},
 
 	handleAction(actionType) {
-		console.log("[Emails] handleAction:", actionType, "key:", this.key);
-		misync.send(actionType, { key: this.key });
+		const targetId = Number(this.id) || 0;
+		misync.send(actionType, { id: targetId });
 		this.$app.exit();
 	},
 
 	handleDismiss() {
-		console.log("[Emails] handleDismiss key:", this.key);
-		misync.send("dismiss", { key: this.key });
+		const targetId = Number(this.id) || 0;
+		misync.send("dismiss", { id: targetId });
 		this.$app.exit();
 	},
-};
+});
+
+export default page;
 </script>
 
 <style lang="less">

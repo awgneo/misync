@@ -147,10 +147,9 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
     ): Boolean {
         return when (method) {
             "replyToNotification" -> {
-                val key = call.argument<String>("key")
-                val id = call.argument<Number>("id")?.toInt()
+                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
                 val message = call.argument<String>("message") ?: ""
-                notificationsManager.replyToNotification(key, id, message)
+                notificationsManager.replyToNotification(id, message)
                 result.success(null)
                 true
             }
@@ -168,24 +167,23 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
             }
 
             "dismissNotification" -> {
-                val key = call.argument<String>("key")
-                val id = call.argument<Number>("id")?.toInt()
-                notificationsManager.dismissNotification(key, id)
+                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
+                notificationsManager.dismissNotification(id)
                 result.success(null)
                 true
             }
 
             "triggerNotificationAction" -> {
-                val key = call.argument<String>("key")
+                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
                 val action = call.argument<String>("action") ?: ""
-                val success = notificationsManager.triggerNotificationAction(key, action)
+                val success = notificationsManager.triggerNotificationAction(id, action)
                 result.success(success)
                 true
             }
 
             "openNotificationOnPhone" -> {
-                val key = call.argument<String>("key")
-                val success = notificationsManager.openNotificationOnPhone(key)
+                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
+                val success = notificationsManager.openNotificationOnPhone(id)
                 result.success(success)
                 true
             }
@@ -235,9 +233,15 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
             }
 
             "getNotificationMeta" -> {
-                val key = call.argument<String>("key") ?: ""
-                val metaMap = notificationsManager.getNotificationMeta(key)
+                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
+                val metaMap = notificationsManager.getNotificationMeta(id)
                 result.success(metaMap)
+                true
+            }
+
+            "getActiveMetas" -> {
+                val metaList = notificationsManager.getAllNotificationMetas()
+                result.success(metaList)
                 true
             }
 

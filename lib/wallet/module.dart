@@ -29,8 +29,6 @@ class WalletModule extends TabModule {
 
   @override
   Future<void> start() async {
-    WalletBlob.instance.addListener(sync);
-    PassesBlob.instance.addListener(sync);
     DeviceModule.module.register(this);
     PlatformModule.module.register(_receivePhoneMethod);
     DeviceModule.module.connection.listen(_receiveWatchCommand);
@@ -134,11 +132,8 @@ class WalletModule extends TabModule {
 
   @override
   Future<void> sync() async {
-    await _syncExpiredPasses();
     await _syncWatchWalletApp();
-    if (DeviceModule.module.connection.connected.value) {
-      await _sendPassesToWatch();
-    }
+    await _syncExpiredPasses();
   }
 
   Future<void> _syncWatchWalletApp() async {
@@ -162,5 +157,22 @@ class WalletModule extends TabModule {
     if (list.length != countBefore) {
       await PassesBlob.instance.update(list);
     }
+  }
+
+  Future<void> saveSettings({bool? enabled, int? retentionDays}) async {
+    final current = WalletBlob.instance.value;
+    final updated = Wallet(
+      enabled: enabled ?? current.enabled,
+      retentionDays: retentionDays ?? current.retentionDays,
+    );
+    await WalletBlob.instance.update(updated);
+    logger.info('wallet settings updated', updated.toJson());
+    await _syncWatchWalletApp();
+    await _syncExpiredPasses();
+  }
+
+  Future<void> removePass(String serialNumber) async {
+    await PassesBlob.instance.removePass(serialNumber);
+    logger.info('pass removed', {'serialNumber': serialNumber});
   }
 }

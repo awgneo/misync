@@ -174,7 +174,12 @@ class AppsModule extends TabModule {
     try {
       final data = jsonDecode(text) as Map<String, dynamic>;
       final command = data['command']?.toString();
-      if (command == 'getSymbol') {
+      if (command == 'log') {
+        final String package = message.appInfo.packageName;
+        final String msgText = data['message']?.toString() ?? '';
+        logger.info('[WATCH_LOG] ($package) $msgText');
+        return;
+      } else if (command == 'getSymbol') {
         final name = data['name']?.toString() ?? '';
         if (name.isNotEmpty) {
           await _handleWatchGetSymbol(message.appInfo.packageName, name);

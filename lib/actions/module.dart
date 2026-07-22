@@ -88,7 +88,6 @@ class ActionsModule extends TabModule {
   }
 
   Future<void> _handleWatchLaunchAction(Map<String, dynamic> data) async {
-    // Check if the watch sends an action name: e.g. { "action": "Mute Phone" }
     final actionName = data['action']?.toString().trim();
     if (actionName == null || actionName.isEmpty) {
       logger.info('Invalid action payload received: $data');

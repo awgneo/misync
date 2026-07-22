@@ -4,7 +4,7 @@
 <import name="mi-keyboard" src="../../shared/components/keyboard.ux"></import>
 
 <template>
-	<div class="mi-page">
+	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
 		<scroll class="mi-scroll" scroll-y="true">
 			<!-- Main screen viewport (fills 100% viewport, Y-locked) -->
 			<div class="mi-viewport">
@@ -56,10 +56,11 @@
 
 <script>
 import misync from "../../shared/modules/misync.js";
+import MiPage from "../../shared/modules/mipage.js";
 
-export default {
+const page = MiPage({
 	public: {
-		key: "",
+		id: "",
 	},
 	private: {
 		replies: [],
@@ -67,24 +68,26 @@ export default {
 	},
 
 	onInit() {
-		console.log("[Messages] onInit key:", this.key);
-		// Subscribe to messages first to prevent race condition
 		this.messageUnsubscribe = misync.onMessage((payload) => {
+			if (payload.dismissedId) {
+				this.id = payload.dismissedId;
+			}
 			if (payload.replies) {
 				this.replies = payload.replies;
 			}
 		});
 
+		misync.send("getDismissedId");
 		misync.send("getReplies");
 	},
 
 	onRefresh() {
-		console.log("[Messages] onRefresh key:", this.key);
-		this.inputText = ""; // Clear input on refresh/new notification
+		this.inputText = "";
 		const keyboard = this.$element("keyboard-component");
 		if (keyboard && typeof keyboard.reset === "function") {
 			keyboard.reset();
 		}
+		misync.send("getDismissedId");
 		misync.send("getReplies");
 	},
 
@@ -106,14 +109,14 @@ export default {
 	},
 
 	handleReply(replyText) {
-		console.log("[Messages] handleReply key:", this.key, "text:", replyText);
-		misync.send("reply", { key: this.key, text: replyText });
+		const targetId = Number(this.id) || 0;
+		misync.send("reply", { id: targetId, text: replyText });
 		this.$app.exit();
 	},
 
 	handleDismiss() {
-		console.log("[Messages] handleDismiss key:", this.key);
-		misync.send("dismiss", { key: this.key });
+		const targetId = Number(this.id) || 0;
+		misync.send("dismiss", { id: targetId });
 		this.$app.exit();
 	},
 
@@ -122,7 +125,9 @@ export default {
 			this.messageUnsubscribe();
 		}
 	},
-};
+});
+
+export default page;
 </script>
 
 <style lang="less">

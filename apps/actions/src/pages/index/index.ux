@@ -1,7 +1,7 @@
 <import name="mi-button" src="../../shared/components/button.ux"></import>
 
 <template>
-	<div class="mi-page">
+	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
 		<scroll class="mi-scroll" scroll-y="true">
 			<!-- Grid items chunked into rows of 2 columns -->
 			<div for="{{ row in actionRows }}" class="mi-row">
@@ -21,8 +21,9 @@
 <script>
 import misync from "../../shared/modules/misync.js";
 import symbols from "../../shared/modules/symbols.js";
+import MiPage from "../../shared/modules/mipage.js";
 
-export default {
+const page = MiPage({
 	private: {
 		actionsList: [],
 		actionRows: [],
@@ -58,14 +59,14 @@ export default {
 			if (action.symbol) {
 				symbols.get(action.symbol, (cachedUri) => {
 					this.actionsList[idx].icon = cachedUri;
-					this.updateActionRows();
 				});
 			}
 		});
 	},
 
-	handleActionTap(name) {
-		misync.send("launchAction", { action: name });
+	handleActionTap(actionName) {
+		misync.send("launchAction", { action: actionName });
+		this.$app.exit();
 	},
 
 	updateActionRows() {
@@ -76,7 +77,9 @@ export default {
 		}
 		this.actionRows = rows;
 	},
-};
+});
+
+export default page;
 </script>
 
 <style lang="less">

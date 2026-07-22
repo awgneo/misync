@@ -51,8 +51,9 @@
 
 <script>
 import misync from "../../shared/modules/misync.js";
+import MiPage from "../../shared/modules/mipage.js";
 
-export default {
+const page = MiPage({
 	private: {
 		watchlists: [],
 		currentIndex: 0,
@@ -60,9 +61,6 @@ export default {
 	},
 
 	onInit() {
-		this.startX = 0;
-		this.startY = 0;
-
 		// Subscribe to messages first to prevent race condition
 		this.unsubscribe = misync.onMessage((payload) => {
 			if (payload.watchlists) {
@@ -79,30 +77,14 @@ export default {
 		this.currentIndex = e.index;
 	},
 
-	handleTouchStart(e) {
-		if (e.touches && e.touches.length > 0) {
-			this.startX = e.touches[0].clientX;
-			this.startY = e.touches[0].clientY;
-		}
-	},
-
-	handleTouchMove(e) {
-		if (this.currentIndex === 0 && e.touches && e.touches.length > 0) {
-			const touch = e.touches[0];
-			const deltaX = touch.clientX - this.startX;
-			const deltaY = touch.clientY - this.startY;
-			if (this.startX < 50 && deltaX > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
-				this.$app.exit();
-			}
-		}
-	},
-
 	onDestroy() {
 		if (this.unsubscribe) {
 			this.unsubscribe();
 		}
 	},
-};
+});
+
+export default page;
 </script>
 
 <style lang="less">

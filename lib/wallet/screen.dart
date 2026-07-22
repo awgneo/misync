@@ -44,12 +44,7 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
           subtitle: 'Synchronize passes to the watch',
           primaryIcon: Icons.wallet,
           enabled: walletSettings.enabled,
-          toggled: (val) async {
-            final current = WalletBlob.instance.value;
-            await WalletBlob.instance.update(
-              Wallet(enabled: val, retentionDays: current.retentionDays),
-            );
-          },
+          toggled: (val) => widget.module.saveSettings(enabled: val),
         );
 
         final dropdownItem = MiItem(
@@ -66,12 +61,9 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
             0: 'Forever',
           },
           value: retentionDays,
-          selected: (val) async {
+          selected: (val) {
             if (val != null) {
-              final current = WalletBlob.instance.value;
-              await WalletBlob.instance.update(
-                Wallet(enabled: current.enabled, retentionDays: val as int),
-              );
+              widget.module.saveSettings(retentionDays: val as int);
             }
           },
         );
@@ -121,8 +113,7 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
                       ? pass.description
                       : 'Boarding Pass (${pass.serialNumber})',
                   primaryIcon: Icons.qr_code_2,
-                  delete: () =>
-                      PassesBlob.instance.removePass(pass.serialNumber),
+                  delete: () => widget.module.removePass(pass.serialNumber),
                   clicked: () => _showBarcodeDetails(pass),
                 );
               }).toList(),

@@ -20,12 +20,17 @@ data class NotificationMeta(
     val phone: String,
     val replyable: Boolean,
     val kind: String,
+    val actions: List<String> = emptyList(),
+    val hasArchive: Boolean = false,
+    val hasDelete: Boolean = false,
+    val semanticActions: List<Int> = emptyList(),
+    val isClearable: Boolean = true,
     val sbn: StatusBarNotification? = null
 )
 
 class NotificationsService : NotificationListenerService() {
     private val TAG = "NotificationsService"
-    val activeMetas = java.util.concurrent.ConcurrentHashMap<String, NotificationMeta>()
+    val activeMetas = java.util.concurrent.ConcurrentHashMap<Int, NotificationMeta>()
 
     companion object {
         const val ACTION_NOTIFICATION_RECEIVED = "com.misync.notifications.NOTIFICATION_RECEIVED"
@@ -59,24 +64,27 @@ class NotificationsService : NotificationListenerService() {
         Log.d(TAG, "NotificationsService connected")
     }
 
+    fun syncActiveNotifications() {
+        try {
+            val activeNotifs = activeNotifications ?: return
+            Log.d(TAG, "syncActiveNotifications found ${activeNotifs.size} notifications in Android status bar")
+            for (sbn in activeNotifs) {
+                processSbn(sbn, emitBroadcast = false)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing active notifications: ", e)
+        }
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        processSbn(sbn, emitBroadcast = true)
+    }
+
+    private fun processSbn(sbn: StatusBarNotification, emitBroadcast: Boolean = true) {
         val packageName = sbn.packageName
         val notification = sbn.notification
-
-        // Skip group summaries and ongoing background service notifications (e.g. "Connecting...")
-        if ((notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) {
-            Log.d(TAG, "Filtering out group summary notification from $packageName")
-            return
-        }
-
         val category = notification.category ?: ""
-        val isDialer = isCallPackage(packageName)
         val isCall = isCallNotification(packageName, category)
-
-        if (!isCall && (notification.flags and Notification.FLAG_ONGOING_EVENT) != 0) {
-            Log.d(TAG, "Filtering out ongoing background event from $packageName")
-            return
-        }
 
         val extras = notification.extras
 
@@ -94,6 +102,17 @@ class NotificationsService : NotificationListenerService() {
         var body = extras.getCharSequence("android.text")?.toString()
             ?: extras.getCharSequence("android.bigText")?.toString()
             ?: ""
+
+        // Filter out local-only, foreground service, group summary, and empty notifications
+        val flags = notification.flags
+        if ((flags and Notification.FLAG_LOCAL_ONLY) != 0 ||
+            (flags and Notification.FLAG_FOREGROUND_SERVICE) != 0 ||
+            (flags and Notification.FLAG_GROUP_SUMMARY) != 0 ||
+            (title.isBlank() && body.isBlank())
+        ) {
+            Log.d(TAG, "Filtering out local-only, foreground service, group summary, or empty notification for key=${sbn.key}")
+            return
+        }
 
         // Extract message & sender details from standard Android MessagingStyle
         var hasSenderPerson = false
@@ -119,60 +138,14 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        val id = sbn.id
         val normKey = sbn.key.lowercase()
+        val id = normKey.hashCode() and 0x7FFFFFFF
 
         // Deduplicate identical notification body updates for active notifications
-        val existingMeta = activeMetas[normKey]
+        val existingMeta = activeMetas[id]
         if (existingMeta != null && existingMeta.body == body) {
-            Log.d(TAG, "Filtering out duplicate notification body update for key=$normKey")
+            Log.d(TAG, "Filtering out duplicate notification body update for id=$id")
             return
-        }
-
-        // Filter out transient Gmail action confirmation notifications
-        if (packageName == "com.google.android.gm") {
-            val cleanBody = body.lowercase().trim().replace(".", "")
-            val cleanTitle = title.lowercase().trim().replace(".", "")
-            if (cleanBody == "archived" || cleanTitle == "archived" ||
-                cleanBody == "deleted" || cleanTitle == "deleted" ||
-                cleanBody == "1 archived" || cleanTitle == "1 archived" ||
-                cleanBody == "1 deleted" || cleanTitle == "1 deleted" ||
-                cleanBody == "undo" || cleanTitle == "undo" ||
-                cleanBody == "marked read" || cleanTitle == "marked read" ||
-                cleanBody == "marked unread" || cleanTitle == "marked unread") {
-                Log.d(TAG, "Filtering out Gmail transient action confirmation: title=$title, body=$body")
-                return
-            }
-        }
-
-        // Voicemails & Missed Calls Filter
-        if (isDialer && category != Notification.CATEGORY_CALL) {
-            Log.d(TAG, "Filtering out missed call/voicemail dialer notification from $packageName")
-            return
-        }
-
-        if (isCall) {
-            var hasAnswerAction = false
-            val actions = notification.actions
-            if (actions != null) {
-                for (action in actions) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        if (action.semanticAction == 8) {
-                            hasAnswerAction = true
-                            break
-                        }
-                    }
-                    val titleText = action.title?.toString()?.lowercase() ?: ""
-                    if (titleText.contains("answer") || titleText.contains("accept") || titleText.contains("接听") || titleText.contains("contestar")) {
-                        hasAnswerAction = true
-                        break
-                    }
-                }
-            }
-            if (!hasAnswerAction) {
-                Log.d(TAG, "Filtering out non-ringing call notification from $packageName (no answer action)")
-                return
-            }
         }
 
         val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
@@ -192,20 +165,36 @@ class NotificationsService : NotificationListenerService() {
         }
 
         var hasRemoteInput = isCall
-        if (!hasRemoteInput) {
-            val actions = notification.actions
-            if (actions != null) {
-                for (action in actions) {
-                    val ris = action.remoteInputs
-                    if (ris != null) {
-                        for (ri in ris) {
-                            if (ri.resultKey != null) {
-                                hasRemoteInput = true
-                                break
-                            }
+        val actionTitles = mutableListOf<String>()
+        val semanticActionsList = mutableListOf<Int>()
+        var archivePresent = false
+        var deletePresent = false
+
+        val notifActions = notification.actions
+        if (notifActions != null) {
+            for (action in notifActions) {
+                val actTitle = action.title?.toString() ?: ""
+                if (actTitle.isNotEmpty()) {
+                    actionTitles.add(actTitle)
+                    val lowerTitle = actTitle.lowercase()
+                    if (lowerTitle.contains("archive")) archivePresent = true
+                    if (lowerTitle.contains("delete")) deletePresent = true
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val semAct = action.semanticAction
+                    if (semAct != 0) {
+                        semanticActionsList.add(semAct)
+                        if (semAct == 5) archivePresent = true // SEMANTIC_ACTION_ARCHIVE
+                        if (semAct == 4) deletePresent = true // SEMANTIC_ACTION_DELETE
+                    }
+                }
+                val ris = action.remoteInputs
+                if (ris != null) {
+                    for (ri in ris) {
+                        if (ri.resultKey != null) {
+                            hasRemoteInput = true
                         }
                     }
-                    if (hasRemoteInput) break
                 }
             }
         }
@@ -224,22 +213,8 @@ class NotificationsService : NotificationListenerService() {
 
         Log.d(
             TAG,
-            "Notification received: $packageName ($appName), title: $title, body: $body, key: $normKey, kind: $finalKind, replyable: $finalReplyable"
+            "Notification processed: $packageName ($appName), title: $title, body: $body, key: $normKey, kind: $finalKind, replyable: $finalReplyable, actions: $actionTitles"
         )
-
-        val intent = Intent(ACTION_NOTIFICATION_RECEIVED).apply {
-            putExtra(EXTRA_PACKAGE, packageName)
-            putExtra(EXTRA_TITLE, title)
-            putExtra(EXTRA_BODY, body)
-            putExtra(EXTRA_ID, id)
-            putExtra(EXTRA_KEY, normKey)
-            putExtra(EXTRA_APP, appName)
-            putExtra(EXTRA_CATEGORY, category)
-            putExtra(EXTRA_PHONE, phoneNumber)
-            putExtra(EXTRA_REPLYABLE, finalReplyable)
-            putExtra(EXTRA_KIND, finalKind)
-            setPackage(this@NotificationsService.packageName)
-        }
 
         val meta = NotificationMeta(
             key = normKey,
@@ -252,25 +227,49 @@ class NotificationsService : NotificationListenerService() {
             phone = phoneNumber,
             replyable = finalReplyable,
             kind = finalKind,
+            actions = actionTitles,
+            hasArchive = archivePresent,
+            hasDelete = deletePresent,
+            semanticActions = semanticActionsList,
+            isClearable = sbn.isClearable,
             sbn = sbn
         )
-        activeMetas[normKey] = meta
+        activeMetas[id] = meta
 
-        sendBroadcast(intent)
+        if (emitBroadcast) {
+            val intent = Intent(ACTION_NOTIFICATION_RECEIVED).apply {
+                putExtra(EXTRA_PACKAGE, packageName)
+                putExtra(EXTRA_TITLE, title)
+                putExtra(EXTRA_BODY, body)
+                putExtra(EXTRA_ID, id)
+                putExtra(EXTRA_KEY, normKey)
+                putExtra(EXTRA_APP, appName)
+                putExtra(EXTRA_CATEGORY, category)
+                putExtra(EXTRA_PHONE, phoneNumber)
+                putExtra(EXTRA_REPLYABLE, finalReplyable)
+                putExtra(EXTRA_KIND, finalKind)
+                setPackage(this@NotificationsService.packageName)
+            }
+            sendBroadcast(intent)
+        }
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        super.onNotificationRemoved(sbn)
+    override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+        super.onNotificationRemoved(sbn, rankingMap, reason)
         if (sbn == null) return
 
         val normKey = sbn.key.lowercase()
-        activeMetas.remove(normKey)
+        val id = normKey.hashCode() and 0x7FFFFFFF
+        activeMetas.remove(id)
+
+        Log.d(TAG, "onNotificationRemoved: key=$normKey, id=$id, reason=$reason")
 
         val intent = Intent(ACTION_NOTIFICATION_REMOVED).apply {
             putExtra(EXTRA_PACKAGE, sbn.packageName)
-            putExtra(EXTRA_ID, sbn.id)
+            putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, normKey)
             putExtra(EXTRA_CATEGORY, sbn.notification.category ?: "")
+            putExtra("reason", reason)
             setPackage(this@NotificationsService.packageName)
         }
         sendBroadcast(intent)
@@ -282,20 +281,22 @@ class NotificationsService : NotificationListenerService() {
         Log.d(TAG, "NotificationsService destroyed")
     }
 
+    fun getMeta(id: Int): NotificationMeta? {
+        if (id == 0) return null
+        return activeMetas[id]
+    }
+
     fun getMeta(key: String): NotificationMeta? {
-        if (key.isNotEmpty()) {
-            val meta = activeMetas[key.lowercase()]
-            if (meta != null) return meta
-        }
-        return activeMetas.values.lastOrNull { it.replyable || it.kind == "text" || it.kind == "call" }
-            ?: activeMetas.values.lastOrNull()
+        if (key.isEmpty()) return null
+        val id = key.lowercase().hashCode() and 0x7FFFFFFF
+        return activeMetas[id]
     }
 
     // Function to send a quick reply back to the notification sender
-    fun reply(key: String, replyText: String): Boolean {
-        val meta = getMeta(key)
+    fun reply(id: Int, replyText: String): Boolean {
+        val meta = getMeta(id)
         if (meta == null || meta.sbn == null) {
-            Log.w(TAG, "Cannot reply: no active replyable notification found for key: $key")
+            Log.w(TAG, "Cannot reply: no active replyable notification found for id: $id")
             return false
         }
         val sbn = meta.sbn
@@ -355,8 +356,10 @@ class NotificationsService : NotificationListenerService() {
             }
             try {
                 targetAction.actionIntent.send(this, 0, intent)
-                declineCall(meta.key)
-                Log.d(TAG, "Reply sent successfully via RemoteInput for key: ${meta.key}")
+                if (meta.kind == "call") {
+                    declineCall(id)
+                }
+                Log.d(TAG, "Reply sent successfully via RemoteInput for id: $id")
                 return true
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending RemoteInput reply: ", e)
@@ -368,23 +371,18 @@ class NotificationsService : NotificationListenerService() {
         if (isCall) {
             val phoneNumber = extractPhoneNumber(sbn)
             if (phoneNumber.isNotEmpty()) {
-                declineCall(meta.key)
+                declineCall(id)
                 return notificationsManager.sendText(listOf(phoneNumber), replyText)
             }
         }
 
-        Log.w(TAG, "No valid reply action found for notification key: ${meta.key}")
+        Log.w(TAG, "No valid reply action found for notification id: $id")
         return false
     }
 
-    fun replyById(id: Int, replyText: String): Boolean {
-        val meta = activeMetas.values.find { it.id == id } ?: return false
-        return reply(meta.key, replyText)
-    }
-
-    fun declineCall(key: String): Boolean {
-        Log.d(TAG, "declineCall called for key: $key")
-        val meta = getMeta(key) ?: return false
+    fun declineCall(id: Int): Boolean {
+        Log.d(TAG, "declineCall called for id: $id")
+        val meta = getMeta(id) ?: return false
         val sbn = meta.sbn ?: return false
         val actions = sbn.notification.actions ?: return false
 
@@ -394,12 +392,12 @@ class NotificationsService : NotificationListenerService() {
                 if (action.semanticAction == 2 /* SEMANTIC_ACTION_CALL_DECLINE */) {
                     try {
                         action.actionIntent.send()
-                        Log.d(TAG, "Successfully triggered semantic DECLINE action (2) for key: ${meta.key}")
+                        Log.d(TAG, "Successfully triggered semantic DECLINE action (2) for id: $id")
                         cancelNotification(sbn.key)
-                        activeMetas.remove(meta.key)
+                        activeMetas.remove(id)
                         return true
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error triggering semantic decline action for key: ${meta.key}", e)
+                        Log.e(TAG, "Error triggering semantic decline action for id: $id", e)
                     }
                 }
             }
@@ -412,12 +410,12 @@ class NotificationsService : NotificationListenerService() {
             if (keywords.any { title.contains(it) }) {
                 try {
                     action.actionIntent.send()
-                    Log.d(TAG, "Successfully triggered decline action '${action.title}' for key: ${meta.key}")
+                    Log.d(TAG, "Successfully triggered decline action '${action.title}' for id: $id")
                     cancelNotification(sbn.key)
-                    activeMetas.remove(meta.key)
+                    activeMetas.remove(id)
                     return true
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error triggering decline action for key: ${meta.key}", e)
+                    Log.e(TAG, "Error triggering decline action for id: $id", e)
                 }
             }
         }
@@ -430,7 +428,7 @@ class NotificationsService : NotificationListenerService() {
                     telecomManager.endCall()
                     Log.d(TAG, "Ended call via TelecomManager.endCall()")
                     cancelNotification(sbn.key)
-                    activeMetas.remove(meta.key)
+                    activeMetas.remove(id)
                     return true
                 }
             } catch (e: Exception) {
@@ -441,33 +439,27 @@ class NotificationsService : NotificationListenerService() {
         return false
     }
 
-    fun declineCallById(id: Int): Boolean {
-        val meta = activeMetas.values.find { it.id == id } ?: return false
-        return declineCall(meta.key)
-    }
-
-    fun dismiss(key: String): Boolean {
-        Log.d(TAG, "dismiss called for key: $key")
+    fun dismiss(id: Int): Boolean {
+        Log.d(TAG, "dismiss called for id: $id")
+        if (id == 0) {
+            Log.w(TAG, "dismiss ignored: id is 0")
+            return false
+        }
         try {
-            val meta = getMeta(key)
+            val meta = activeMetas[id]
             if (meta != null && (meta.kind == "call" || isCallPackage(meta.`package`))) {
-                declineCall(meta.key)
+                declineCall(id)
             }
             if (meta != null && meta.sbn != null) {
                 cancelNotification(meta.sbn.key)
-                activeMetas.remove(meta.key)
-                Log.d(TAG, "Notification dismissed successfully for key: ${meta.key}")
+                activeMetas.remove(id)
+                Log.d(TAG, "Notification dismissed successfully for id: $id")
                 return true
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing notification: ", e)
         }
         return false
-    }
-
-    fun dismissById(id: Int): Boolean {
-        val meta = activeMetas.values.find { it.id == id } ?: return false
-        return dismiss(meta.key)
     }
 
     private fun extractPhoneNumber(sbn: StatusBarNotification): String {
@@ -532,9 +524,9 @@ class NotificationsService : NotificationListenerService() {
         return (category ?: "") == Notification.CATEGORY_CALL || isCallPackage(packageName)
     }
 
-    fun triggerNotificationAction(key: String, actionKeyword: String): Boolean {
-        Log.d(TAG, "triggerNotificationAction called for key: $key, keyword: $actionKeyword")
-        val meta = getMeta(key) ?: return false
+    fun triggerNotificationAction(id: Int, actionKeyword: String): Boolean {
+        Log.d(TAG, "triggerNotificationAction called for id: $id, keyword: $actionKeyword")
+        val meta = getMeta(id) ?: return false
         val sbn = meta.sbn ?: return false
         val actions = sbn.notification.actions ?: return false
 
@@ -550,7 +542,7 @@ class NotificationsService : NotificationListenerService() {
                     if (action.semanticAction == targetSemanticAction) {
                         try {
                             action.actionIntent.send()
-                            Log.d(TAG, "Triggered semantic action $targetSemanticAction for key: ${meta.key}")
+                            Log.d(TAG, "Triggered semantic action $targetSemanticAction for id: $id")
                             return true
                         } catch (e: Exception) {
                             Log.e(TAG, "Error triggering semantic action $targetSemanticAction", e)
@@ -565,7 +557,7 @@ class NotificationsService : NotificationListenerService() {
             if (title.contains(actionKeyword.lowercase())) {
                 try {
                     action.actionIntent.send()
-                    Log.d(TAG, "Triggered keyword action '${action.title}' for key: ${meta.key}")
+                    Log.d(TAG, "Triggered keyword action '${action.title}' for id: $id")
                     return true
                 } catch (e: Exception) {
                     Log.e(TAG, "Error triggering keyword action '${action.title}'", e)
@@ -573,20 +565,20 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        Log.w(TAG, "No action matching keyword '$actionKeyword' found for key: ${meta.key}")
+        Log.w(TAG, "No action matching keyword '$actionKeyword' found for id: $id")
         return false
     }
 
-    fun openNotificationOnPhone(key: String): Boolean {
-        Log.d(TAG, "openNotificationOnPhone called for key: $key")
-        val meta = getMeta(key) ?: return false
+    fun openNotificationOnPhone(id: Int): Boolean {
+        Log.d(TAG, "openNotificationOnPhone called for id: $id")
+        val meta = getMeta(id) ?: return false
         val sbn = meta.sbn ?: return false
         val contentIntent = sbn.notification.contentIntent
 
         try {
             com.misync.actions.DismissKeyguardActivity.launch(this, targetPendingIntent = contentIntent)
             cancelNotification(sbn.key)
-            activeMetas.remove(meta.key)
+            activeMetas.remove(id)
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error launching notification intent from service", e)

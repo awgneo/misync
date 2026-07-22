@@ -34,11 +34,51 @@ class NotificationModule extends TabModule {
   static NotificationModule get module => _module;
   NotificationModule._();
 
+  int? _dismissedId;
+
   @override
   Future<void> start() async {
     DeviceModule.module.register(this);
     PlatformModule.module.register(_receivePhoneMethod);
     DeviceModule.module.connection.listen(_receiveWatchCommand);
+    DeviceModule.module.connection.connected.addListener(
+      _watchConnectionChanged,
+    );
+  }
+
+  void _watchConnectionChanged() {
+    final connected = DeviceModule.module.connection.connected.value;
+    logger.info('_watchConnectionChanged event fired (connected=$connected)');
+    if (connected) {
+      _syncActiveNotifications();
+    }
+  }
+
+  Future<void> _syncActiveNotifications() async {
+    try {
+      final List? metas = await PlatformModule.module.invokeMethod<List>(
+        'notifications.getActiveMetas',
+      );
+      if (metas == null || metas.isEmpty) {
+        logger.info(
+          'syncActiveNotifications: no active notification metas returned from Kotlin',
+        );
+        return;
+      }
+
+      logger.info('syncing active notifications catch-up to watch', {
+        'count': metas.length,
+      });
+
+      for (final raw in metas) {
+        if (raw is Map) {
+          final data = Map<String, dynamic>.from(raw);
+          _handlePhoneNotificationReceived(data);
+        }
+      }
+    } catch (e) {
+      logger.error('failed to sync active notifications catch-up: $e');
+    }
   }
 
   Future<dynamic> _receivePhoneMethod(MethodCall call) async {
@@ -80,7 +120,7 @@ class NotificationModule extends TabModule {
     final String title = data['title'] ?? '';
     final String body = data['body'] ?? '';
     final int id = data['id'] ?? 0;
-    final String key = data['key'] ?? '';
+    final String key = (data['key'] ?? '').toString().toLowerCase();
 
     final String app = data['app'] != null && (data['app'] as String).isNotEmpty
         ? data['app']
@@ -128,7 +168,7 @@ class NotificationModule extends TabModule {
   void _handlePhoneNotificationRemoved(Map<String, dynamic> data) async {
     final String package = data['package'] ?? '';
     final String category = data['category'] ?? '';
-    final String key = data['key'] ?? '';
+    final String key = (data['key'] ?? '').toString().toLowerCase();
     final int id = data['id'] ?? 0;
 
     logger.info('sending dismiss command to watch', {
@@ -206,70 +246,54 @@ class NotificationModule extends TabModule {
     final dismiss = cmd.notification.notificationDismiss;
     if (dismiss.notificationId.isEmpty) return;
 
-    // 1. Bulk / Clear All dismiss -> dismiss matching notifications on phone & skip launching watch app
-    if (dismiss.notificationId.length > 1) {
-      logger.info('watch multi-dismissed notifications', {
-        'count': dismiss.notificationId.length,
-        'packages': dismiss.notificationId.map((n) => n.package).toList(),
-      });
+    logger.info('watch dismissed notifications', {
+      'count': dismiss.notificationId.length,
+      'ids': dismiss.notificationId.map((n) => n.id).toList(),
+    });
 
-      for (var notifId in dismiss.notificationId) {
+    for (var notifId in dismiss.notificationId) {
+      final int id = notifId.id;
+
+      final Map? meta = await PlatformModule.module.invokeMethod<Map>(
+        'notifications.getNotificationMeta',
+        {'id': id},
+      );
+
+      final String kind = meta?['kind']?.toString() ?? 'standard';
+      final bool replyable = meta?['replyable'] as bool? ?? false;
+
+      if (kind == 'email') {
+        _dismissedId = id;
+        logger.debug(
+          'watch dismissed email notification (launching watch emails app)',
+          {'id': id},
+        );
+
+        final hapUri = 'hap://app/$emailsPackage/pages/index';
+        await AppsModule.module.launchApp(emailsPackage, uri: hapUri);
+      } else if (replyable || kind == 'text' || kind == 'call') {
+        _dismissedId = id;
+        logger.debug(
+          'watch dismissed replyable notification (launching watch messages app)',
+          {'id': id, 'kind': kind},
+        );
+
+        final hapUri = 'hap://app/$messagesPackage/pages/index';
+        await AppsModule.module.launchApp(messagesPackage, uri: hapUri);
+      } else {
+        logger.debug(
+          'watch dismissed non-replyable notification (dismissing on phone status bar)',
+          {'id': id, 'kind': kind},
+        );
+
         try {
           await PlatformModule.module.invokeMethod(
             'notifications.dismissNotification',
-            {'key': notifId.key, 'id': notifId.id},
+            {'id': id},
           );
         } catch (e) {
-          logger.error('failed to dismiss notification: $e');
+          logger.error('failed to dismiss notification on phone: $e');
         }
-      }
-
-      return;
-    }
-
-    // 2. Single Notification Dismiss -> query Kotlin NotificationMeta source of truth
-    final target = dismiss.notificationId.first;
-    final key = target.key.toLowerCase();
-    final int id = target.id;
-
-    final Map? meta = await PlatformModule.module.invokeMethod<Map>(
-      'notifications.getNotificationMeta',
-      {'key': key},
-    );
-
-    final String kind = meta?['kind']?.toString() ?? 'standard';
-    final bool replyable = meta?['replyable'] as bool? ?? false;
-    final encodedKey = Uri.encodeComponent(key);
-
-    if (kind == 'email') {
-      logger.info(
-        'watch swiped email notification (launching watch emails app with key)',
-        {'key': key},
-      );
-
-      final hapUri = 'hap://app/$emailsPackage/pages/index?key=$encodedKey';
-      await AppsModule.module.launchApp(emailsPackage, uri: hapUri);
-    } else if (replyable || kind == 'text' || kind == 'call') {
-      logger.info(
-        'watch swiped replyable notification (launching watch messages app with key)',
-        {'key': key, 'kind': kind},
-      );
-
-      final hapUri = 'hap://app/$messagesPackage/pages/index?key=$encodedKey';
-      await AppsModule.module.launchApp(messagesPackage, uri: hapUri);
-    } else {
-      logger.info(
-        'watch swiped non-replyable notification (dismissing on phone)',
-        {'key': key},
-      );
-
-      try {
-        await PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
-          {'key': key, 'id': id},
-        );
-      } catch (e) {
-        logger.error('failed to dismiss notification: $e');
       }
     }
   }
@@ -290,72 +314,79 @@ class NotificationModule extends TabModule {
     final String text = utf8.decode(msg.content);
     final data = jsonDecode(text) as Map<String, dynamic>;
     final command = data['command']?.toString();
-    final String key = data['key']?.toString() ?? '';
+    final int? rawId = data['id'] is int
+        ? data['id'] as int
+        : int.tryParse(data['id']?.toString() ?? '');
+    final int? id = (rawId != null && rawId != 0) ? rawId : _dismissedId;
 
     if (targetPkg == emailsPackage) {
-      logger.info('received message from watch Emails app', {'payload': data});
-      if (command == 'dismiss') {
-        await _handleWatchDismiss(key);
+      logger.debug('received message from watch Emails app', {'payload': data});
+      if (command == 'getDismissedId') {
+        await _handleWatchGetDismissedId(emailsPackage);
+      } else if (command == 'dismiss') {
+        await _handleWatchDismiss(id);
       } else if (command == 'archive' || command == 'delete') {
-        await _handleWatchEmailAction(key, command!);
+        await _handleWatchEmailAction(id, command!);
       } else if (command == 'open') {
-        await _handleWatchEmailOpen(key);
+        await _handleWatchEmailOpen(id);
       }
     } else {
-      logger.info('received message from watch Messages app', {
+      logger.debug('received message from watch Messages app', {
         'payload': data,
       });
 
-      if (command == 'getReplies') {
-        await _handleWatchGetReplies();
+      if (command == 'getDismissedId') {
+        await _handleWatchGetDismissedId(messagesPackage);
+      } else if (command == 'getReplies') {
+        await _handleWatchGetReplies(messagesPackage);
       } else if (command == 'reply') {
         final replyText = data['text']?.toString() ?? '';
-        await _handleWatchReply(key, replyText);
+        await _handleWatchReply(id, replyText);
       } else if (command == 'dismiss') {
-        await _handleWatchDismiss(key);
+        await _handleWatchDismiss(id);
       }
     }
   }
 
-  Future<void> _handleWatchEmailAction(String key, String action) async {
-    if (key.isNotEmpty) {
+  Future<void> _handleWatchEmailAction(int? id, String action) async {
+    if (id != null && id != 0) {
       logger.info('received email action from watch Emails app', {
-        'key': key,
+        'id': id,
         'action': action,
       });
       try {
         await PlatformModule.module.invokeMethod(
           'notifications.triggerNotificationAction',
-          {'key': key, 'action': action},
+          {'id': id, 'action': action},
         );
       } catch (e) {
         logger.error('failed to trigger notification action: $e');
       }
     }
+    _dismissedId = null;
   }
 
-  Future<void> _handleWatchEmailOpen(String key) async {
-    if (key.isNotEmpty) {
-      logger.info('received email open from watch Emails app', {
-        'key': key,
-      });
+  Future<void> _handleWatchEmailOpen(int? id) async {
+    if (id != null && id != 0) {
+      logger.info('received email open from watch Emails app', {'id': id});
       try {
         await PlatformModule.module.invokeMethod(
           'notifications.openNotificationOnPhone',
-          {'key': key},
+          {'id': id},
         );
       } catch (e) {
         logger.error('failed to open notification on phone: $e');
       }
     }
+    _dismissedId = null;
   }
 
-  Future<void> _handleWatchGetReplies() async {
-    final repliesPayload = {'replies': RepliesBlob.list};
+  Future<void> _handleWatchGetDismissedId(String targetPkg) async {
+    final Map<String, dynamic> payload = {'dismissedId': _dismissedId ?? 0};
 
-    final jsonPayload = jsonEncode(repliesPayload);
-    final appInfo = ThirdPartyAppInfo()..packageName = messagesPackage;
-    final installed = app_registry.AppsBlob.instance.value[messagesPackage];
+    final jsonPayload = jsonEncode(payload);
+    final appInfo = ThirdPartyAppInfo()..packageName = targetPkg;
+    final installed = app_registry.AppsBlob.instance.value[targetPkg];
     if (installed != null && installed.fingerprint.isNotEmpty) {
       appInfo.fingerprint = installed.fingerprint;
     }
@@ -364,7 +395,10 @@ class NotificationModule extends TabModule {
       ..appInfo = appInfo
       ..content = Uint8List.fromList(utf8.encode(jsonPayload));
 
-    logger.info('sending quick replies to watch', repliesPayload);
+    logger.debug(
+      'sending getDismissedId response to watch app ($targetPkg)',
+      payload,
+    );
 
     await DeviceModule.module.connection.send(
       type: CmdType.thirdPartyApp,
@@ -374,45 +408,74 @@ class NotificationModule extends TabModule {
     );
   }
 
-  Future<void> _handleWatchReply(String key, String text) async {
+  Future<void> _handleWatchGetReplies(String targetPkg) async {
+    final Map<String, dynamic> payload = {'replies': RepliesBlob.list};
+
+    final jsonPayload = jsonEncode(payload);
+    final appInfo = ThirdPartyAppInfo()..packageName = targetPkg;
+    final installed = app_registry.AppsBlob.instance.value[targetPkg];
+    if (installed != null && installed.fingerprint.isNotEmpty) {
+      appInfo.fingerprint = installed.fingerprint;
+    }
+
+    final appMessage = ThirdPartyAppMessage()
+      ..appInfo = appInfo
+      ..content = Uint8List.fromList(utf8.encode(jsonPayload));
+
+    logger.debug(
+      'sending getReplies response to watch app ($targetPkg)',
+      payload,
+    );
+
+    await DeviceModule.module.connection.send(
+      type: CmdType.thirdPartyApp,
+      subtype: ThirdPartyAppSubtype.sendPhoneMessage,
+      builder: (replyCmd) =>
+          replyCmd.thirdPartyApp = (ThirdPartyApp()..message = appMessage),
+    );
+  }
+
+  Future<void> _handleWatchReply(int? id, String text) async {
     logger.info('received notification quick reply from watch', {
-      'key': key,
+      'id': id,
       'message': text,
     });
 
-    try {
-      await PlatformModule.module.invokeMethod(
-        'notifications.replyToNotification',
-        {'key': key, 'message': text},
-      );
-    } catch (e) {
-      logger.error('failed to reply to notification: $e');
-    }
+    if (id != null && id != 0) {
+      try {
+        await PlatformModule.module.invokeMethod(
+          'notifications.replyToNotification',
+          {'id': id, 'message': text},
+        );
+      } catch (e) {
+        logger.error('failed to reply to notification: $e');
+      }
 
-    try {
-      await PlatformModule.module.invokeMethod(
-        'notifications.dismissNotification',
-        {'key': key},
-      );
-    } catch (e) {
-      logger.error('failed to dismiss notification: $e');
-    }
-  }
-
-  Future<void> _handleWatchDismiss(String key) async {
-    if (key.isNotEmpty) {
-      logger.info('received dismiss from watch app', {
-        'key': key,
-      });
       try {
         await PlatformModule.module.invokeMethod(
           'notifications.dismissNotification',
-          {'key': key},
+          {'id': id},
         );
       } catch (e) {
         logger.error('failed to dismiss notification: $e');
       }
     }
+    _dismissedId = null;
+  }
+
+  Future<void> _handleWatchDismiss(int? id) async {
+    if (id != null && id != 0) {
+      logger.info('received dismiss from watch app', {'id': id});
+      try {
+        await PlatformModule.module.invokeMethod(
+          'notifications.dismissNotification',
+          {'id': id},
+        );
+      } catch (e) {
+        logger.error('failed to dismiss notification: $e');
+      }
+    }
+    _dismissedId = null;
   }
 
   @override

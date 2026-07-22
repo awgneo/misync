@@ -41,6 +41,28 @@ class NotificationsManager(private val context: Context) {
         return success
     }
 
+    fun getNotificationMeta(id: Int): Map<String, Any>? {
+        val service = NotificationsService.instance ?: return null
+        val meta = service.getMeta(id) ?: return null
+        return mapOf(
+            "key" to meta.key,
+            "id" to meta.id,
+            "package" to meta.`package`,
+            "app" to meta.app,
+            "title" to meta.title,
+            "body" to meta.body,
+            "category" to meta.category,
+            "phone" to meta.phone,
+            "replyable" to meta.replyable,
+            "kind" to meta.kind,
+            "actions" to meta.actions,
+            "hasArchive" to meta.hasArchive,
+            "hasDelete" to meta.hasDelete,
+            "semanticActions" to meta.semanticActions,
+            "isClearable" to meta.isClearable
+        )
+    }
+
     fun getNotificationMeta(key: String): Map<String, Any>? {
         val service = NotificationsService.instance ?: return null
         val meta = service.getMeta(key) ?: return null
@@ -54,8 +76,37 @@ class NotificationsManager(private val context: Context) {
             "category" to meta.category,
             "phone" to meta.phone,
             "replyable" to meta.replyable,
-            "kind" to meta.kind
+            "kind" to meta.kind,
+            "actions" to meta.actions,
+            "hasArchive" to meta.hasArchive,
+            "hasDelete" to meta.hasDelete,
+            "semanticActions" to meta.semanticActions,
+            "isClearable" to meta.isClearable
         )
+    }
+
+    fun getAllNotificationMetas(): List<Map<String, Any>> {
+        val service = NotificationsService.instance ?: return emptyList()
+        service.syncActiveNotifications()
+        return service.activeMetas.values.map { meta ->
+            mapOf(
+                "key" to meta.key,
+                "id" to meta.id,
+                "package" to meta.`package`,
+                "app" to meta.app,
+                "title" to meta.title,
+                "body" to meta.body,
+                "category" to meta.category,
+                "phone" to meta.phone,
+                "replyable" to meta.replyable,
+                "kind" to meta.kind,
+                "actions" to meta.actions,
+                "hasArchive" to meta.hasArchive,
+                "hasDelete" to meta.hasDelete,
+                "semanticActions" to meta.semanticActions,
+                "isClearable" to meta.isClearable
+            )
+        }
     }
 
     fun getDnd(): Boolean {
@@ -80,34 +131,29 @@ class NotificationsManager(private val context: Context) {
         return true
     }
 
-    fun replyToNotification(key: String?, id: Int?, message: String): Boolean {
+    fun replyToNotification(id: Int, message: String): Boolean {
         val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        val targetKey = key ?: ""
-        val success = service.reply(targetKey, message)
-        service.declineCall(targetKey)
+        val success = service.reply(id, message)
         if (!success) {
-            throw IllegalArgumentException("Notification not found or reply failed")
+            Log.w("NotificationsManager", "Cannot reply: id not found for id=$id")
+            throw IllegalArgumentException("Notification not found or reply failed for id=$id")
         }
         return true
     }
 
-    fun dismissNotification(key: String?, id: Int?): Boolean {
+    fun dismissNotification(id: Int): Boolean {
         val service = NotificationsService.instance ?: return false
-        val targetKey = key ?: ""
-        service.dismiss(targetKey)
-        return true
+        return service.dismiss(id)
     }
 
-    fun triggerNotificationAction(key: String?, action: String): Boolean {
+    fun triggerNotificationAction(id: Int, action: String): Boolean {
         val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        val targetKey = key ?: ""
-        return service.triggerNotificationAction(targetKey, action)
+        return service.triggerNotificationAction(id, action)
     }
 
-    fun openNotificationOnPhone(key: String?): Boolean {
+    fun openNotificationOnPhone(id: Int): Boolean {
         val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        val targetKey = key ?: ""
-        return service.openNotificationOnPhone(targetKey)
+        return service.openNotificationOnPhone(id)
     }
 
 

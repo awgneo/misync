@@ -75,6 +75,16 @@ class MiSync {
     }
   }
 
+  // Helper to send log messages back to Flutter
+  log(...args) {
+    try {
+      const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')
+      this.send("log", { message: msg })
+    } catch (e) {
+      console.error('MiSync log helper error:', e)
+    }
+  }
+
   // Unified send command
   send(command, data = {}) {
     try {
