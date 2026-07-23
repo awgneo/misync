@@ -169,20 +169,22 @@ class NotificationModule extends TabModule {
   NotificationItem? _buildNotificationItem(Map<String, dynamic> data) {
     final String package = data['package'] ?? '';
     final String kind = data['kind'] ?? 'standard';
+    final bool secondary = data['secondary'] == true;
+
     final bool call = kind == 'call';
     final bool sms = kind == 'text';
     final bool isEmail = kind == 'email';
 
-    // See if we allow this notification based on contact/app settings
+    // See if we allow this notification based on contact/app settings & secondary filter
     final bool allowed;
     if (call) {
-      allowed = ContactBlob.contact.callEnabled;
+      allowed = ContactBlob.contact.callEnabled && !secondary;
     } else if (sms) {
-      allowed = ContactBlob.contact.textEnabled;
+      allowed = ContactBlob.contact.textEnabled && !secondary;
     } else if (isEmail) {
-      allowed = ContactBlob.contact.emailEnabled;
+      allowed = ContactBlob.contact.emailEnabled && !secondary;
     } else {
-      allowed = AppsBlob.map[package] == true;
+      allowed = (AppsBlob.map[package] == true) && !secondary;
     }
 
     if (!allowed) {

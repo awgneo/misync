@@ -16,15 +16,11 @@ data class NotificationMeta(
     val app: String,
     val title: String,
     val body: String,
-    val category: String,
+    val kind: String,        // "call", "text", "email", "standard"
+    val secondary: Boolean,  // false = primary event (ringing call, new text/email), true = secondary notice (missed call, voicemail, archived, undo)
     val phone: String,
     val replyable: Boolean,
-    val kind: String,
     val actions: List<String> = emptyList(),
-    val hasArchive: Boolean = false,
-    val hasDelete: Boolean = false,
-    val semanticActions: List<Int> = emptyList(),
-    val clearable: Boolean = true,
     val timestamp: Long = 0L,
     val sbn: StatusBarNotification? = null
 )
@@ -42,12 +38,11 @@ class NotificationsService : NotificationListenerService() {
         const val EXTRA_ID = "id"
         const val EXTRA_KEY = "key"
         const val EXTRA_APP = "app"
-        const val EXTRA_CATEGORY = "category"
         const val EXTRA_PHONE = "phone"
         const val EXTRA_REPLYABLE = "replyable"
         const val EXTRA_KIND = "kind"
+        const val EXTRA_SECONDARY = "secondary"
         const val EXTRA_TIMESTAMP = "timestamp"
-        const val EXTRA_CLEARABLE = "clearable"
 
         var instance: NotificationsService? = null
             private set
@@ -107,16 +102,19 @@ class NotificationsService : NotificationListenerService() {
             ?: extras.getCharSequence("android.bigText")?.toString()
             ?: ""
 
-        // Filter out local-only, foreground service, group summary, and empty notifications
+        // Filter out local-only, foreground/ongoing service (except incoming/active calls), group summary, and empty notifications
         val flags = notification.flags
+        val isFgService = (flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
+        val isOngoing = (flags and Notification.FLAG_ONGOING_EVENT) != 0
+
         if ((flags and Notification.FLAG_LOCAL_ONLY) != 0 ||
-            (flags and Notification.FLAG_FOREGROUND_SERVICE) != 0 ||
+            ((isFgService || isOngoing) && !isCall) ||
             (flags and Notification.FLAG_GROUP_SUMMARY) != 0 ||
             (title.isBlank() && body.isBlank())
         ) {
             Log.d(
                 TAG,
-                "Filtering out local-only, foreground service, group summary, or empty notification for key=${sbn.key}"
+                "Filtering out notification for key=${sbn.key} (isFgService=$isFgService, isOngoing=$isOngoing, isCall=$isCall)"
             )
             return
         }
@@ -145,6 +143,9 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
+        val lowerBody = body.lowercase().trim()
+        val lowerTitle = title.lowercase().trim()
+
         val normKey = sbn.key.lowercase()
         val id = computeNotificationId(sbn)
 
@@ -172,11 +173,20 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
+        val isSecondary: Boolean = when {
+            isCall -> {
+                category == Notification.CATEGORY_MISSED_CALL ||
+                        lowerBody.contains("missed call") ||
+                        lowerBody.contains("voicemail") ||
+                        lowerTitle.contains("missed call")
+            }
+            else -> {
+                isFgService || isOngoing || lowerBody.contains("archived") || lowerBody.contains("undo") || lowerBody.contains("sent")
+            }
+        }
+
         var hasRemoteInput = isCall
         val actionTitles = mutableListOf<String>()
-        val semanticActionsList = mutableListOf<Int>()
-        var archivePresent = false
-        var deletePresent = false
 
         val notifActions = notification.actions
         if (notifActions != null) {
@@ -184,17 +194,6 @@ class NotificationsService : NotificationListenerService() {
                 val actTitle = action.title?.toString() ?: ""
                 if (actTitle.isNotEmpty()) {
                     actionTitles.add(actTitle)
-                    val lowerTitle = actTitle.lowercase()
-                    if (lowerTitle.contains("archive")) archivePresent = true
-                    if (lowerTitle.contains("delete")) deletePresent = true
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val semAct = action.semanticAction
-                    if (semAct != 0) {
-                        semanticActionsList.add(semAct)
-                        if (semAct == 5) archivePresent = true // SEMANTIC_ACTION_ARCHIVE
-                        if (semAct == 4) deletePresent = true // SEMANTIC_ACTION_DELETE
-                    }
                 }
                 val ris = action.remoteInputs
                 if (ris != null) {
@@ -207,8 +206,6 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        // Standard Android MessagingStyle check: If CATEGORY_MESSAGE has a MessagingStyle payload
-        // but no sender person (e.g. automated app notices/updates), treat as standard non-replyable notification.
         val finalKind: String
         val finalReplyable: Boolean
         if (category == Notification.CATEGORY_MESSAGE && defaultSmsPkg != packageName && messages != null && !hasSenderPerson) {
@@ -221,7 +218,7 @@ class NotificationsService : NotificationListenerService() {
 
         Log.d(
             TAG,
-            "Notification processed: $packageName ($appName), title: $title, body: $body, key: $normKey, kind: $finalKind, replyable: $finalReplyable, actions: $actionTitles"
+            "Notification processed: $packageName ($appName), title: $title, body: $body, key: $normKey, kind: $finalKind, secondary: $isSecondary, replyable: $finalReplyable"
         )
 
         val timestamp = if (notification.`when` != 0L) notification.`when` else sbn.postTime
@@ -233,15 +230,11 @@ class NotificationsService : NotificationListenerService() {
             app = appName,
             title = title,
             body = body,
-            category = category,
+            kind = finalKind,
+            secondary = isSecondary,
             phone = phoneNumber,
             replyable = finalReplyable,
-            kind = finalKind,
             actions = actionTitles,
-            hasArchive = archivePresent,
-            hasDelete = deletePresent,
-            semanticActions = semanticActionsList,
-            clearable = sbn.isClearable,
             timestamp = timestamp,
             sbn = sbn
         )
@@ -255,12 +248,11 @@ class NotificationsService : NotificationListenerService() {
                 putExtra(EXTRA_ID, id)
                 putExtra(EXTRA_KEY, normKey)
                 putExtra(EXTRA_APP, appName)
-                putExtra(EXTRA_CATEGORY, category)
                 putExtra(EXTRA_PHONE, phoneNumber)
                 putExtra(EXTRA_REPLYABLE, finalReplyable)
                 putExtra(EXTRA_KIND, finalKind)
+                putExtra(EXTRA_SECONDARY, isSecondary)
                 putExtra(EXTRA_TIMESTAMP, timestamp)
-                putExtra(EXTRA_CLEARABLE, sbn.isClearable)
                 setPackage(this@NotificationsService.packageName)
             }
             sendBroadcast(intent)
@@ -287,7 +279,6 @@ class NotificationsService : NotificationListenerService() {
             putExtra(EXTRA_PACKAGE, packageName)
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, normKey)
-            putExtra(EXTRA_CATEGORY, sbn.notification.category ?: "")
             putExtra("reason", reason)
             setPackage(this@NotificationsService.packageName)
         }
@@ -311,7 +302,6 @@ class NotificationsService : NotificationListenerService() {
         return activeMetas[id]
     }
 
-    // Function to send a quick reply back to the notification sender
     fun reply(id: Int, replyText: String): Boolean {
         val meta = getMeta(id)
         if (meta == null || meta.sbn == null) {
@@ -319,15 +309,12 @@ class NotificationsService : NotificationListenerService() {
             return false
         }
         val sbn = meta.sbn
-        val notification = sbn.notification
-        val category = notification.category ?: ""
         val packageName = sbn.packageName
 
-        // 1. Try RemoteInput on target notification or matching active chat notification from same app
         var targetAction: Notification.Action? = null
         var targetRemoteInput: RemoteInput? = null
 
-        val actions = notification.actions
+        val actions = sbn.notification.actions
         if (actions != null) {
             for (action in actions) {
                 val ris = action.remoteInputs ?: continue
@@ -342,7 +329,6 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        // If target notification (e.g. Signal Call card) has no RemoteInput, search activeMetas for a chat card from same app
         if (targetAction == null) {
             val matchingChatMeta = activeMetas.values.find {
                 it.`package` == packageName && it.sbn != null && it.replyable && it.kind != "call"
@@ -365,7 +351,6 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        // Execute RemoteInput if found
         if (targetAction != null && targetRemoteInput != null) {
             val intent = Intent().apply {
                 val bundle = Bundle().apply {
@@ -385,8 +370,7 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        // 2. Fallback to SMS text for cellular calls with no RemoteInput action
-        val isCall = isCallNotification(packageName, category)
+        val isCall = isCallNotification(packageName, sbn.notification.category ?: "")
         if (isCall) {
             val phoneNumber = extractPhoneNumber(sbn)
             if (phoneNumber.isNotEmpty()) {
@@ -405,7 +389,6 @@ class NotificationsService : NotificationListenerService() {
         val sbn = meta.sbn ?: return false
         val actions = sbn.notification.actions ?: return false
 
-        // 1. Check for Android P+ SEMANTIC_ACTION_CALL_DECLINE (2)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             for (action in actions) {
                 if (action.semanticAction == 2 /* SEMANTIC_ACTION_CALL_DECLINE */) {
@@ -422,7 +405,6 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        // 2. Keyword fallback matching
         val keywords = listOf("decline", "hang", "reject", "挂断", "拒", "拒绝", "dismiss", "ignore")
         for (action in actions) {
             val title = action.title?.toString()?.lowercase() ?: continue
@@ -439,7 +421,6 @@ class NotificationsService : NotificationListenerService() {
             }
         }
 
-        // 3. Fallback for cellular telecom calls
         if (isCallPackage(sbn.packageName) || meta.kind == "call") {
             try {
                 val telecomManager =
@@ -529,6 +510,13 @@ class NotificationsService : NotificationListenerService() {
                 phoneNumber = title.replace("\\s".toRegex(), "")
             }
         }
+        if (phoneNumber.isNotEmpty()) {
+            try {
+                phoneNumber = java.net.URLDecoder.decode(phoneNumber, "UTF-8")
+            } catch (e: Exception) {
+                phoneNumber = phoneNumber.replace("%2B", "+").replace("%2b", "+")
+            }
+        }
         return phoneNumber
     }
 
@@ -537,11 +525,14 @@ class NotificationsService : NotificationListenerService() {
         return pkg.contains("dialer") ||
                 pkg.contains("telecom") ||
                 pkg.contains("phone") ||
-                pkg.contains("call")
+                pkg.contains("incallui")
     }
 
     private fun isCallNotification(packageName: String, category: String?): Boolean {
-        return (category ?: "") == Notification.CATEGORY_CALL || isCallPackage(packageName)
+        val cat = category ?: ""
+        return cat == Notification.CATEGORY_CALL ||
+                cat == Notification.CATEGORY_MISSED_CALL ||
+                isCallPackage(packageName)
     }
 
     fun triggerNotificationAction(id: Int, actionKeyword: String): Boolean {

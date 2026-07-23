@@ -36,12 +36,11 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 val id = intent.getIntExtra(NotificationsService.EXTRA_ID, 0)
                 val key = intent.getStringExtra(NotificationsService.EXTRA_KEY) ?: ""
                 val app = intent.getStringExtra(NotificationsService.EXTRA_APP) ?: ""
-                val category = intent.getStringExtra(NotificationsService.EXTRA_CATEGORY) ?: ""
                 val phone = intent.getStringExtra(NotificationsService.EXTRA_PHONE) ?: ""
                 val replyable = intent.getBooleanExtra(NotificationsService.EXTRA_REPLYABLE, false)
                 val kind = intent.getStringExtra(NotificationsService.EXTRA_KIND) ?: "standard"
+                val secondary = intent.getBooleanExtra(NotificationsService.EXTRA_SECONDARY, false)
                 val timestamp = intent.getLongExtra(NotificationsService.EXTRA_TIMESTAMP, System.currentTimeMillis())
-                val clearable = intent.getBooleanExtra(NotificationsService.EXTRA_CLEARABLE, true)
 
                 val data = mapOf(
                     "package" to `package`,
@@ -50,12 +49,11 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                     "id" to id,
                     "key" to key,
                     "app" to app,
-                    "category" to category,
                     "phone" to phone,
                     "replyable" to replyable,
                     "kind" to kind,
-                    "timestamp" to timestamp,
-                    "clearable" to clearable
+                    "secondary" to secondary,
+                    "timestamp" to timestamp
                 )
 
                 methodChannel?.invokeMethod("notificationReceived", data)
@@ -63,13 +61,11 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 val `package` = intent.getStringExtra(NotificationsService.EXTRA_PACKAGE) ?: ""
                 val id = intent.getIntExtra(NotificationsService.EXTRA_ID, 0)
                 val key = intent.getStringExtra(NotificationsService.EXTRA_KEY) ?: ""
-                val category = intent.getStringExtra(NotificationsService.EXTRA_CATEGORY) ?: ""
 
                 val data = mapOf(
                     "package" to `package`,
                     "id" to id,
-                    "key" to key,
-                    "category" to category
+                    "key" to key
                 )
 
                 methodChannel?.invokeMethod("notificationRemoved", data)

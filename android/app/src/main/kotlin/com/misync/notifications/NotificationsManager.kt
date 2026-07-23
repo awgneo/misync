@@ -51,15 +51,11 @@ class NotificationsManager(private val context: Context) {
             "app" to meta.app,
             "title" to meta.title,
             "body" to meta.body,
-            "category" to meta.category,
+            "kind" to meta.kind,
+            "secondary" to meta.secondary,
             "phone" to meta.phone,
             "replyable" to meta.replyable,
-            "kind" to meta.kind,
             "actions" to meta.actions,
-            "hasArchive" to meta.hasArchive,
-            "hasDelete" to meta.hasDelete,
-            "semanticActions" to meta.semanticActions,
-            "clearable" to meta.clearable,
             "timestamp" to meta.timestamp
         )
     }
@@ -74,15 +70,11 @@ class NotificationsManager(private val context: Context) {
             "app" to meta.app,
             "title" to meta.title,
             "body" to meta.body,
-            "category" to meta.category,
+            "kind" to meta.kind,
+            "secondary" to meta.secondary,
             "phone" to meta.phone,
             "replyable" to meta.replyable,
-            "kind" to meta.kind,
             "actions" to meta.actions,
-            "hasArchive" to meta.hasArchive,
-            "hasDelete" to meta.hasDelete,
-            "semanticActions" to meta.semanticActions,
-            "clearable" to meta.clearable,
             "timestamp" to meta.timestamp
         )
     }
@@ -98,15 +90,11 @@ class NotificationsManager(private val context: Context) {
                 "app" to meta.app,
                 "title" to meta.title,
                 "body" to meta.body,
-                "category" to meta.category,
+                "kind" to meta.kind,
+                "secondary" to meta.secondary,
                 "phone" to meta.phone,
                 "replyable" to meta.replyable,
-                "kind" to meta.kind,
                 "actions" to meta.actions,
-                "hasArchive" to meta.hasArchive,
-                "hasDelete" to meta.hasDelete,
-                "semanticActions" to meta.semanticActions,
-                "clearable" to meta.clearable,
                 "timestamp" to meta.timestamp
             )
         }
@@ -135,105 +123,80 @@ class NotificationsManager(private val context: Context) {
     }
 
     fun replyToNotification(id: Int, message: String): Boolean {
-        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
+        val service = NotificationsService.instance
+            ?: throw IllegalStateException("Notifications listener service is not running")
         val success = service.reply(id, message)
         if (!success) {
-            Log.w("NotificationsManager", "Cannot reply: id not found for id=$id")
-            throw IllegalArgumentException("Notification not found or reply failed for id=$id")
+            Log.w(TAG, "Reply failed for notification id $id")
         }
-        return true
+        return success
     }
 
     fun dismissNotification(id: Int): Boolean {
-        val service = NotificationsService.instance ?: return false
+        val service = NotificationsService.instance
+            ?: throw IllegalStateException("Notifications listener service is not running")
         return service.dismiss(id)
     }
 
-    fun triggerNotificationAction(id: Int, action: String): Boolean {
-        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
-        return service.triggerNotificationAction(id, action)
+    fun triggerNotificationAction(id: Int, actionKeyword: String): Boolean {
+        val service = NotificationsService.instance
+            ?: throw IllegalStateException("Notifications listener service is not running")
+        return service.triggerNotificationAction(id, actionKeyword)
     }
 
     fun openNotificationOnPhone(id: Int): Boolean {
-        val service = NotificationsService.instance ?: throw IllegalStateException("Notifications listener service is not running")
+        val service = NotificationsService.instance
+            ?: throw IllegalStateException("Notifications listener service is not running")
         return service.openNotificationOnPhone(id)
-    }
-
-
-    fun getAppIcon(packageName: String, size: Int): ByteArray {
-        val pm = context.packageManager
-        val drawable = if (packageName == "com.google.android.dialer" || packageName == "phone_call_icon") {
-            val intent = Intent(Intent.ACTION_DIAL)
-            val resolveInfo = pm.resolveActivity(intent, 0)
-            if (resolveInfo != null) {
-                resolveInfo.activityInfo.loadIcon(pm)
-            } else {
-                pm.getApplicationIcon(packageName)
-            }
-        } else {
-            pm.getApplicationIcon(packageName)
-        }
-
-        val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else size
-        val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else size
-        val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        drawable.setBounds(0, 0, canvas.width, canvas.height)
-        drawable.draw(canvas)
-
-        val scaledBmp = Bitmap.createScaledBitmap(bmp, size, size, true)
-        val byteBuffer = java.nio.ByteBuffer.allocate(scaledBmp.byteCount)
-        scaledBmp.copyPixelsToBuffer(byteBuffer)
-        return byteBuffer.array()
     }
 
     fun getApps(): List<Map<String, Any>> {
         val pm = context.packageManager
-        val apps = pm.getInstalledPackages(PackageManager.GET_META_DATA)
-        val appList = mutableListOf<Map<String, Any>>()
-        for (pkg in apps) {
-            val launchIntent = pm.getLaunchIntentForPackage(pkg.packageName)
-            if (launchIntent != null && pkg.applicationInfo != null) {
-                val appInfo = pkg.applicationInfo!!
-                val appName = appInfo.loadLabel(pm).toString()
-                val packageName = pkg.packageName
-                val iconDrawable = appInfo.loadIcon(pm)
-                val iconBytes = drawableToByteArray(iconDrawable)
+        val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
+        val appsMap = mutableMapOf<String, String>()
 
-                val map = mutableMapOf<String, Any>()
-                map["packageName"] = packageName
-                map["appName"] = appName
-                if (iconBytes != null) {
-                    map["iconBytes"] = iconBytes
-                }
-                appList.add(map)
+        for (ri in resolveInfos) {
+            val pkg = ri.activityInfo.packageName
+            if (pkg == context.packageName) continue
+            val label = ri.loadLabel(pm).toString()
+            if (!appsMap.containsKey(pkg)) {
+                appsMap[pkg] = label
             }
         }
-        appList.sortBy { (it["appName"] as String).lowercase() }
-        return appList
+
+        return appsMap.entries.map { (pkg, name) ->
+            mapOf(
+                "package" to pkg,
+                "name" to name
+            )
+        }.sortedBy { (it["name"] as String).lowercase() }
     }
 
-    private fun drawableToByteArray(drawable: Drawable): ByteArray? {
-        try {
-            val bitmap = when (drawable) {
-                is BitmapDrawable -> drawable.bitmap
-                else -> {
-                    val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
-                    val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
-                    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(bmp)
-                    drawable.setBounds(0, 0, canvas.width, canvas.height)
-                    drawable.draw(canvas)
-                    bmp
-                }
-            }
-            val scaledBitmap = Bitmap.createScaledBitmap(bitmap, 96, 96, true)
+    fun getAppIcon(packageName: String, sizePx: Int = 96): ByteArray? {
+        return try {
+            val pm = context.packageManager
+            val drawable = pm.getApplicationIcon(packageName)
+            val bitmap = drawableToBitmap(drawable, sizePx, sizePx)
             val stream = ByteArrayOutputStream()
-            scaledBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-            return stream.toByteArray()
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            stream.toByteArray()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to convert drawable to byte array", e)
-            return null
+            Log.e(TAG, "Error getting app icon for $packageName", e)
+            null
         }
+    }
+
+    private fun drawableToBitmap(drawable: Drawable, width: Int, height: Int): Bitmap {
+        if (drawable is BitmapDrawable && drawable.bitmap != null) {
+            return Bitmap.createScaledBitmap(drawable.bitmap, width, height, true)
+        }
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bitmap
     }
 }
