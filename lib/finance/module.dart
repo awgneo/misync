@@ -128,10 +128,7 @@ class FinanceModule extends TabModule {
     }
   }
 
-  Future<String?> createWatchlist(
-    String name,
-    List<String> symbols,
-  ) async {
+  Future<String?> createWatchlist(String name, List<String> symbols) async {
     final sourceId = FinanceBlob.getSource('investments');
     if (sourceId == 'alpaca') {
       final investments = InvestmentsBlob.investments;
@@ -209,10 +206,6 @@ class FinanceModule extends TabModule {
         logger.info('investments data synced and cached successfully');
 
         await updateWidget();
-
-        if (DeviceModule.module.connection.connected.value) {
-          await _handleWatchGetWatchlists();
-        }
       } catch (e) {
         logger.error('error during investments API sync: $e');
       }
