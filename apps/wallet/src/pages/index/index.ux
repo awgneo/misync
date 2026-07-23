@@ -1,5 +1,4 @@
 <import name="mi-header" src="../../shared/components/header.ux"></import>
-<import name="mi-text" src="../../shared/components/text.ux"></import>
 
 <template>
 	<div class="mi-page">
@@ -13,16 +12,28 @@
 			@touchstart="handleTouchStart"
 			@touchmove="handleTouchMove"
 		>
-			<div for="{{ pass in passes }}" class="pass-slide">
+			<scroll scroll-y="true" for="{{ pass in passes }}" class="pass-slide" style="{{ getSlideStyle(pass) }}">
 				<div class="mi-row">
 					<mi-header text="{{ pass.organizationName }}"></mi-header>
 				</div>
+
 				<div class="mi-qrcode-container">
 					<qrcode value="{{ pass.barcodeMessage }}" class="mi-qrcode"></qrcode>
 				</div>
-				<mi-text text="{{ pass.description }}"></mi-text>
-			</div>
+
+				<text class="pass-description" style="{{ getValueStyle(pass) }}">{{ pass.description }}</text>
+
+				<!-- Universal Key-Value Field Grid (Row-chunked 2-column layout matching actions module) -->
+				<div for="{{ row in pass.fieldRows }}" class="mi-row">
+					<div for="{{ field in row }}" class="mi-stat {{ $idx === 1 ? 'mi-last' : '' }}" style="{{ getCardStyle(pass) }}">
+						<text class="mi-stat-label" style="{{ getLabelStyle(pass) }}">{{ field.label }}</text>
+						<text class="mi-stat-value" style="{{ getValueStyle(pass) }}">{{ field.value }}</text>
+					</div>
+					<div if="{{ row.length === 1 }}" class="mi-stat mi-last" style="background-color: transparent"></div>
+				</div>
+			</scroll>
 		</swiper>
+
 		<div if="{{ passes.length === 0 && !isLoading }}" class="empty-state">
 			<text class="empty-text">No passes available</text>
 		</div>
@@ -48,13 +59,49 @@ const page = MiPage({
 
 	onMessage(message) {
 		if (message.passes) {
-			this.passes = message.passes;
+			this.passes = message.passes.map((pass) => {
+				const rows = [];
+				if (pass.fields && pass.fields.length > 0) {
+					for (let i = 0; i < pass.fields.length; i += 2) {
+						rows.push(pass.fields.slice(i, i + 2));
+					}
+				}
+				return {
+					...pass,
+					fieldRows: rows,
+				};
+			});
 			this.isLoading = false;
 		}
 	},
 
 	handleSwiperChange(e) {
 		this.currentIndex = e.index;
+	},
+
+	getSlideStyle(pass) {
+		if (pass && pass.backgroundColor) {
+			return `background-color: ${pass.backgroundColor};`;
+		}
+		return "background-color: #111827;";
+	},
+
+	getCardStyle(pass) {
+		return "background-color: rgba(255, 255, 255, 0.12);";
+	},
+
+	getLabelStyle(pass) {
+		if (pass && pass.labelColor) {
+			return `color: ${pass.labelColor};`;
+		}
+		return "color: #888888;";
+	},
+
+	getValueStyle(pass) {
+		if (pass && pass.foregroundColor) {
+			return `color: ${pass.foregroundColor};`;
+		}
+		return "color: #ffffff;";
 	},
 });
 
@@ -68,8 +115,29 @@ export default page;
 	width: 100%;
 	height: 100%;
 	flex-direction: column;
-	padding: 10px;
+	padding: 10px 8px 30px 8px;
 	align-items: center;
+}
+.pass-description {
+	font-size: @font-size-small;
+	text-align: center;
+	margin-top: 6px;
+	margin-bottom: 12px;
+	font-weight: bold;
+}
+.mi-qrcode-container {
+	width: 100%;
+	justify-content: center;
+	align-items: center;
+	padding: 12px 6px;
+	background-color: #ffffff;
+	border-radius: @border-radius;
+	margin-top: 6px;
+	margin-bottom: 6px;
+}
+.mi-qrcode {
+	width: 360px;
+	height: 360px;
 }
 .empty-state {
 	width: 100%;

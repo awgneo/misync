@@ -1,8 +1,8 @@
 {
   "package": "com.misync.wallet",
   "name": "Wallet",
-  "versionName": "1.0.9",
-  "versionCode": 15,
+  "versionName": "1.0.20",
+  "versionCode": 20,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "simulationVersion": "default",

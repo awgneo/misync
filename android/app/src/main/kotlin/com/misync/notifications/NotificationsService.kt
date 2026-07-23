@@ -175,10 +175,12 @@ class NotificationsService : NotificationListenerService() {
 
         val isSecondary: Boolean = when {
             isCall -> {
-                category == Notification.CATEGORY_MISSED_CALL ||
-                        lowerBody.contains("missed call") ||
+                !isFgService ||
+                        category == Notification.CATEGORY_MISSED_CALL ||
+                        lowerBody.contains("missed") ||
                         lowerBody.contains("voicemail") ||
-                        lowerTitle.contains("missed call")
+                        lowerTitle.contains("missed") ||
+                        normKey.contains("missedcall")
             }
             else -> {
                 isFgService || isOngoing || lowerBody.contains("archived") || lowerBody.contains("undo") || lowerBody.contains("sent")

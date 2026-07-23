@@ -3,7 +3,6 @@ package com.misync.wallet
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.zip.ZipInputStream
@@ -56,29 +55,7 @@ class WalletManager(private val context: Context) {
                 return null
             }
 
-            val json = JSONObject(passJsonString)
-            val result = mutableMapOf<String, Any>()
-            
-            result["organizationName"] = json.optString("organizationName", "Unknown Organization")
-            result["description"] = json.optString("description", "")
-            result["serialNumber"] = json.optString("serialNumber", "")
-            result["passTypeIdentifier"] = json.optString("passTypeIdentifier", "")
-
-            // Parse barcode
-            val barcodes = json.optJSONArray("barcodes")
-            if (barcodes != null && barcodes.length() > 0) {
-                val firstBarcode = barcodes.getJSONObject(0)
-                result["barcodeMessage"] = firstBarcode.optString("message", "")
-                result["barcodeFormat"] = firstBarcode.optString("format", "")
-            } else {
-                val barcode = json.optJSONObject("barcode")
-                if (barcode != null) {
-                    result["barcodeMessage"] = barcode.optString("message", "")
-                    result["barcodeFormat"] = barcode.optString("format", "")
-                }
-            }
-
-            return result
+            return mapOf("passJson" to passJsonString)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process pkpass file: ", e)
             return null

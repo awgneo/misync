@@ -90,18 +90,7 @@ class WalletModule extends TabModule {
 
   Future<void> _sendPassesToWatch() async {
     final passesList = PassesBlob.passes;
-    final List<Map<String, dynamic>> passesJson = passesList
-        .map(
-          (p) => {
-            'organizationName': p.organizationName,
-            'description': p.description,
-            'serialNumber': p.serialNumber,
-            'passTypeIdentifier': p.passTypeIdentifier,
-            'barcodeMessage': p.barcodeMessage,
-            'barcodeFormat': p.barcodeFormat,
-          },
-        )
-        .toList();
+    final passesJson = passesList.map((p) => p.toJson()).toList();
 
     final payload = {'passes': passesJson};
     final jsonPayload = jsonEncode(payload);
