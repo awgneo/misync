@@ -1,0 +1,246 @@
+<template>
+	<div class="mi-card chart-card-body">
+		<div class="chart-header">
+			<text class="chart-title">24H Intraday Candlestick</text>
+			<text class="chart-range" if="{{ sparkline && sparkline.length > 0 }}"
+				>${{ getMinPrice(sparkline) }} - ${{ getMaxPrice(sparkline) }}</text
+			>
+		</div>
+
+		<div class="sparkline-container" if="{{ sparkline && sparkline.length > 0 }}">
+			<div class="grid-line grid-top"></div>
+			<div class="grid-line grid-mid"></div>
+			<div class="grid-line grid-bottom"></div>
+
+			<!-- Price Axis Labels -->
+			<div class="axis-container">
+				<text class="axis-label axis-top">${{ getMaxPrice(sparkline) }}</text>
+				<text class="axis-label axis-mid">${{ getMidPrice(sparkline) }}</text>
+				<text class="axis-label axis-bottom">${{ getMinPrice(sparkline) }}</text>
+			</div>
+
+			<!-- Candlestick / Box Plot Column Container -->
+			<div for="{{ (index, item) in sparkline }}" class="spark-column">
+				<!-- Thin Wick Line (High to Low) -->
+				<div
+					class="candle-wick"
+					style="{{ getWickStyle(item, sparkline) }}; background-color: {{ getCandleColor(item) }}"
+				></div>
+				<!-- Solid Rectangular Box Body (Open to Close) -->
+				<div
+					class="candle-body"
+					style="{{ getBodyStyle(item, sparkline) }}; background-color: {{ getCandleColor(item) }}"
+				></div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		sparkline: {
+			type: Array,
+			default() {
+				return [];
+			},
+		},
+		positive: {
+			type: Boolean,
+			default: true,
+		},
+	},
+
+	getAllPrices(sparkline) {
+		const prices = [];
+		if (!sparkline) return prices;
+		for (let i = 0; i < sparkline.length; i++) {
+			const item = sparkline[i];
+			if (Array.isArray(item)) {
+				for (let j = 0; j < item.length; j++) {
+					const num = Number(item[j]);
+					if (!isNaN(num) && num > 0) prices.push(num);
+				}
+			} else {
+				const num = Number(item);
+				if (!isNaN(num) && num > 0) prices.push(num);
+			}
+		}
+		return prices;
+	},
+
+	getMinPrice(sparkline) {
+		const allPrices = this.getAllPrices(sparkline);
+		if (allPrices.length === 0) return "";
+		const min = Math.min(...allPrices);
+		return min >= 100 ? min.toFixed(0) : min.toFixed(2);
+	},
+
+	getMaxPrice(sparkline) {
+		const allPrices = this.getAllPrices(sparkline);
+		if (allPrices.length === 0) return "";
+		const max = Math.max(...allPrices);
+		return max >= 100 ? max.toFixed(0) : max.toFixed(2);
+	},
+
+	getMidPrice(sparkline) {
+		const allPrices = this.getAllPrices(sparkline);
+		if (allPrices.length === 0) return "";
+		const min = Math.min(...allPrices);
+		const max = Math.max(...allPrices);
+		const mid = (min + max) / 2;
+		return mid >= 100 ? mid.toFixed(0) : mid.toFixed(2);
+	},
+
+	getCandleColor(item) {
+		const greenColor = "#00e676";
+		const redColor = "#ff1744";
+		if (Array.isArray(item) && item.length >= 4) {
+			const open = Number(item[0]);
+			const close = Number(item[3]);
+			return close >= open ? greenColor : redColor;
+		}
+		return this.positive ? greenColor : redColor;
+	},
+
+	getWickStyle(item, sparkline) {
+		const allPrices = this.getAllPrices(sparkline);
+		if (allPrices.length === 0) return "height: 0px; bottom: 0px;";
+		let min = Math.min(...allPrices);
+		let max = Math.max(...allPrices);
+		let range = max - min;
+		if (range <= 0) range = 1;
+		const pad = Math.max(range * 0.1, min * 0.005);
+		const chartMin = min - pad;
+		const chartMax = max + pad;
+		const totalRange = chartMax - chartMin;
+
+		let high, low;
+		if (Array.isArray(item) && item.length >= 4) {
+			high = Number(item[1]);
+			low = Number(item[2]);
+		} else {
+			high = Number(item);
+			low = Number(item);
+		}
+
+		const wickHeight = Math.max(2, Math.round(((high - low) / totalRange) * 140));
+		const wickBottom = Math.round(((low - chartMin) / totalRange) * 140);
+		return `height: ${wickHeight}px; bottom: ${wickBottom}px`;
+	},
+
+	getBodyStyle(item, sparkline) {
+		const allPrices = this.getAllPrices(sparkline);
+		if (allPrices.length === 0) return "height: 0px; bottom: 0px;";
+		let min = Math.min(...allPrices);
+		let max = Math.max(...allPrices);
+		let range = max - min;
+		if (range <= 0) range = 1;
+		const pad = Math.max(range * 0.1, min * 0.005);
+		const chartMin = min - pad;
+		const chartMax = max + pad;
+		const totalRange = chartMax - chartMin;
+
+		let open, close;
+		if (Array.isArray(item) && item.length >= 4) {
+			open = Number(item[0]);
+			close = Number(item[3]);
+		} else {
+			open = Number(item);
+			close = Number(item);
+		}
+
+		const bodyMin = Math.min(open, close);
+		const bodyMax = Math.max(open, close);
+
+		const bodyHeight = Math.max(3, Math.round(((bodyMax - bodyMin) / totalRange) * 140));
+		const bodyBottom = Math.round(((bodyMin - chartMin) / totalRange) * 140);
+		return `height: ${bodyHeight}px; bottom: ${bodyBottom}px`;
+	},
+};
+</script>
+
+<style lang="less">
+@import "../shared/styles/theme.less";
+
+.chart-card-body {
+	flex-direction: column;
+	width: 100%;
+	height: 240px;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 8px;
+}
+.chart-header {
+	width: 100%;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0 4px;
+}
+.chart-title {
+	font-size: @font-size-small;
+	color: #888888;
+}
+.chart-range {
+	font-size: 18px;
+	color: #aaaaaa;
+}
+.sparkline-container {
+	width: 100%;
+	height: 165px;
+	flex-direction: row;
+	justify-content: space-around;
+	align-items: flex-end;
+	position: relative;
+	padding-right: 50px;
+}
+.grid-line {
+	position: absolute;
+	left: 0;
+	right: 50px;
+	height: 1px;
+	background-color: #2a2a2a;
+}
+.grid-top {
+	top: 15px;
+}
+.grid-mid {
+	top: 80px;
+}
+.grid-bottom {
+	bottom: 5px;
+}
+.axis-container {
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 48px;
+	flex-direction: column;
+	justify-content: space-between;
+	align-items: flex-end;
+}
+.axis-label {
+	font-size: 16px;
+	color: #666666;
+}
+.spark-column {
+	height: 165px;
+	position: relative;
+	justify-content: center;
+	align-items: center;
+	flex: 1;
+	z-index: 2;
+}
+.candle-wick {
+	position: absolute;
+	width: 2px;
+	border-radius: 1px;
+}
+.candle-body {
+	position: absolute;
+	width: 7px;
+	border-radius: 2px;
+}
+</style>

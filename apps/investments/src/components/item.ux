@@ -1,6 +1,6 @@
 <!-- apps/investments/src/components/investment-item.ux -->
 <template>
-	<div class="investment-item {{ classes }}">
+	<div class="investment-item {{ classes }}" onclick="handleClick">
 		<text class="stock-symbol">{{ symbol }}</text>
 		<div class="stock-price-container">
 			<text class="stock-price">${{ price }}</text>
@@ -12,6 +12,8 @@
 </template>
 
 <script>
+import vibrator from "@system.vibrator";
+
 export default {
 	props: {
 		symbol: {
@@ -31,11 +33,17 @@ export default {
 			default: "",
 		},
 	},
+	handleClick() {
+		try {
+			vibrator.vibrate({ mode: "short" });
+		} catch (_) {}
+		this.$emit("itemClick");
+	},
 };
 </script>
 
 <style lang="less">
-@import "../../../shared/styles/theme.less";
+@import "../shared/styles/theme.less";
 
 .investment-item {
 	width: 100%;

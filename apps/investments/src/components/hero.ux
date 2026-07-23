@@ -1,0 +1,51 @@
+<!-- apps/investments/src/components/investment-hero.ux -->
+<import name="mi-badge" src="../shared/components/badge.ux"></import>
+
+<template>
+	<div class="investment-hero">
+		<text class="hero-symbol">{{ symbol || title }}</text>
+		<text class="hero-price">${{ price }}</text>
+		<mi-badge
+			if="{{ changeText }}"
+			text="{{ changeText }}"
+			positive="{{ positive }}"
+		></mi-badge>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		symbol: { type: String, default: "" },
+		title: { type: String, default: "" },
+		price: { type: Number, default: 0.0 },
+		changeText: { type: String, default: "" },
+		positive: { type: Boolean, default: true },
+	},
+};
+</script>
+
+<style lang="less">
+@import "../shared/styles/theme.less";
+
+.investment-hero {
+	width: 100%;
+	height: 100%;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 0px 0;
+}
+.hero-symbol {
+	font-size: 18px;
+	font-weight: bold;
+	color: #888888;
+	margin-bottom: 2px;
+}
+.hero-price {
+	font-size: 34px;
+	font-weight: bold;
+	color: #ffffff;
+	margin-bottom: 4px;
+}
+</style>

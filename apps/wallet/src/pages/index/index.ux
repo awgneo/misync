@@ -33,8 +33,7 @@
 </template>
 
 <script>
-import misync from "../../shared/modules/misync.js";
-import MiPage from "../../shared/modules/mipage.js";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
 	private: {
@@ -44,26 +43,18 @@ const page = MiPage({
 	},
 
 	onInit() {
-		// Subscribe to messages first to prevent race condition
-		this.unsubscribe = misync.onMessage((payload) => {
-			if (payload.passes) {
-				this.passes = payload.passes;
-				this.isLoading = false;
-			}
-		});
+		this.send("getPasses");
+	},
 
-		// Query passes directly
-		misync.send("getPasses");
+	onMessage(message) {
+		if (message.passes) {
+			this.passes = message.passes;
+			this.isLoading = false;
+		}
 	},
 
 	handleSwiperChange(e) {
 		this.currentIndex = e.index;
-	},
-
-	onDestroy() {
-		if (this.unsubscribe) {
-			this.unsubscribe();
-		}
 	},
 });
 

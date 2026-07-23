@@ -1,0 +1,35 @@
+<!-- apps/shared/components/badge.ux -->
+<template>
+	<div
+		class="mi-badge {{ positive ? 'mi-badge-positive' : 'mi-badge-negative' }} {{ classes }}"
+	>
+		<text
+			class="mi-badge-text {{ positive ? 'mi-text-positive' : 'mi-text-negative' }}"
+		>
+			{{ text }}
+		</text>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		text: {
+			type: String,
+			default: "",
+		},
+		positive: {
+			type: Boolean,
+			default: true,
+		},
+		classes: {
+			type: String,
+			default: "",
+		},
+	},
+};
+</script>
+
+<style lang="less">
+@import "../styles/theme.less";
+</style>

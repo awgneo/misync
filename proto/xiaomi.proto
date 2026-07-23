@@ -792,7 +792,7 @@ message MediaKey {
 message Notification {
   // 7, 8
   optional NotificationId openOnPhone = 2;
-  optional Notification2 notification2 = 3;
+  optional NotificationList notificationList = 3;
   optional NotificationDismiss notificationDismiss = 4;
 
   optional bool screenOnOnNotifications = 7;
@@ -814,11 +814,11 @@ message Notification {
   optional NotificationIconPackage notificationIconQuery = 16;
 }
 
-message Notification2 {
-  optional Notification3 notification3 = 1;
+message NotificationList {
+  repeated NotificationItem notificationItem = 1;
 }
 
-message Notification3 {
+message NotificationItem {
   optional string package = 1;
   optional string appName = 2;
   optional string title = 3;

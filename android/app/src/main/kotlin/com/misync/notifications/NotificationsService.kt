@@ -24,7 +24,8 @@ data class NotificationMeta(
     val hasArchive: Boolean = false,
     val hasDelete: Boolean = false,
     val semanticActions: List<Int> = emptyList(),
-    val isClearable: Boolean = true,
+    val clearable: Boolean = true,
+    val timestamp: Long = 0L,
     val sbn: StatusBarNotification? = null
 )
 
@@ -45,6 +46,8 @@ class NotificationsService : NotificationListenerService() {
         const val EXTRA_PHONE = "phone"
         const val EXTRA_REPLYABLE = "replyable"
         const val EXTRA_KIND = "kind"
+        const val EXTRA_TIMESTAMP = "timestamp"
+        const val EXTRA_CLEARABLE = "clearable"
 
         var instance: NotificationsService? = null
             private set
@@ -66,6 +69,7 @@ class NotificationsService : NotificationListenerService() {
 
     fun syncActiveNotifications() {
         try {
+            activeMetas.clear()
             val activeNotifs = activeNotifications ?: return
             Log.d(TAG, "syncActiveNotifications found ${activeNotifs.size} notifications in Android status bar")
             for (sbn in activeNotifs) {
@@ -110,7 +114,10 @@ class NotificationsService : NotificationListenerService() {
             (flags and Notification.FLAG_GROUP_SUMMARY) != 0 ||
             (title.isBlank() && body.isBlank())
         ) {
-            Log.d(TAG, "Filtering out local-only, foreground service, group summary, or empty notification for key=${sbn.key}")
+            Log.d(
+                TAG,
+                "Filtering out local-only, foreground service, group summary, or empty notification for key=${sbn.key}"
+            )
             return
         }
 
@@ -139,7 +146,7 @@ class NotificationsService : NotificationListenerService() {
         }
 
         val normKey = sbn.key.lowercase()
-        val id = normKey.hashCode() and 0x7FFFFFFF
+        val id = computeNotificationId(sbn)
 
         // Deduplicate identical notification body updates for active notifications
         val existingMeta = activeMetas[id]
@@ -160,7 +167,8 @@ class NotificationsService : NotificationListenerService() {
         if (isCall) {
             phoneNumber = extractPhoneNumber(sbn)
             if (body.isEmpty() || body == title) {
-                body = if (appName.isNotEmpty() && appName.lowercase() != "phone") "Incoming $appName Call" else "Incoming Call"
+                body =
+                    if (appName.isNotEmpty() && appName.lowercase() != "phone") "Incoming $appName Call" else "Incoming Call"
             }
         }
 
@@ -216,6 +224,8 @@ class NotificationsService : NotificationListenerService() {
             "Notification processed: $packageName ($appName), title: $title, body: $body, key: $normKey, kind: $finalKind, replyable: $finalReplyable, actions: $actionTitles"
         )
 
+        val timestamp = if (notification.`when` != 0L) notification.`when` else sbn.postTime
+
         val meta = NotificationMeta(
             key = normKey,
             id = id,
@@ -231,7 +241,8 @@ class NotificationsService : NotificationListenerService() {
             hasArchive = archivePresent,
             hasDelete = deletePresent,
             semanticActions = semanticActionsList,
-            isClearable = sbn.isClearable,
+            clearable = sbn.isClearable,
+            timestamp = timestamp,
             sbn = sbn
         )
         activeMetas[id] = meta
@@ -248,24 +259,32 @@ class NotificationsService : NotificationListenerService() {
                 putExtra(EXTRA_PHONE, phoneNumber)
                 putExtra(EXTRA_REPLYABLE, finalReplyable)
                 putExtra(EXTRA_KIND, finalKind)
+                putExtra(EXTRA_TIMESTAMP, timestamp)
+                putExtra(EXTRA_CLEARABLE, sbn.isClearable)
                 setPackage(this@NotificationsService.packageName)
             }
             sendBroadcast(intent)
         }
     }
 
+    fun computeNotificationId(sbn: StatusBarNotification): Int {
+        val normKey = sbn.key.lowercase()
+        return if (sbn.id != 0) sbn.id and 0x7FFFFFFF else normKey.hashCode() and 0x7FFFFFFF
+    }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
         super.onNotificationRemoved(sbn, rankingMap, reason)
         if (sbn == null) return
 
+        val packageName = sbn.packageName
         val normKey = sbn.key.lowercase()
-        val id = normKey.hashCode() and 0x7FFFFFFF
+        val id = computeNotificationId(sbn)
         activeMetas.remove(id)
 
         Log.d(TAG, "onNotificationRemoved: key=$normKey, id=$id, reason=$reason")
 
         val intent = Intent(ACTION_NOTIFICATION_REMOVED).apply {
-            putExtra(EXTRA_PACKAGE, sbn.packageName)
+            putExtra(EXTRA_PACKAGE, packageName)
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_KEY, normKey)
             putExtra(EXTRA_CATEGORY, sbn.notification.category ?: "")
@@ -423,7 +442,8 @@ class NotificationsService : NotificationListenerService() {
         // 3. Fallback for cellular telecom calls
         if (isCallPackage(sbn.packageName) || meta.kind == "call") {
             try {
-                val telecomManager = getSystemService(android.content.Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
+                val telecomManager =
+                    getSystemService(android.content.Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
                 if (telecomManager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     telecomManager.endCall()
                     Log.d(TAG, "Ended call via TelecomManager.endCall()")

@@ -1,9 +1,6 @@
 <!-- apps/investments/src/pages/index/index.ux -->
 <import name="mi-header" src="../../shared/components/header.ux"></import>
-<import
-	name="investment-item"
-	src="../../components/investment-item.ux"
-></import>
+<import name="investment-item" src="../../components/item.ux"></import>
 
 <template>
 	<div class="mi-page">
@@ -28,6 +25,7 @@
 							price="{{ stock.price }}"
 							change="{{ stock.change }}"
 							classes="mi-last"
+							@item-click="handleStockClick(stock)"
 						></investment-item>
 					</div>
 					<div
@@ -50,36 +48,44 @@
 </template>
 
 <script>
-import misync from "../../shared/modules/misync.js";
-import MiPage from "../../shared/modules/mipage.js";
+import router from "@system.router";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
+	isRoot: true,
 	private: {
 		watchlists: [],
-		currentIndex: 0,
 		isLoading: true,
+		currentIndex: 0,
 	},
 
 	onInit() {
-		// Subscribe to messages first to prevent race condition
-		this.unsubscribe = misync.onMessage((payload) => {
-			if (payload.watchlists) {
-				this.watchlists = payload.watchlists;
-				this.isLoading = false;
-			}
-		});
+		this.send("getWatchlists");
+	},
 
-		// Query watchlists directly
-		misync.send("getWatchlists");
+	onMessage(message) {
+		if (message.watchlists) {
+			this.watchlists = message.watchlists;
+			this.isLoading = false;
+		}
 	},
 
 	handleSwiperChange(e) {
-		this.currentIndex = e.index;
+		if (e && typeof e.index === "number") {
+			this.currentIndex = e.index;
+		}
 	},
 
-	onDestroy() {
-		if (this.unsubscribe) {
-			this.unsubscribe();
+	handleStockClick(stock) {
+		try {
+			router.push({
+				uri: "pages/detail",
+				params: {
+					stockParam: JSON.stringify(stock),
+				},
+			});
+		} catch (e) {
+			console.error("Failed to push detail page: " + e);
 		}
 	},
 });
@@ -94,19 +100,13 @@ export default page;
 	width: 100%;
 	height: 100%;
 	flex-direction: column;
-	padding: 10px;
 }
 .watchlist-scroll {
 	width: 100%;
 	flex: 1;
 	flex-direction: column;
 }
-.empty-container {
-	width: 100%;
-	height: 200px;
-	justify-content: center;
-	align-items: center;
-}
+.empty-container,
 .empty-state {
 	width: 100%;
 	height: 100%;

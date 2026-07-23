@@ -1,20 +1,19 @@
-<!-- apps/shared/components/header.ux -->
+<!-- apps/shared/components/card.ux -->
 <template>
-	<div class="mi-header">
-		<text class="mi-header-title" static>
-			{{ text || title }}
-		</text>
+	<div class="mi-card {{ classes }}">
+		<text if="{{ title }}" class="mi-card-title">{{ title }}</text>
+		<slot></slot>
 	</div>
 </template>
 
 <script>
 export default {
 	props: {
-		text: {
+		title: {
 			type: String,
 			default: "",
 		},
-		title: {
+		classes: {
 			type: String,
 			default: "",
 		},

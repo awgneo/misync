@@ -344,12 +344,12 @@ sequenceDiagram
 
 Companion watch apps in Vela OS are built using the QuickApp (HAP framework) standard and communicate with the phone via `@system.interconnect`.
 
-### 1. `MiPage` Shared Module (`apps/shared/modules/mipage.js`)
+### 1. `MiPage` Shared Module (`apps/shared/modules/page.js`)
 To handle consistent edge-swipe gesture exits across all watch apps (`messages`, `emails`, `investments`, `actions`, `calculator`, `wallet`), every QuickApp page wraps its options in `MiPage`:
 
 ```javascript
-import misync from "../../shared/modules/misync.js";
-import MiPage from "../../shared/modules/mipage.js";
+import MiSync from "../../shared/modules/sync.js";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
   public: { id: "" },

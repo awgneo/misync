@@ -59,7 +59,8 @@ class NotificationsManager(private val context: Context) {
             "hasArchive" to meta.hasArchive,
             "hasDelete" to meta.hasDelete,
             "semanticActions" to meta.semanticActions,
-            "isClearable" to meta.isClearable
+            "clearable" to meta.clearable,
+            "timestamp" to meta.timestamp
         )
     }
 
@@ -81,7 +82,8 @@ class NotificationsManager(private val context: Context) {
             "hasArchive" to meta.hasArchive,
             "hasDelete" to meta.hasDelete,
             "semanticActions" to meta.semanticActions,
-            "isClearable" to meta.isClearable
+            "clearable" to meta.clearable,
+            "timestamp" to meta.timestamp
         )
     }
 
@@ -104,7 +106,8 @@ class NotificationsManager(private val context: Context) {
                 "hasArchive" to meta.hasArchive,
                 "hasDelete" to meta.hasDelete,
                 "semanticActions" to meta.semanticActions,
-                "isClearable" to meta.isClearable
+                "clearable" to meta.clearable,
+                "timestamp" to meta.timestamp
             )
         }
     }

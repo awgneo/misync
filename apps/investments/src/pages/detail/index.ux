@@ -1,0 +1,180 @@
+<!-- apps/investments/src/pages/detail/index.ux -->
+<import name="mi-header" src="../../shared/components/header.ux"></import>
+<import name="mi-stat" src="../../shared/components/stat.ux"></import>
+<import
+	name="investment-hero"
+	src="../../components/hero.ux"
+></import>
+<import
+	name="investment-chart"
+	src="../../components/chart.ux"
+></import>
+
+<template>
+	<div class="mi-page" @swipe="handleSwipe">
+		<scroll class="mi-scroll" scroll-y="true">
+			<!-- Row 1-2: Hero (Symbol, Price & Badge - 160px) -->
+			<div class="mi-double-row">
+				<investment-hero
+					symbol="{{ stock.symbol }}"
+					price="{{ stock.price }}"
+					change-text="{{ changeText }}"
+					positive="{{ stock.change >= 0 }}"
+				></investment-hero>
+			</div>
+
+			<!-- Rows 3-5: Sparkline Chart (3/6 row = 240px) -->
+			<div if="{{ hasSparkline }}" class="mi-triple-row">
+				<investment-chart
+					sparkline="{{ stock.sparkline }}"
+					positive="{{ stock.change >= 0 }}"
+				></investment-chart>
+			</div>
+
+			<!-- Session OHLC Grid -->
+			<div class="mi-row">
+				<mi-stat
+					label="Open"
+					value="${{ stock.open || '--' }}"
+				></mi-stat>
+				<mi-stat
+					label="High"
+					value="${{ stock.high || '--' }}"
+					classes="mi-last"
+				></mi-stat>
+			</div>
+			<div class="mi-row">
+				<mi-stat
+					label="Low"
+					value="${{ stock.low || '--' }}"
+				></mi-stat>
+				<mi-stat
+					label="Prev Close"
+					value="${{ stock.prevClose || '--' }}"
+					classes="mi-last"
+				></mi-stat>
+			</div>
+			<div class="mi-row">
+				<mi-stat
+					label="Volume"
+					value="{{ formattedVolume }}"
+				></mi-stat>
+				<mi-stat
+					label="VWAP"
+					value="${{ stock.vwap || '--' }}"
+					classes="mi-last"
+				></mi-stat>
+			</div>
+
+			<!-- Fundamentals Grid -->
+			<div if="{{ hasFundamentals }}" class="mi-row">
+				<mi-stat
+					label="Market Cap"
+					value="{{ formattedMarketCap }}"
+				></mi-stat>
+				<mi-stat
+					label="P/E Ratio"
+					value="{{ stock.peRatio ? stock.peRatio + 'x' : '--' }}"
+					classes="mi-last"
+				></mi-stat>
+			</div>
+			<div if="{{ hasFundamentals }}" class="mi-row">
+				<mi-stat
+					label="52W High"
+					value="${{ stock.high52 || '--' }}"
+				></mi-stat>
+				<mi-stat
+					label="52W Low"
+					value="${{ stock.low52 || '--' }}"
+					classes="mi-last"
+				></mi-stat>
+			</div>
+
+			<div class="mi-spacer"></div>
+		</scroll>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import MiPage from "../../shared/modules/page.js";
+
+const page = MiPage({
+	protected: {
+		stockParam: "",
+	},
+	private: {
+		stock: {},
+		hasSparkline: false,
+		hasFundamentals: false,
+		changeText: "",
+		formattedVolume: "--",
+		formattedMarketCap: "--",
+	},
+
+	onInit() {
+		try {
+			if (this.stockParam) {
+				this.stock = JSON.parse(this.stockParam);
+			}
+		} catch (e) {
+			console.error("Failed to parse stockParam: " + e);
+		}
+
+		const changeSign = this.stock.change >= 0 ? "+" : "";
+		const changeAmt = this.stock.changeAmount
+			? (this.stock.changeAmount >= 0 ? "+" : "") + this.stock.changeAmount
+			: "";
+		this.changeText = changeAmt
+			? `${changeSign}${this.stock.change}% (${changeAmt})`
+			: `${changeSign}${this.stock.change}%`;
+
+		if (this.stock.volume) {
+			const v = this.stock.volume;
+			if (v >= 1000000000) {
+				this.formattedVolume = (v / 1000000000).toFixed(1) + "B";
+			} else if (v >= 1000000) {
+				this.formattedVolume = (v / 1000000).toFixed(1) + "M";
+			} else if (v >= 1000) {
+				this.formattedVolume = (v / 1000).toFixed(1) + "K";
+			} else {
+				this.formattedVolume = v.toString();
+			}
+		}
+
+		if (this.stock.marketCap) {
+			const mc = this.stock.marketCap;
+			if (mc >= 1000000000000) {
+				this.formattedMarketCap = "$" + (mc / 1000000000000).toFixed(2) + "T";
+			} else if (mc >= 1000000000) {
+				this.formattedMarketCap = "$" + (mc / 1000000000).toFixed(1) + "B";
+			} else if (mc >= 1000000) {
+				this.formattedMarketCap = "$" + (mc / 1000000).toFixed(1) + "M";
+			} else {
+				this.formattedMarketCap = "$" + mc.toFixed(0);
+			}
+			this.hasFundamentals = true;
+		}
+
+		if (this.stock.peRatio || this.stock.high52 || this.stock.low52) {
+			this.hasFundamentals = true;
+		}
+
+		if (this.stock.sparkline && this.stock.sparkline.length > 0) {
+			this.hasSparkline = true;
+		}
+	},
+});
+
+export default page;
+</script>
+
+<style lang="less">
+@import "../../shared/styles/theme.less";
+
+.chart-wrapper {
+	width: 100%;
+	height: 240px;
+	padding: 0 4px;
+}
+</style>

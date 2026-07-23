@@ -1,6 +1,7 @@
 /* apps/shared/modules/symbols.js */
 import file from '@system.file'
-import misync from './misync.js'
+
+import MiSync from './sync.js'
 
 // Safe cross-platform base64 to Uint8Array decoder
 function base64ToUint8Array(base64) {
@@ -39,7 +40,7 @@ function base64ToUint8Array(base64) {
   return bytes
 }
 
-class Symbols {
+class MiSymbols {
   constructor() {
     this.pending = {}
     this.initialized = false
@@ -49,7 +50,7 @@ class Symbols {
     if (this.initialized) return
     this.initialized = true
 
-    misync.onMessage((payload) => {
+    MiSync.onMessage((payload) => {
       if (payload.symbol && payload.name) {
         const name = payload.name
         const base64Data = payload.symbol
@@ -102,7 +103,7 @@ class Symbols {
         // Cache miss
         if (!this.pending[name]) {
           this.pending[name] = [callback]
-          misync.send('getSymbol', { name })
+          MiSync.send('getSymbol', { name })
         } else {
           this.pending[name].push(callback)
         }
@@ -111,4 +112,4 @@ class Symbols {
   }
 }
 
-export default new Symbols()
+export default new MiSymbols()

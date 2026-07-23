@@ -4,7 +4,11 @@
 <import name="mi-keyboard" src="../../shared/components/keyboard.ux"></import>
 
 <template>
-	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
+	<div
+		class="mi-page"
+		@touchstart="handleTouchStart"
+		@touchmove="handleTouchMove"
+	>
 		<scroll class="mi-scroll" scroll-y="true">
 			<!-- Main screen viewport (fills 100% viewport, Y-locked) -->
 			<div class="mi-viewport">
@@ -55,30 +59,28 @@
 </template>
 
 <script>
-import misync from "../../shared/modules/misync.js";
-import MiPage from "../../shared/modules/mipage.js";
+import app from "@system.app";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
-	public: {
-		id: "",
-	},
 	private: {
 		replies: [],
 		inputText: "",
 	},
 
 	onInit() {
-		this.messageUnsubscribe = misync.onMessage((payload) => {
-			if (payload.dismissedId) {
-				this.id = payload.dismissedId;
-			}
-			if (payload.replies) {
-				this.replies = payload.replies;
-			}
-		});
+		this.dismissedId = 0;
+		this.send("getDismissedId");
+		this.send("getReplies");
+	},
 
-		misync.send("getDismissedId");
-		misync.send("getReplies");
+	onMessage(message) {
+		if (message.dismissedId) {
+			this.dismissedId = message.dismissedId;
+		}
+		if (message.replies) {
+			this.replies = message.replies;
+		}
 	},
 
 	onRefresh() {
@@ -87,8 +89,9 @@ const page = MiPage({
 		if (keyboard && typeof keyboard.reset === "function") {
 			keyboard.reset();
 		}
-		misync.send("getDismissedId");
-		misync.send("getReplies");
+
+		this.send("getDismissedId");
+		this.send("getReplies");
 	},
 
 	handleKeyTap(event) {
@@ -109,21 +112,15 @@ const page = MiPage({
 	},
 
 	handleReply(replyText) {
-		const targetId = Number(this.id) || 0;
-		misync.send("reply", { id: targetId, text: replyText });
-		this.$app.exit();
+		const targetId = Number(this.dismissedId) || 0;
+		this.send("reply", { id: targetId, text: replyText });
+		app.terminate();
 	},
 
 	handleDismiss() {
-		const targetId = Number(this.id) || 0;
-		misync.send("dismiss", { id: targetId });
-		this.$app.exit();
-	},
-
-	onDestroy() {
-		if (this.messageUnsubscribe) {
-			this.messageUnsubscribe();
-		}
+		const targetId = Number(this.dismissedId) || 0;
+		this.send("dismiss", { id: targetId });
+		app.terminate();
 	},
 });
 

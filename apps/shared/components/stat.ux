@@ -1,0 +1,30 @@
+<!-- apps/shared/components/stat.ux -->
+<template>
+	<div class="mi-stat {{ classes }}">
+		<text class="mi-stat-label">{{ label }}</text>
+		<text class="mi-stat-value">{{ value }}</text>
+	</div>
+</template>
+
+<script>
+export default {
+	props: {
+		label: {
+			type: String,
+			default: "",
+		},
+		value: {
+			type: String,
+			default: "--",
+		},
+		classes: {
+			type: String,
+			default: "",
+		},
+	},
+};
+</script>
+
+<style lang="less">
+@import "../styles/theme.less";
+</style>

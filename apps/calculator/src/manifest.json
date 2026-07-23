@@ -1,8 +1,8 @@
 {
   "package": "com.misync.calculator",
   "name": "Calculator",
-  "versionName": "1.0.3",
-  "versionCode": 6,
+  "versionName": "1.0.5",
+  "versionCode": 8,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "simulationVersion": "default",
@@ -24,6 +24,9 @@
     },
     {
       "name": "system.file"
+    },
+    {
+      "name": "system.app"
     }
   ],
   "config": {

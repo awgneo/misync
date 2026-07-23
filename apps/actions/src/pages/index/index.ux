@@ -1,7 +1,11 @@
 <import name="mi-button" src="../../shared/components/button.ux"></import>
 
 <template>
-	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
+	<div
+		class="mi-page"
+		@touchstart="handleTouchStart"
+		@touchmove="handleTouchMove"
+	>
 		<scroll class="mi-scroll" scroll-y="true">
 			<!-- Grid items chunked into rows of 2 columns -->
 			<div for="{{ row in actionRows }}" class="mi-row">
@@ -12,36 +16,34 @@
 					classes="{{ $idx === 1 ? 'mi-last' : '' }}"
 					@tap="handleActionTap(item.name)"
 				></mi-button>
-				<div if="{{ row.length === 1 }}" class="mi-button mi-last" style="background-color: transparent;"></div>
+				<div
+					if="{{ row.length === 1 }}"
+					class="mi-button mi-last"
+					style="background-color: transparent"
+				></div>
 			</div>
 		</scroll>
 	</div>
 </template>
 
 <script>
-import misync from "../../shared/modules/misync.js";
-import symbols from "../../shared/modules/symbols.js";
-import MiPage from "../../shared/modules/mipage.js";
+import app from "@system.app";
+import MiSymbols from "../../shared/modules/symbols.js";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
 	private: {
-		actionsList: [],
 		actionRows: [],
 	},
 
 	onInit() {
-		this.unsubscribe = misync.onMessage((payload) => {
-			if (payload.actions) {
-				this.loadActions(payload.actions);
-			}
-		});
-
-		misync.send("getActions");
+		this.actionsList = [];
+		this.send("getActions");
 	},
 
-	onDestroy() {
-		if (this.unsubscribe) {
-			this.unsubscribe();
+	onMessage(message) {
+		if (message.actions) {
+			this.loadActions(message.actions);
 		}
 	},
 
@@ -53,20 +55,24 @@ const page = MiPage({
 				? `internal://cache/symbols/${action.symbol}.png`
 				: "",
 		}));
+
 		this.updateActionRows();
 		// Asynchronously load/download icons in the background if they are missing
 		this.actionsList.forEach((action, idx) => {
 			if (action.symbol) {
-				symbols.get(action.symbol, (cachedUri) => {
-					this.actionsList[idx].icon = cachedUri;
+				MiSymbols.get(action.symbol, (cachedUri) => {
+					if (this.actionsList && this.actionsList[idx]) {
+						this.actionsList[idx].icon = cachedUri;
+						this.updateActionRows();
+					}
 				});
 			}
 		});
 	},
 
 	handleActionTap(actionName) {
-		misync.send("launchAction", { action: actionName });
-		this.$app.exit();
+		this.send("launchAction", { action: actionName });
+		app.terminate();
 	},
 
 	updateActionRows() {

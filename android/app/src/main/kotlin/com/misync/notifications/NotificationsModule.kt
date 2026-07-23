@@ -40,6 +40,8 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 val phone = intent.getStringExtra(NotificationsService.EXTRA_PHONE) ?: ""
                 val replyable = intent.getBooleanExtra(NotificationsService.EXTRA_REPLYABLE, false)
                 val kind = intent.getStringExtra(NotificationsService.EXTRA_KIND) ?: "standard"
+                val timestamp = intent.getLongExtra(NotificationsService.EXTRA_TIMESTAMP, System.currentTimeMillis())
+                val clearable = intent.getBooleanExtra(NotificationsService.EXTRA_CLEARABLE, true)
 
                 val data = mapOf(
                     "package" to `package`,
@@ -51,7 +53,9 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                     "category" to category,
                     "phone" to phone,
                     "replyable" to replyable,
-                    "kind" to kind
+                    "kind" to kind,
+                    "timestamp" to timestamp,
+                    "clearable" to clearable
                 )
 
                 methodChannel?.invokeMethod("notificationReceived", data)

@@ -69,15 +69,7 @@ class FinanceModule extends TabModule {
         .map(
           (w) => {
             'name': w.name,
-            'investments': w.items
-                .map(
-                  (i) => {
-                    'symbol': i.symbol,
-                    'price': i.price,
-                    'change': i.change,
-                  },
-                )
-                .toList(),
+            'investments': w.items.map((i) => i.toJson()).toList(),
           },
         )
         .toList();

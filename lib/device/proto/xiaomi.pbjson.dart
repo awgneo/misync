@@ -2524,12 +2524,12 @@ const Notification$json = {
       '10': 'openOnPhone'
     },
     {
-      '1': 'notification2',
+      '1': 'notificationList',
       '3': 3,
       '4': 1,
       '5': 11,
-      '6': '.xiaomi.Notification2',
-      '10': 'notification2'
+      '6': '.xiaomi.NotificationList',
+      '10': 'notificationList'
     },
     {
       '1': 'notificationDismiss',
@@ -2615,46 +2615,46 @@ const Notification$json = {
 /// Descriptor for `Notification`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List notificationDescriptor = $convert.base64Decode(
     'CgxOb3RpZmljYXRpb24SOAoLb3Blbk9uUGhvbmUYAiABKAsyFi54aWFvbWkuTm90aWZpY2F0aW'
-    '9uSWRSC29wZW5PblBob25lEjsKDW5vdGlmaWNhdGlvbjIYAyABKAsyFS54aWFvbWkuTm90aWZp'
-    'Y2F0aW9uMlINbm90aWZpY2F0aW9uMhJNChNub3RpZmljYXRpb25EaXNtaXNzGAQgASgLMhsueG'
-    'lhb21pLk5vdGlmaWNhdGlvbkRpc21pc3NSE25vdGlmaWNhdGlvbkRpc21pc3MSOAoXc2NyZWVu'
-    'T25Pbk5vdGlmaWNhdGlvbnMYByABKAhSF3NjcmVlbk9uT25Ob3RpZmljYXRpb25zEhoKCHVua2'
-    '5vd244GAggASgNUgh1bmtub3duOBI+Cg5jYW5uZWRNZXNzYWdlcxgJIAEoCzIWLnhpYW9taS5D'
-    'YW5uZWRNZXNzYWdlc1IOY2FubmVkTWVzc2FnZXMSUAoUY2FubmVkTWVzc2FnZXNEZWxldGUYCi'
-    'ABKAsyHC54aWFvbWkuQ2FubmVkTWVzc2FnZXNEZWxldGVSFGNhbm5lZE1lc3NhZ2VzRGVsZXRl'
-    'Ej4KGmNhbm5lZE1lc3NhZ2VzRGVsZXRlU3RhdHVzGAsgASgNUhpjYW5uZWRNZXNzYWdlc0RlbG'
-    'V0ZVN0YXR1cxJHChFub3RpZmljYXRpb25SZXBseRgMIAEoCzIZLnhpYW9taS5Ob3RpZmljYXRp'
-    'b25SZXBseVIRbm90aWZpY2F0aW9uUmVwbHkSOAoXbm90aWZpY2F0aW9uUmVwbHlTdGF0dXMYDS'
-    'ABKA1SF25vdGlmaWNhdGlvblJlcGx5U3RhdHVzElUKFW5vdGlmaWNhdGlvbkljb25SZXBseRgO'
-    'IAEoCzIfLnhpYW9taS5Ob3RpZmljYXRpb25JY29uUGFja2FnZVIVbm90aWZpY2F0aW9uSWNvbl'
-    'JlcGx5ElkKF25vdGlmaWNhdGlvbkljb25SZXF1ZXN0GA8gASgLMh8ueGlhb21pLk5vdGlmaWNh'
-    'dGlvbkljb25SZXF1ZXN0Uhdub3RpZmljYXRpb25JY29uUmVxdWVzdBJVChVub3RpZmljYXRpb2'
-    '5JY29uUXVlcnkYECABKAsyHy54aWFvbWkuTm90aWZpY2F0aW9uSWNvblBhY2thZ2VSFW5vdGlm'
-    'aWNhdGlvbkljb25RdWVyeQ==');
+    '9uSWRSC29wZW5PblBob25lEkQKEG5vdGlmaWNhdGlvbkxpc3QYAyABKAsyGC54aWFvbWkuTm90'
+    'aWZpY2F0aW9uTGlzdFIQbm90aWZpY2F0aW9uTGlzdBJNChNub3RpZmljYXRpb25EaXNtaXNzGA'
+    'QgASgLMhsueGlhb21pLk5vdGlmaWNhdGlvbkRpc21pc3NSE25vdGlmaWNhdGlvbkRpc21pc3MS'
+    'OAoXc2NyZWVuT25Pbk5vdGlmaWNhdGlvbnMYByABKAhSF3NjcmVlbk9uT25Ob3RpZmljYXRpb2'
+    '5zEhoKCHVua25vd244GAggASgNUgh1bmtub3duOBI+Cg5jYW5uZWRNZXNzYWdlcxgJIAEoCzIW'
+    'LnhpYW9taS5DYW5uZWRNZXNzYWdlc1IOY2FubmVkTWVzc2FnZXMSUAoUY2FubmVkTWVzc2FnZX'
+    'NEZWxldGUYCiABKAsyHC54aWFvbWkuQ2FubmVkTWVzc2FnZXNEZWxldGVSFGNhbm5lZE1lc3Nh'
+    'Z2VzRGVsZXRlEj4KGmNhbm5lZE1lc3NhZ2VzRGVsZXRlU3RhdHVzGAsgASgNUhpjYW5uZWRNZX'
+    'NzYWdlc0RlbGV0ZVN0YXR1cxJHChFub3RpZmljYXRpb25SZXBseRgMIAEoCzIZLnhpYW9taS5O'
+    'b3RpZmljYXRpb25SZXBseVIRbm90aWZpY2F0aW9uUmVwbHkSOAoXbm90aWZpY2F0aW9uUmVwbH'
+    'lTdGF0dXMYDSABKA1SF25vdGlmaWNhdGlvblJlcGx5U3RhdHVzElUKFW5vdGlmaWNhdGlvbklj'
+    'b25SZXBseRgOIAEoCzIfLnhpYW9taS5Ob3RpZmljYXRpb25JY29uUGFja2FnZVIVbm90aWZpY2'
+    'F0aW9uSWNvblJlcGx5ElkKF25vdGlmaWNhdGlvbkljb25SZXF1ZXN0GA8gASgLMh8ueGlhb21p'
+    'Lk5vdGlmaWNhdGlvbkljb25SZXF1ZXN0Uhdub3RpZmljYXRpb25JY29uUmVxdWVzdBJVChVub3'
+    'RpZmljYXRpb25JY29uUXVlcnkYECABKAsyHy54aWFvbWkuTm90aWZpY2F0aW9uSWNvblBhY2th'
+    'Z2VSFW5vdGlmaWNhdGlvbkljb25RdWVyeQ==');
 
-@$core.Deprecated('Use notification2Descriptor instead')
-const Notification2$json = {
-  '1': 'Notification2',
+@$core.Deprecated('Use notificationListDescriptor instead')
+const NotificationList$json = {
+  '1': 'NotificationList',
   '2': [
     {
-      '1': 'notification3',
+      '1': 'notificationItem',
       '3': 1,
-      '4': 1,
+      '4': 3,
       '5': 11,
-      '6': '.xiaomi.Notification3',
-      '10': 'notification3'
+      '6': '.xiaomi.NotificationItem',
+      '10': 'notificationItem'
     },
   ],
 };
 
-/// Descriptor for `Notification2`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List notification2Descriptor = $convert.base64Decode(
-    'Cg1Ob3RpZmljYXRpb24yEjsKDW5vdGlmaWNhdGlvbjMYASABKAsyFS54aWFvbWkuTm90aWZpY2'
-    'F0aW9uM1INbm90aWZpY2F0aW9uMw==');
+/// Descriptor for `NotificationList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List notificationListDescriptor = $convert.base64Decode(
+    'ChBOb3RpZmljYXRpb25MaXN0EkQKEG5vdGlmaWNhdGlvbkl0ZW0YASADKAsyGC54aWFvbWkuTm'
+    '90aWZpY2F0aW9uSXRlbVIQbm90aWZpY2F0aW9uSXRlbQ==');
 
-@$core.Deprecated('Use notification3Descriptor instead')
-const Notification3$json = {
-  '1': 'Notification3',
+@$core.Deprecated('Use notificationItemDescriptor instead')
+const NotificationItem$json = {
+  '1': 'NotificationItem',
   '2': [
     {'1': 'package', '3': 1, '4': 1, '5': 9, '10': 'package'},
     {'1': 'appName', '3': 2, '4': 1, '5': 9, '10': 'appName'},
@@ -2672,15 +2672,15 @@ const Notification3$json = {
   ],
 };
 
-/// Descriptor for `Notification3`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List notification3Descriptor = $convert.base64Decode(
-    'Cg1Ob3RpZmljYXRpb24zEhgKB3BhY2thZ2UYASABKAlSB3BhY2thZ2USGAoHYXBwTmFtZRgCIA'
-    'EoCVIHYXBwTmFtZRIUCgV0aXRsZRgDIAEoCVIFdGl0bGUSGgoIdW5rbm93bjQYBCABKAlSCHVu'
-    'a25vd240EhIKBGJvZHkYBSABKAlSBGJvZHkSHAoJdGltZXN0YW1wGAYgASgJUgl0aW1lc3RhbX'
-    'ASDgoCaWQYByABKA1SAmlkEhoKCGNhbGxUeXBlGAggASgNUghjYWxsVHlwZRIaCgh1bmtub3du'
-    'ORgJIAEoCVIIdW5rbm93bjkSHAoJdW5rbm93bjEwGAogASgJUgl1bmtub3duMTASJgoOcmVwbG'
-    'llc0FsbG93ZWQYCyABKAhSDnJlcGxpZXNBbGxvd2VkEhAKA2tleRgMIAEoCVIDa2V5EiAKC29w'
-    'ZW5PblBob25lGA0gASgIUgtvcGVuT25QaG9uZQ==');
+/// Descriptor for `NotificationItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List notificationItemDescriptor = $convert.base64Decode(
+    'ChBOb3RpZmljYXRpb25JdGVtEhgKB3BhY2thZ2UYASABKAlSB3BhY2thZ2USGAoHYXBwTmFtZR'
+    'gCIAEoCVIHYXBwTmFtZRIUCgV0aXRsZRgDIAEoCVIFdGl0bGUSGgoIdW5rbm93bjQYBCABKAlS'
+    'CHVua25vd240EhIKBGJvZHkYBSABKAlSBGJvZHkSHAoJdGltZXN0YW1wGAYgASgJUgl0aW1lc3'
+    'RhbXASDgoCaWQYByABKA1SAmlkEhoKCGNhbGxUeXBlGAggASgNUghjYWxsVHlwZRIaCgh1bmtu'
+    'b3duORgJIAEoCVIIdW5rbm93bjkSHAoJdW5rbm93bjEwGAogASgJUgl1bmtub3duMTASJgoOcm'
+    'VwbGllc0FsbG93ZWQYCyABKAhSDnJlcGxpZXNBbGxvd2VkEhAKA2tleRgMIAEoCVIDa2V5EiAK'
+    'C29wZW5PblBob25lGA0gASgIUgtvcGVuT25QaG9uZQ==');
 
 @$core.Deprecated('Use notificationDismissDescriptor instead')
 const NotificationDismiss$json = {

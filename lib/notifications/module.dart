@@ -13,6 +13,7 @@ import 'blobs/contact.dart';
 import 'blobs/apps.dart';
 import 'blobs/replies.dart';
 import 'blobs/dnd.dart';
+import 'blobs/pushed.dart';
 import 'screen.dart';
 
 class NotificationModule extends TabModule {
@@ -59,10 +60,27 @@ class NotificationModule extends TabModule {
       final List? metas = await PlatformModule.module.invokeMethod<List>(
         'notifications.getActiveMetas',
       );
+      final Set<int> pushedIds = PushedBlob.ids.toSet();
       if (metas == null || metas.isEmpty) {
         logger.info(
           'syncActiveNotifications: no active notification metas returned from Kotlin',
         );
+        // If no active notifications on phone, dismiss all previously pushed watch notifications
+        if (pushedIds.isNotEmpty) {
+          logger.info('purging all previously pushed notifications from watch', {
+            'count': pushedIds.length,
+          });
+          final dismissProto = NotificationDismiss();
+          for (final id in pushedIds) {
+            dismissProto.notificationId.add(NotificationId()..id = id & 0xFFFFFFFF);
+          }
+          await DeviceModule.module.connection.send(
+            type: CmdType.notification,
+            subtype: NotificationSubtype.dismiss,
+            builder: (cmd) => cmd.notification = (Notification()..notificationDismiss = dismissProto),
+          );
+          PushedBlob.setAll([]);
+        }
         return;
       }
 
@@ -70,12 +88,66 @@ class NotificationModule extends TabModule {
         'count': metas.length,
       });
 
+      final items = <NotificationItem>[];
+
       for (final raw in metas) {
         if (raw is Map) {
           final data = Map<String, dynamic>.from(raw);
-          _handlePhoneNotificationReceived(data);
+          final item = _buildNotificationItem(data);
+          if (item != null) {
+            items.add(item);
+            logger.info('batch notification item prepared', {
+              'package': item.package,
+              'title': item.title,
+              'id': item.id,
+              'key': item.key,
+            });
+          }
         }
       }
+
+      final Set<int> currentIds = items.map((i) => i.id).toSet();
+      final Set<int> staleIds = pushedIds.difference(currentIds);
+
+      // Purge notifications that were dismissed on phone while disconnected
+      if (staleIds.isNotEmpty) {
+        logger.info('purging stale notifications from watch on sync', {
+          'staleCount': staleIds.length,
+        });
+        final dismissProto = NotificationDismiss();
+        for (final id in staleIds) {
+          dismissProto.notificationId.add(NotificationId()..id = id & 0xFFFFFFFF);
+        }
+        await DeviceModule.module.connection.send(
+          type: CmdType.notification,
+          subtype: NotificationSubtype.dismiss,
+          builder: (cmd) => cmd.notification = (Notification()..notificationDismiss = dismissProto),
+        );
+      }
+
+      // Only push notifications that have not been pushed to the watch yet
+      final newItems = items.where((i) => !pushedIds.contains(i.id)).toList();
+
+      if (newItems.isNotEmpty) {
+        logger.info('pushing new active notification list batch to watch', {
+          'newItemCount': newItems.length,
+        });
+
+        await DeviceModule.module.connection.send(
+          type: CmdType.notification,
+          subtype: NotificationSubtype.push,
+          builder:
+              (cmd) =>
+                  cmd.notification = (Notification()
+                    ..notificationList =
+                        (NotificationList()
+                          ..notificationItem.addAll(newItems))),
+        );
+      } else {
+        logger.info('all active notifications already pushed to watch, skipping push');
+      }
+
+      PushedBlob.setAll(currentIds);
     } catch (e) {
       logger.error('failed to sync active notifications catch-up: $e');
     }
@@ -94,7 +166,7 @@ class NotificationModule extends TabModule {
     }
   }
 
-  void _handlePhoneNotificationReceived(Map<String, dynamic> data) async {
+  NotificationItem? _buildNotificationItem(Map<String, dynamic> data) {
     final String package = data['package'] ?? '';
     final String kind = data['kind'] ?? 'standard';
     final bool call = kind == 'call';
@@ -114,7 +186,7 @@ class NotificationModule extends TabModule {
     }
 
     if (!allowed) {
-      return;
+      return null;
     }
 
     final String title = data['title'] ?? '';
@@ -122,11 +194,28 @@ class NotificationModule extends TabModule {
     final int id = data['id'] ?? 0;
     final String key = (data['key'] ?? '').toString().toLowerCase();
 
-    final String app = data['app'] != null && (data['app'] as String).isNotEmpty
-        ? data['app']
-        : package.split('.').last;
+    final String app =
+        data['app'] != null && (data['app'] as String).isNotEmpty
+            ? data['app']
+            : package.split('.').last;
 
-    final notification = Notification3()
+    final rawTimestamp = data['timestamp'];
+    final DateTime notifTime;
+    if (rawTimestamp is num && rawTimestamp > 0) {
+      notifTime = DateTime.fromMillisecondsSinceEpoch(rawTimestamp.toInt());
+    } else {
+      notifTime = DateTime.now();
+    }
+
+    final timestampStr =
+        notifTime
+            .toIso8601String()
+            .replaceAll('-', '')
+            .replaceAll(':', '')
+            .split('.')
+            .first;
+
+    return NotificationItem()
       ..package = package
       ..appName = app
       ..title = title
@@ -134,34 +223,36 @@ class NotificationModule extends TabModule {
       ..id = id & 0xFFFFFFFF
       ..key = key
       ..unknown4 = ''
-      ..timestamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll('-', '')
-          .replaceAll(':', '')
-          .split('.')
-          .first
+      ..timestamp = timestampStr
       ..repliesAllowed = true
       ..openOnPhone = true;
+  }
+
+  void _handlePhoneNotificationReceived(Map<String, dynamic> data) async {
+    final item = _buildNotificationItem(data);
+    if (item == null) {
+      return;
+    }
+
+    PushedBlob.add(item.id);
 
     logger.info('pushing phone notification to watch', {
-      'package': package,
-      'app': app,
-      'title': title,
-      'body': body,
-      'id': id,
-      'key': key,
-      'call': call,
-      'text': sms,
-      'email': isEmail,
+      'package': item.package,
+      'app': item.appName,
+      'title': item.title,
+      'body': item.body,
+      'id': item.id,
+      'key': item.key,
     });
 
-    // Handled below based on category
     await DeviceModule.module.connection.send(
       type: CmdType.notification,
       subtype: NotificationSubtype.push,
-      builder: (cmd) =>
-          cmd.notification = (Notification()
-            ..notification2 = (Notification2()..notification3 = notification)),
+      builder:
+          (cmd) =>
+              cmd.notification = (Notification()
+                ..notificationList =
+                    (NotificationList()..notificationItem.add(item))),
     );
   }
 
@@ -170,6 +261,8 @@ class NotificationModule extends TabModule {
     final String category = data['category'] ?? '';
     final String key = (data['key'] ?? '').toString().toLowerCase();
     final int id = data['id'] ?? 0;
+
+    PushedBlob.remove(id & 0xFFFFFFFF);
 
     logger.info('sending dismiss command to watch', {
       'package': package,
@@ -246,54 +339,66 @@ class NotificationModule extends TabModule {
     final dismiss = cmd.notification.notificationDismiss;
     if (dismiss.notificationId.isEmpty) return;
 
-    logger.info('watch dismissed notifications', {
-      'count': dismiss.notificationId.length,
-      'ids': dismiss.notificationId.map((n) => n.id).toList(),
-    });
-
-    for (var notifId in dismiss.notificationId) {
-      final int id = notifId.id;
-
-      final Map? meta = await PlatformModule.module.invokeMethod<Map>(
-        'notifications.getNotificationMeta',
-        {'id': id},
-      );
-
-      final String kind = meta?['kind']?.toString() ?? 'standard';
-      final bool replyable = meta?['replyable'] as bool? ?? false;
-
-      if (kind == 'email') {
-        _dismissedId = id;
-        logger.debug(
-          'watch dismissed email notification (launching watch emails app)',
-          {'id': id},
-        );
-
-        final hapUri = 'hap://app/$emailsPackage/pages/index';
-        await AppsModule.module.launchApp(emailsPackage, uri: hapUri);
-      } else if (replyable || kind == 'text' || kind == 'call') {
-        _dismissedId = id;
-        logger.debug(
-          'watch dismissed replyable notification (launching watch messages app)',
-          {'id': id, 'kind': kind},
-        );
-
-        final hapUri = 'hap://app/$messagesPackage/pages/index';
-        await AppsModule.module.launchApp(messagesPackage, uri: hapUri);
-      } else {
-        logger.debug(
-          'watch dismissed non-replyable notification (dismissing on phone status bar)',
-          {'id': id, 'kind': kind},
-        );
-
+    // If multiple notifications dismissed at once (e.g. Clear All), clear all on phone status bar and exit early
+    if (dismiss.notificationId.length > 1) {
+      logger.info('watch dismissed multiple notifications at once (clearing on phone)', {
+        'count': dismiss.notificationId.length,
+      });
+      for (var notifId in dismiss.notificationId) {
         try {
           await PlatformModule.module.invokeMethod(
             'notifications.dismissNotification',
-            {'id': id},
+            {'id': notifId.id},
           );
         } catch (e) {
           logger.error('failed to dismiss notification on phone: $e');
         }
+      }
+      return;
+    }
+
+    // Single notification dismissed
+    final int id = dismiss.notificationId.first.id;
+
+    final Map? meta = await PlatformModule.module.invokeMethod<Map>(
+      'notifications.getNotificationMeta',
+      {'id': id},
+    );
+
+    final String kind = meta?['kind']?.toString() ?? 'standard';
+    final bool replyable = meta?['replyable'] as bool? ?? false;
+
+    if (kind == 'email') {
+      _dismissedId = id;
+      logger.debug(
+        'watch dismissed single email notification (launching watch emails app)',
+        {'id': id},
+      );
+
+      final hapUri = 'hap://app/$emailsPackage/pages/index';
+      await AppsModule.module.launchApp(emailsPackage, uri: hapUri);
+    } else if (replyable || kind == 'text' || kind == 'call') {
+      _dismissedId = id;
+      logger.debug(
+        'watch dismissed single replyable notification (launching watch messages app)',
+        {'id': id, 'kind': kind},
+      );
+
+      final hapUri = 'hap://app/$messagesPackage/pages/index';
+      await AppsModule.module.launchApp(messagesPackage, uri: hapUri);
+    } else {
+      logger.debug(
+        'watch dismissed non-replyable notification (dismissing on phone status bar)',
+        {'id': id, 'kind': kind},
+      );
+
+      try {
+        await PlatformModule.module.invokeMethod(
+          'notifications.dismissNotification',
+          {'id': id},
+        );
+      } catch (e) {
+        logger.error('failed to dismiss notification on phone: $e');
       }
     }
   }

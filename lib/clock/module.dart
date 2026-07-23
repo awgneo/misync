@@ -82,6 +82,10 @@ class ClockModule extends TabModule {
 
     final now = DateTime.now();
     bool is24Hour = false;
+    int zoneOffset = 0;
+    int dstOffset = 0;
+    String timeZoneId = now.timeZoneName;
+
     try {
       is24Hour =
           await PlatformModule.module.invokeMethod<bool>(
@@ -91,8 +95,23 @@ class ClockModule extends TabModule {
     } catch (e) {
       logger.error('failed to check 24-hour format: $e');
     }
+
+    try {
+      final tzMap =
+          await PlatformModule.module.invokeMethod<Map>(
+            'clock.getTimeZone',
+          );
+      if (tzMap != null) {
+        zoneOffset = (tzMap['zoneOffset'] as num?)?.toInt() ?? 0;
+        dstOffset = (tzMap['dstOffset'] as num?)?.toInt() ?? 0;
+        timeZoneId = (tzMap['name'] as String?) ?? now.timeZoneName;
+      }
+    } catch (e) {
+      logger.error('failed to get timezone details: $e');
+    }
+
     logger.info(
-      'syncing time, date, and timezone offset: ${now.timeZoneName}, 24h format: $is24Hour',
+      'syncing time, date (${now.hour}:${now.minute}), and timezone offset: $timeZoneId (zone: $zoneOffset, dst: $dstOffset), 24h format: $is24Hour',
     );
 
     await DeviceModule.module.connection.send(
@@ -109,9 +128,9 @@ class ClockModule extends TabModule {
             ..minute = now.minute
             ..second = now.second)
           ..timezone = (pb.TimeZone()
-            ..zoneOffset = now.timeZoneOffset.inMinutes ~/ 15
-            ..dstOffset = 0
-            ..name = now.timeZoneName)
+            ..zoneOffset = zoneOffset
+            ..dstOffset = dstOffset
+            ..name = timeZoneId)
           ..isNot24hour = !is24Hour)),
     );
   }

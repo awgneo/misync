@@ -2,7 +2,11 @@
 <import name="mi-button" src="../../shared/components/button.ux"></import>
 
 <template>
-	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
+	<div
+		class="mi-page"
+		@touchstart="handleTouchStart"
+		@touchmove="handleTouchMove"
+	>
 		<scroll class="mi-scroll" scroll-y="true">
 			<div class="mi-viewport">
 				<div class="mi-row">
@@ -39,38 +43,35 @@
 </template>
 
 <script>
-import misync from "../../shared/modules/misync.js";
-import MiPage from "../../shared/modules/mipage.js";
+import app from "@system.app";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
-	public: {
-		id: "",
+	onInit() {
+		this.dismissedId = 0;
+		this.send("getDismissedId");
 	},
 
-	onInit() {
-		this.messageUnsubscribe = misync.onMessage((payload) => {
-			if (payload.dismissedId) {
-				this.id = payload.dismissedId;
-			}
-		});
-
-		misync.send("getDismissedId");
+	onMessage(message) {
+		if (message.dismissedId) {
+			this.dismissedId = message.dismissedId;
+		}
 	},
 
 	onRefresh() {
-		misync.send("getDismissedId");
+		this.send("getDismissedId");
 	},
 
 	handleAction(actionType) {
-		const targetId = Number(this.id) || 0;
-		misync.send(actionType, { id: targetId });
-		this.$app.exit();
+		const targetId = Number(this.dismissedId) || 0;
+		this.send(actionType, { id: targetId });
+		app.terminate();
 	},
 
 	handleDismiss() {
-		const targetId = Number(this.id) || 0;
-		misync.send("dismiss", { id: targetId });
-		this.$app.exit();
+		const targetId = Number(this.dismissedId) || 0;
+		this.send("dismiss", { id: targetId });
+		app.terminate();
 	},
 });
 

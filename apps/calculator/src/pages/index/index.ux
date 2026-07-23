@@ -3,7 +3,11 @@
 <import name="mi-textbox" src="../../shared/components/textbox.ux"></import>
 
 <template>
-	<div class="mi-page" @touchstart="handleTouchStart" @touchmove="handleTouchMove">
+	<div
+		class="mi-page"
+		@touchstart="handleTouchStart"
+		@touchmove="handleTouchMove"
+	>
 		<scroll class="mi-scroll" scroll-y="false">
 			<!-- Calculator Viewport (Locked to 480px) -->
 			<div class="mi-viewport">
@@ -163,13 +167,11 @@ function evaluateExpression(str) {
 	}
 }
 
-import MiPage from "../../shared/modules/mipage.js";
+import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
 	private: {
 		displayExpression: "",
-		previousExpression: "",
-		isResultDisplayed: false,
 	},
 
 	onInit() {

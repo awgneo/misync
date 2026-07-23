@@ -63,6 +63,18 @@ class ClockModule(private val context: Context) : BaseModule("clock") {
                 result.success(android.text.format.DateFormat.is24HourFormat(context))
                 true
             }
+            "getTimeZone" -> {
+                val calendar = Calendar.getInstance()
+                val zoneOffset = ((calendar.get(Calendar.ZONE_OFFSET) / 1000) / 60) / 15
+                val dstOffset = ((calendar.get(Calendar.DST_OFFSET) / 1000) / 60) / 15
+                val name = java.util.TimeZone.getDefault().id
+                result.success(mapOf(
+                    "zoneOffset" to zoneOffset,
+                    "dstOffset" to dstOffset,
+                    "name" to name
+                ))
+                true
+            }
             else -> false
         }
     }

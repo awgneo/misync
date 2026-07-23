@@ -8509,7 +8509,7 @@ class MediaKey extends $pb.GeneratedMessage {
 class Notification extends $pb.GeneratedMessage {
   factory Notification({
     NotificationId? openOnPhone,
-    Notification2? notification2,
+    NotificationList? notificationList,
     NotificationDismiss? notificationDismiss,
     $core.bool? screenOnOnNotifications,
     $core.int? unknown8,
@@ -8524,7 +8524,7 @@ class Notification extends $pb.GeneratedMessage {
   }) {
     final result = create();
     if (openOnPhone != null) result.openOnPhone = openOnPhone;
-    if (notification2 != null) result.notification2 = notification2;
+    if (notificationList != null) result.notificationList = notificationList;
     if (notificationDismiss != null)
       result.notificationDismiss = notificationDismiss;
     if (screenOnOnNotifications != null)
@@ -8562,8 +8562,8 @@ class Notification extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..aOM<NotificationId>(2, _omitFieldNames ? '' : 'openOnPhone',
         protoName: 'openOnPhone', subBuilder: NotificationId.create)
-    ..aOM<Notification2>(3, _omitFieldNames ? '' : 'notification2',
-        subBuilder: Notification2.create)
+    ..aOM<NotificationList>(3, _omitFieldNames ? '' : 'notificationList',
+        protoName: 'notificationList', subBuilder: NotificationList.create)
     ..aOM<NotificationDismiss>(4, _omitFieldNames ? '' : 'notificationDismiss',
         protoName: 'notificationDismiss',
         subBuilder: NotificationDismiss.create)
@@ -8628,15 +8628,15 @@ class Notification extends $pb.GeneratedMessage {
   NotificationId ensureOpenOnPhone() => $_ensure(0);
 
   @$pb.TagNumber(3)
-  Notification2 get notification2 => $_getN(1);
+  NotificationList get notificationList => $_getN(1);
   @$pb.TagNumber(3)
-  set notification2(Notification2 value) => $_setField(3, value);
+  set notificationList(NotificationList value) => $_setField(3, value);
   @$pb.TagNumber(3)
-  $core.bool hasNotification2() => $_has(1);
+  $core.bool hasNotificationList() => $_has(1);
   @$pb.TagNumber(3)
-  void clearNotification2() => $_clearField(3);
+  void clearNotificationList() => $_clearField(3);
   @$pb.TagNumber(3)
-  Notification2 ensureNotification2() => $_ensure(1);
+  NotificationList ensureNotificationList() => $_ensure(1);
 
   @$pb.TagNumber(4)
   NotificationDismiss get notificationDismiss => $_getN(2);
@@ -8761,65 +8761,58 @@ class Notification extends $pb.GeneratedMessage {
   NotificationIconPackage ensureNotificationIconQuery() => $_ensure(12);
 }
 
-class Notification2 extends $pb.GeneratedMessage {
-  factory Notification2({
-    Notification3? notification3,
+class NotificationList extends $pb.GeneratedMessage {
+  factory NotificationList({
+    $core.Iterable<NotificationItem>? notificationItem,
   }) {
     final result = create();
-    if (notification3 != null) result.notification3 = notification3;
+    if (notificationItem != null)
+      result.notificationItem.addAll(notificationItem);
     return result;
   }
 
-  Notification2._();
+  NotificationList._();
 
-  factory Notification2.fromBuffer($core.List<$core.int> data,
+  factory NotificationList.fromBuffer($core.List<$core.int> data,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(data, registry);
-  factory Notification2.fromJson($core.String json,
+  factory NotificationList.fromJson($core.String json,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromJson(json, registry);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'Notification2',
+      _omitMessageNames ? '' : 'NotificationList',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
-    ..aOM<Notification3>(1, _omitFieldNames ? '' : 'notification3',
-        subBuilder: Notification3.create)
+    ..pPM<NotificationItem>(1, _omitFieldNames ? '' : 'notificationItem',
+        protoName: 'notificationItem', subBuilder: NotificationItem.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  Notification2 clone() => deepCopy();
+  NotificationList clone() => deepCopy();
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  Notification2 copyWith(void Function(Notification2) updates) =>
-      super.copyWith((message) => updates(message as Notification2))
-          as Notification2;
+  NotificationList copyWith(void Function(NotificationList) updates) =>
+      super.copyWith((message) => updates(message as NotificationList))
+          as NotificationList;
 
   @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
-  static Notification2 create() => Notification2._();
+  static NotificationList create() => NotificationList._();
   @$core.override
-  Notification2 createEmptyInstance() => create();
+  NotificationList createEmptyInstance() => create();
   @$core.pragma('dart2js:noInline')
-  static Notification2 getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<Notification2>(create);
-  static Notification2? _defaultInstance;
+  static NotificationList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NotificationList>(create);
+  static NotificationList? _defaultInstance;
 
   @$pb.TagNumber(1)
-  Notification3 get notification3 => $_getN(0);
-  @$pb.TagNumber(1)
-  set notification3(Notification3 value) => $_setField(1, value);
-  @$pb.TagNumber(1)
-  $core.bool hasNotification3() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearNotification3() => $_clearField(1);
-  @$pb.TagNumber(1)
-  Notification3 ensureNotification3() => $_ensure(0);
+  $pb.PbList<NotificationItem> get notificationItem => $_getList(0);
 }
 
-class Notification3 extends $pb.GeneratedMessage {
-  factory Notification3({
+class NotificationItem extends $pb.GeneratedMessage {
+  factory NotificationItem({
     $core.String? package,
     $core.String? appName,
     $core.String? title,
@@ -8851,17 +8844,17 @@ class Notification3 extends $pb.GeneratedMessage {
     return result;
   }
 
-  Notification3._();
+  NotificationItem._();
 
-  factory Notification3.fromBuffer($core.List<$core.int> data,
+  factory NotificationItem.fromBuffer($core.List<$core.int> data,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(data, registry);
-  factory Notification3.fromJson($core.String json,
+  factory NotificationItem.fromJson($core.String json,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromJson(json, registry);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'Notification3',
+      _omitMessageNames ? '' : 'NotificationItem',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'xiaomi'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'package')
@@ -8882,23 +8875,23 @@ class Notification3 extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  Notification3 clone() => deepCopy();
+  NotificationItem clone() => deepCopy();
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  Notification3 copyWith(void Function(Notification3) updates) =>
-      super.copyWith((message) => updates(message as Notification3))
-          as Notification3;
+  NotificationItem copyWith(void Function(NotificationItem) updates) =>
+      super.copyWith((message) => updates(message as NotificationItem))
+          as NotificationItem;
 
   @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
-  static Notification3 create() => Notification3._();
+  static NotificationItem create() => NotificationItem._();
   @$core.override
-  Notification3 createEmptyInstance() => create();
+  NotificationItem createEmptyInstance() => create();
   @$core.pragma('dart2js:noInline')
-  static Notification3 getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<Notification3>(create);
-  static Notification3? _defaultInstance;
+  static NotificationItem getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NotificationItem>(create);
+  static NotificationItem? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get package => $_getSZ(0);

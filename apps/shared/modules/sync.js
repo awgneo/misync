@@ -1,4 +1,4 @@
-/* apps/shared/modules/misync.js */
+/* apps/shared/modules/sync.js */
 import interconnect from '@system.interconnect'
 
 class MiSync {
