@@ -17,16 +17,18 @@ class WalletScreen extends Screen<WalletModule> {
 
 class _WalletScreenState extends ScreenState<WalletScreen> {
   void _showBarcodeDetails(Pass pass) {
-    final fieldsBody = pass.fields.map((f) => '${f.label}: ${f.value}').join('\n');
+    final fieldsBody = pass.fields
+        .map((f) => '${f.label}: ${f.value}')
+        .join('\n');
     showMiModal<void>(
       context: context,
-      title: pass.organizationName,
+      title: pass.issuer,
       body:
-          '${pass.description}\n\n'
+          '${pass.title}\n\n'
           'FIELDS:\n$fieldsBody\n\n'
-          'BARCODE MESSAGE:\n${pass.barcodeMessage}\n\n'
+          'BARCODE MESSAGE:\n${pass.barcodeValue}\n\n'
           'Format: ${pass.barcodeFormat}\n'
-          'Serial: ${pass.serialNumber}',
+          'ID: ${pass.id}',
       confirm: 'OK',
       cancel: 'Dismiss',
     );
@@ -110,10 +112,10 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
             MiItems(
               children: passes.map((pass) {
                 return MiItem(
-                  title: pass.organizationName,
-                  subtitle: pass.description,
+                  title: pass.issuer,
+                  subtitle: pass.title,
                   primaryIcon: Icons.qr_code_2,
-                  delete: () => widget.module.removePass(pass.serialNumber),
+                  delete: () => widget.module.removePass(pass.id),
                   clicked: () => _showBarcodeDetails(pass),
                 );
               }).toList(),

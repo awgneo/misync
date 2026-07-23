@@ -52,7 +52,6 @@ import router from "@system.router";
 import MiPage from "../../shared/modules/page.js";
 
 const page = MiPage({
-	isRoot: true,
 	private: {
 		watchlists: [],
 		isLoading: true,

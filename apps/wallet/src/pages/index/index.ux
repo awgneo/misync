@@ -12,24 +12,42 @@
 			@touchstart="handleTouchStart"
 			@touchmove="handleTouchMove"
 		>
-			<scroll scroll-y="true" for="{{ pass in passes }}" class="pass-slide" style="{{ getSlideStyle(pass) }}">
+			<scroll
+				scroll-y="true"
+				for="{{ pass in passes }}"
+				class="pass-slide"
+				style="{{ getSlideStyle(pass) }}"
+			>
 				<div class="mi-row">
-					<mi-header text="{{ pass.organizationName }}"></mi-header>
+					<mi-header text="{{ pass.issuer }}"></mi-header>
 				</div>
 
 				<div class="mi-qrcode-container">
-					<qrcode value="{{ pass.barcodeMessage }}" class="mi-qrcode"></qrcode>
+					<qrcode value="{{ pass.barcodeValue }}" class="mi-qrcode"></qrcode>
 				</div>
 
-				<text class="pass-description" style="{{ getValueStyle(pass) }}">{{ pass.description }}</text>
+				<text class="pass-description" style="{{ getValueStyle(pass) }}">
+					{{ pass.title }}
+				</text>
 
 				<!-- Universal Key-Value Field Grid (Row-chunked 2-column layout matching actions module) -->
 				<div for="{{ row in pass.fieldRows }}" class="mi-row">
-					<div for="{{ field in row }}" class="mi-stat {{ $idx === 1 ? 'mi-last' : '' }}" style="{{ getCardStyle(pass) }}">
-						<text class="mi-stat-label" style="{{ getLabelStyle(pass) }}">{{ field.label }}</text>
-						<text class="mi-stat-value" style="{{ getValueStyle(pass) }}">{{ field.value }}</text>
+					<div
+						for="{{ field in row }}"
+						class="mi-stat {{ $idx === 1 ? 'mi-last' : '' }}"
+					>
+						<text class="mi-stat-label" style="{{ getLabelStyle(pass) }}">
+							{{ field.label }}
+						</text>
+						<text class="mi-stat-value" style="{{ getValueStyle(pass) }}">
+							{{ field.value }}
+						</text>
 					</div>
-					<div if="{{ row.length === 1 }}" class="mi-stat mi-last" style="background-color: transparent"></div>
+					<div
+						if="{{ row.length === 1 }}"
+						class="mi-stat mi-last"
+						style="background-color: transparent"
+					></div>
 				</div>
 			</scroll>
 		</swiper>
@@ -86,13 +104,9 @@ const page = MiPage({
 		return "background-color: #111827;";
 	},
 
-	getCardStyle(pass) {
-		return "background-color: rgba(255, 255, 255, 0.12);";
-	},
-
 	getLabelStyle(pass) {
-		if (pass && pass.labelColor) {
-			return `color: ${pass.labelColor};`;
+		if (pass && pass.foregroundColor) {
+			return `color: ${pass.foregroundColor};`;
 		}
 		return "color: #888888;";
 	},

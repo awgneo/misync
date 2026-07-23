@@ -82,6 +82,25 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
     if (deviceIndex != -1) {
       _currentIndex = deviceIndex;
     }
+    TabModule.selectedName.addListener(_tabChanged);
+  }
+
+  @override
+  void dispose() {
+    TabModule.selectedName.removeListener(_tabChanged);
+    super.dispose();
+  }
+
+  void _tabChanged() {
+    final targetName = TabModule.selectedName.value;
+    if (targetName != null) {
+      final index = _tabModules.indexWhere((m) => m.name == targetName);
+      if (index != -1 && mounted) {
+        setState(() {
+          _currentIndex = index;
+        });
+      }
+    }
   }
 
   @override

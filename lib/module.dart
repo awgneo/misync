@@ -13,4 +13,10 @@ abstract class Module {
 abstract class TabModule extends Module {
   IconData get icon;
   Screen get screen;
+
+  static final ValueNotifier<String?> selectedName = ValueNotifier(null);
+
+  void select() {
+    selectedName.value = name;
+  }
 }

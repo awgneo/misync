@@ -10,7 +10,6 @@ class MiPage {
 
 	build() {
 		const opts = this.options;
-		const isRoot = opts.isRoot || false;
 
 		return {
 			...opts,
@@ -72,7 +71,7 @@ class MiPage {
 				}
 			},
 			handleSwipe(e) {
-				if (e && e.direction === "right" && !isRoot) {
+				if (e && e.direction === "right") {
 					MiSync.log("[PAGE] Subpage swipe right -> calling router.back()");
 					router.back();
 				}
@@ -100,7 +99,7 @@ class MiPage {
 					const touch = e.touches[0];
 					const deltaX = touch.clientX - this.startX;
 					const deltaY = touch.clientY - this.startY;
-					if (isRoot && (typeof this.currentIndex === "undefined" || this.currentIndex === 0)) {
+					if (typeof this.currentIndex === "undefined" || this.currentIndex === 0) {
 						if (this.startX < 50 && deltaX > 35 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
 							MiSync.log("[PAGE] Left-edge swipe detected on swiper slide 0 -> terminating app");
 							app.terminate();

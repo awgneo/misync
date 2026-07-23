@@ -112,7 +112,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Handle standard pkpass MIME type -->
+            <!-- Handle standard and variant Apple Wallet MIME types -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -122,6 +122,8 @@
                 <data android:scheme="http" />
                 <data android:scheme="https" />
                 <data android:mimeType="application/vnd.apple.pkpass" />
+                <data android:mimeType="application/vnd-com.apple.pkpass" />
+                <data android:mimeType="application/pkpass" />
             </intent-filter>
 
             <!-- Handle misconfigured web servers downloading pkpass as generic octet-stream -->
@@ -136,6 +138,13 @@
                 <data android:mimeType="application/octet-stream" />
                 <data android:host="*" />
                 <data android:pathPattern=".*\\.pkpass" />
+            </intent-filter>
+
+            <!-- Share Sheet Interception (ACTION_SEND) for shared pass links -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
 
             <!-- Intercept Google Wallet deep links so they appear in Open by default settings -->

@@ -44,6 +44,7 @@ class WalletModule extends TabModule {
         logger.info('Found pending pkpass on startup');
         final pass = Pass.fromJson(Map<String, dynamic>.from(data));
         await PassesBlob.instance.addPass(pass);
+        select();
       }
     } catch (e) {
       logger.error('Failed to query pending pass on startup: $e');
@@ -56,6 +57,7 @@ class WalletModule extends TabModule {
       final data = Map<String, dynamic>.from(call.arguments);
       final pass = Pass.fromJson(data);
       await PassesBlob.instance.addPass(pass);
+      select();
     }
   }
 
