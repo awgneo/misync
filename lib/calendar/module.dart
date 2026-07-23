@@ -32,6 +32,24 @@ class CalendarModule extends TabModule {
     await _syncCalendar();
   }
 
+  String _sanitizeDescription(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '';
+    String text = raw;
+
+    // Truncate Google Calendar / Meet auto-generated footer block
+    final delimiterIdx = text.indexOf('-::~:~::');
+    if (delimiterIdx != -1) {
+      text = text.substring(0, delimiterIdx);
+    }
+
+    // Strip HTML tags if any
+    text = text.replaceAll(RegExp(r'<[^>]*>'), ' ');
+
+    // Normalize excessive newlines and whitespace
+    text = text.replaceAll(RegExp(r'[\r\n]{2,}'), '\n').trim();
+    return text;
+  }
+
   Future<void> _syncCalendar() async {
     if (!DeviceModule.module.connection.connected.value) {
       logger.info('skip sync (not connected)');
@@ -72,7 +90,7 @@ class CalendarModule extends TabModule {
         events.add(
           pb.CalendarEvent()
             ..title = map['title'] as String? ?? ''
-            ..description = map['description'] as String? ?? ''
+            ..description = _sanitizeDescription(map['description'] as String?)
             ..location = map['location'] as String? ?? ''
             ..start = startSeconds
             ..end = endSeconds
