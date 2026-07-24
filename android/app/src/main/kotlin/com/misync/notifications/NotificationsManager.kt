@@ -41,7 +41,7 @@ class NotificationsManager(private val context: Context) {
         return success
     }
 
-    fun getNotificationMeta(id: Int): Map<String, Any>? {
+    fun getMeta(id: Int): Map<String, Any>? {
         val service = NotificationsService.instance ?: return null
         val meta = service.getMeta(id) ?: return null
         return mapOf(
@@ -60,29 +60,10 @@ class NotificationsManager(private val context: Context) {
         )
     }
 
-    fun getNotificationMeta(key: String): Map<String, Any>? {
-        val service = NotificationsService.instance ?: return null
-        val meta = service.getMeta(key) ?: return null
-        return mapOf(
-            "key" to meta.key,
-            "id" to meta.id,
-            "package" to meta.`package`,
-            "app" to meta.app,
-            "title" to meta.title,
-            "body" to meta.body,
-            "kind" to meta.kind,
-            "secondary" to meta.secondary,
-            "phone" to meta.phone,
-            "replyable" to meta.replyable,
-            "actions" to meta.actions,
-            "timestamp" to meta.timestamp
-        )
-    }
-
-    fun getAllNotificationMetas(): List<Map<String, Any>> {
+    fun getMetas(): List<Map<String, Any>> {
         val service = NotificationsService.instance ?: return emptyList()
         service.syncActiveNotifications()
-        return service.activeMetas.values.map { meta ->
+        return service.metas.values.map { meta ->
             mapOf(
                 "key" to meta.key,
                 "id" to meta.id,
@@ -122,7 +103,7 @@ class NotificationsManager(private val context: Context) {
         return true
     }
 
-    fun replyToNotification(id: Int, message: String): Boolean {
+    fun reply(id: Int, message: String): Boolean {
         val service = NotificationsService.instance
             ?: throw IllegalStateException("Notifications listener service is not running")
         val success = service.reply(id, message)
@@ -132,71 +113,21 @@ class NotificationsManager(private val context: Context) {
         return success
     }
 
-    fun dismissNotification(id: Int): Boolean {
+    fun dismiss(id: Int): Boolean {
         val service = NotificationsService.instance
             ?: throw IllegalStateException("Notifications listener service is not running")
         return service.dismiss(id)
     }
 
-    fun triggerNotificationAction(id: Int, actionKeyword: String): Boolean {
+    fun triggerAction(id: Int, actionKeyword: String): Boolean {
         val service = NotificationsService.instance
             ?: throw IllegalStateException("Notifications listener service is not running")
-        return service.triggerNotificationAction(id, actionKeyword)
+        return service.triggerAction(id, actionKeyword)
     }
 
-    fun openNotificationOnPhone(id: Int): Boolean {
+    fun open(id: Int): Boolean {
         val service = NotificationsService.instance
             ?: throw IllegalStateException("Notifications listener service is not running")
-        return service.openNotificationOnPhone(id)
-    }
-
-    fun getApps(): List<Map<String, Any>> {
-        val pm = context.packageManager
-        val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
-        val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
-        val appsMap = mutableMapOf<String, String>()
-
-        for (ri in resolveInfos) {
-            val pkg = ri.activityInfo.packageName
-            if (pkg == context.packageName) continue
-            val label = ri.loadLabel(pm).toString()
-            if (!appsMap.containsKey(pkg)) {
-                appsMap[pkg] = label
-            }
-        }
-
-        return appsMap.entries.map { (pkg, name) ->
-            mapOf(
-                "package" to pkg,
-                "name" to name
-            )
-        }.sortedBy { (it["name"] as String).lowercase() }
-    }
-
-    fun getAppIcon(packageName: String, sizePx: Int = 96): ByteArray? {
-        return try {
-            val pm = context.packageManager
-            val drawable = pm.getApplicationIcon(packageName)
-            val bitmap = drawableToBitmap(drawable, sizePx, sizePx)
-            val stream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-            stream.toByteArray()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting app icon for $packageName", e)
-            null
-        }
-    }
-
-    private fun drawableToBitmap(drawable: Drawable, width: Int, height: Int): Bitmap {
-        if (drawable is BitmapDrawable && drawable.bitmap != null) {
-            return Bitmap.createScaledBitmap(drawable.bitmap, width, height, true)
-        }
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        drawable.setBounds(0, 0, canvas.width, canvas.height)
-        drawable.draw(canvas)
-        return bitmap
+        return service.open(id)
     }
 }

@@ -19,6 +19,7 @@ import com.misync.media.MediaModule
 import com.misync.actions.ActionsModule
 import com.misync.finance.FinanceModule
 import com.misync.wallet.WalletModule
+import com.misync.platform.PlatformModule
 
 class MainActivity : FlutterActivity() {
     private val TAG = "MainActivity"
@@ -33,6 +34,7 @@ class MainActivity : FlutterActivity() {
 
         // Initialize modules
         modules = listOf(
+            PlatformModule(this),
             DeviceModule(this),
             HealthModule(this),
             NotificationsModule(this),

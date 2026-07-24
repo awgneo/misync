@@ -58,7 +58,7 @@ class NotificationModule extends TabModule {
   Future<void> _syncActiveNotifications() async {
     try {
       final List? metas = await PlatformModule.module.invokeMethod<List>(
-        'notifications.getActiveMetas',
+        'notifications.getMetas',
       );
       final Set<int> pushedIds = PushedBlob.ids.toSet();
       if (metas == null || metas.isEmpty) {
@@ -325,7 +325,7 @@ class NotificationModule extends TabModule {
 
     try {
       await PlatformModule.module.invokeMethod(
-        'notifications.replyToNotification',
+        'notifications.reply',
         {'id': reply.unknown1, 'message': reply.message},
       );
     } catch (e) {
@@ -349,7 +349,7 @@ class NotificationModule extends TabModule {
       for (var notifId in dismiss.notificationId) {
         try {
           await PlatformModule.module.invokeMethod(
-            'notifications.dismissNotification',
+            'notifications.dismiss',
             {'id': notifId.id},
           );
         } catch (e) {
@@ -363,7 +363,7 @@ class NotificationModule extends TabModule {
     final int id = dismiss.notificationId.first.id;
 
     final Map? meta = await PlatformModule.module.invokeMethod<Map>(
-      'notifications.getNotificationMeta',
+      'notifications.getMeta',
       {'id': id},
     );
 
@@ -396,7 +396,7 @@ class NotificationModule extends TabModule {
 
       try {
         await PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
+          'notifications.dismiss',
           {'id': id},
         );
       } catch (e) {
@@ -463,7 +463,7 @@ class NotificationModule extends TabModule {
       });
       try {
         await PlatformModule.module.invokeMethod(
-          'notifications.triggerNotificationAction',
+          'notifications.triggerAction',
           {'id': id, 'action': action},
         );
       } catch (e) {
@@ -478,7 +478,7 @@ class NotificationModule extends TabModule {
       logger.info('received email open from watch Emails app', {'id': id});
       try {
         await PlatformModule.module.invokeMethod(
-          'notifications.openNotificationOnPhone',
+          'notifications.open',
           {'id': id},
         );
       } catch (e) {
@@ -551,7 +551,7 @@ class NotificationModule extends TabModule {
     if (id != null && id != 0) {
       try {
         await PlatformModule.module.invokeMethod(
-          'notifications.replyToNotification',
+          'notifications.reply',
           {'id': id, 'message': text},
         );
       } catch (e) {
@@ -560,7 +560,7 @@ class NotificationModule extends TabModule {
 
       try {
         await PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
+          'notifications.dismiss',
           {'id': id},
         );
       } catch (e) {
@@ -575,7 +575,7 @@ class NotificationModule extends TabModule {
       logger.info('received dismiss from watch app', {'id': id});
       try {
         await PlatformModule.module.invokeMethod(
-          'notifications.dismissNotification',
+          'notifications.dismiss',
           {'id': id},
         );
       } catch (e) {

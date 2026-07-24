@@ -3414,6 +3414,7 @@ sim_card e32b
 sim_card_alert f057
 sim_card_download f068
 simulation f3e1
+single_arrow ffed9
 single_bed ea48
 sip f069
 siren f3a7

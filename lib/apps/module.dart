@@ -325,9 +325,9 @@ class AppsModule extends TabModule {
     // Fetch the app icon raw ARGB bytes from Android
     Uint8List? rawBytes;
     try {
-      rawBytes = await PlatformModule.module.invokeMethod<Uint8List>(
-        'notifications.getAppIcon',
-        {'packageName': package, 'size': size},
+      rawBytes = await PlatformModule.module.getAppIcon(
+        package,
+        size: size,
       );
     } catch (e) {
       logger.error(

@@ -67,7 +67,7 @@ class PlatformModule extends Module {
     List<dynamic>? appsList;
     try {
       appsList = await invokeMethod<List<dynamic>>(
-        'notifications.getApps',
+        'platform.getApps',
       );
     } catch (e) {
       logger.error('failed to fetch installed apps from system: $e');
@@ -82,6 +82,19 @@ class PlatformModule extends Module {
       return map;
     }
     return const {};
+  }
+
+  Future<Uint8List?> getAppIcon(String packageName, {int size = 96}) async {
+    try {
+      final Uint8List? bytes = await invokeMethod<Uint8List>(
+        'platform.getAppIcon',
+        {'packageName': packageName, 'size': size},
+      );
+      return bytes;
+    } catch (e) {
+      logger.error('failed to fetch app icon from system: $e');
+      return null;
+    }
   }
 
   Future<void> findWatch(bool start) async {

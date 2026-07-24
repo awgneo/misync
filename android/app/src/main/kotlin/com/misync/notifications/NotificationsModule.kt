@@ -146,10 +146,10 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
         result: MethodChannel.Result
     ): Boolean {
         return when (method) {
-            "replyToNotification" -> {
-                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
+            "reply" -> {
+                val id = call.argument<Number>("id")?.toInt() ?: 0
                 val message = call.argument<String>("message") ?: ""
-                notificationsManager.replyToNotification(id, message)
+                notificationsManager.reply(id, message)
                 result.success(null)
                 true
             }
@@ -166,45 +166,25 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 true
             }
 
-            "dismissNotification" -> {
-                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
-                notificationsManager.dismissNotification(id)
+            "dismiss" -> {
+                val id = call.argument<Number>("id")?.toInt() ?: 0
+                notificationsManager.dismiss(id)
                 result.success(null)
                 true
             }
 
-            "triggerNotificationAction" -> {
-                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
+            "triggerAction" -> {
+                val id = call.argument<Number>("id")?.toInt() ?: 0
                 val action = call.argument<String>("action") ?: ""
-                val success = notificationsManager.triggerNotificationAction(id, action)
+                val success = notificationsManager.triggerAction(id, action)
                 result.success(success)
                 true
             }
 
-            "openNotificationOnPhone" -> {
-                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
-                val success = notificationsManager.openNotificationOnPhone(id)
+            "open" -> {
+                val id = call.argument<Number>("id")?.toInt() ?: 0
+                val success = notificationsManager.open(id)
                 result.success(success)
-                true
-            }
-
-            "getAppIcon" -> {
-                val packageName = call.argument<String>("packageName") ?: ""
-                val size = call.argument<Int>("size") ?: 96
-                val iconBytes = notificationsManager.getAppIcon(packageName, size)
-                result.success(iconBytes)
-                true
-            }
-
-            "getApps" -> {
-                Thread {
-                    try {
-                        val appList = notificationsManager.getApps()
-                        result.success(appList)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }.start()
                 true
             }
 
@@ -232,15 +212,15 @@ class NotificationsModule(private val context: Context) : BaseModule("notificati
                 true
             }
 
-            "getNotificationMeta" -> {
-                val id = call.argument<Number>("id")?.toInt() ?: (call.argument<String>("key")?.lowercase()?.hashCode()?.and(0x7FFFFFFF) ?: 0)
-                val metaMap = notificationsManager.getNotificationMeta(id)
+            "getMeta" -> {
+                val id = call.argument<Number>("id")?.toInt() ?: 0
+                val metaMap = notificationsManager.getMeta(id)
                 result.success(metaMap)
                 true
             }
 
-            "getActiveMetas" -> {
-                val metaList = notificationsManager.getAllNotificationMetas()
+            "getMetas" -> {
+                val metaList = notificationsManager.getMetas()
                 result.success(metaList)
                 true
             }
