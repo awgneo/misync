@@ -103,7 +103,7 @@ class NotificationsService : NotificationListenerService() {
         }
 
         val phone = extractPhone(sbn, call)
-        val secondary = isSecondary(call, category, flags)
+        val secondary = isSecondary(call, category, flags, extras)
         val actions = extractActions(notification)
         val kind = computeKind(call, category, `package`, extras)
         val replyable = computeReplyable(notification, call, category, `package`, extras)
@@ -237,16 +237,6 @@ class NotificationsService : NotificationListenerService() {
             return true
         }
 
-        // On Android 12+ (API 31+), filter out outgoing (2) or ongoing (3) CallStyle notifications
-        if (isCall && category == Notification.CATEGORY_CALL && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (extras.containsKey(Notification.EXTRA_CALL_TYPE)) {
-                val callType = extras.getInt(Notification.EXTRA_CALL_TYPE, -1)
-                if (callType != Notification.CallStyle.CALL_TYPE_INCOMING) {
-                    return true
-                }
-            }
-        }
-
         return false
     }
 
@@ -308,17 +298,34 @@ class NotificationsService : NotificationListenerService() {
         return false
     }
 
-    private fun isSecondary(isCall: Boolean, category: String, flags: Int): Boolean {
+    private fun isSecondary(
+        isCall: Boolean,
+        category: String,
+        flags: Int,
+        extras: Bundle
+    ): Boolean {
         val isFgService = (flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
         val isOngoing = (flags and Notification.FLAG_ONGOING_EVENT) != 0
-        return when {
-            isCall -> {
-                category == Notification.CATEGORY_MISSED_CALL ||
-                        category == Notification.CATEGORY_VOICEMAIL
+
+        if (isCall) {
+            // 1. Android 12+ Official CallStyle extra (1 = INCOMING, 2 = OUTGOING, 3 = ONGOING)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && extras.containsKey(Notification.EXTRA_CALL_TYPE)) {
+                val callType = extras.getInt(Notification.EXTRA_CALL_TYPE, -1)
+                if (callType == 1) {
+                    return false
+                }
+                if (callType == 2 || callType == 3) {
+                    return true
+                }
             }
 
-            else -> isFgService || isOngoing
+            // 2. Universal OS Framework flag check: Outgoing & active calls are ongoing events (FLAG_ONGOING_EVENT)
+            return isOngoing ||
+                    category == Notification.CATEGORY_MISSED_CALL ||
+                    category == Notification.CATEGORY_VOICEMAIL
         }
+
+        return isFgService || isOngoing
     }
 
     private fun extractActions(notification: Notification): List<String> {
