@@ -384,25 +384,47 @@ class HealthModule extends TabModule {
         final futures = <Future<dynamic>>[];
         for (final r in batch) {
           final timeMs = (r.timestamp * 1000).clamp(0, now);
+          final recId = '${id.toHexString()}_$timeMs';
           if (r is HeartRateMeasurement) {
             futures.add(
               PlatformModule.module.invokeMethod('health.writeHeartRate', {
                 'time': timeMs,
                 'bpm': r.bpm,
+                'clientRecordId': '${recId}_hr',
               }),
             );
           } else if (r is OxygenSaturationMeasurement) {
             futures.add(
               PlatformModule.module.invokeMethod(
                 'health.writeOxygenSaturation',
-                {'time': timeMs, 'percentage': r.percentage.toDouble()},
+                {
+                  'time': timeMs,
+                  'percentage': r.percentage.toDouble(),
+                  'clientRecordId': '${recId}_spo2',
+                },
               ),
             );
           } else if (r is StressMeasurement) {
             futures.add(
               PlatformModule.module.invokeMethod(
                 'health.writeMindfulnessSession',
-                {'time': timeMs, 'stress': r.stress},
+                {
+                  'time': timeMs,
+                  'stress': r.stress,
+                  'clientRecordId': '${recId}_stress',
+                },
+              ),
+            );
+            // Map stress score (1-100) to approximate RMSSD ms (e.g. 100 - stress) for native HRV recording
+            final hrvApprox = (105.0 - r.stress.toDouble()).clamp(5.0, 150.0);
+            futures.add(
+              PlatformModule.module.invokeMethod(
+                'health.writeHeartRateVariabilityRmssd',
+                {
+                  'time': timeMs,
+                  'hrvMillis': hrvApprox,
+                  'clientRecordId': '${recId}_hrv',
+                },
               ),
             );
           } else if (r is TemperatureMeasurement) {
@@ -413,6 +435,7 @@ class HealthModule extends TabModule {
                   'time': timeMs,
                   'skinTemp': r.skinTemp,
                   'bodyTemp': r.bodyTemp,
+                  'clientRecordId': '${recId}_temp',
                 },
               ),
             );
@@ -424,6 +447,7 @@ class HealthModule extends TabModule {
                 'diastolic': r.diastolic,
                 'pulse': r.pulse,
                 'status': r.measurementStatus,
+                'clientRecordId': '${recId}_bp',
               }),
             );
           }
@@ -480,7 +504,7 @@ class HealthModule extends TabModule {
             endMs = now;
           }
           if (startMs >= endMs) {
-            startMs = endMs - 1000; // Ensure start is before end
+            startMs = endMs - 1000;
           }
 
           final isOverlapping = exerciseRanges.any((range) {
@@ -489,6 +513,8 @@ class HealthModule extends TabModule {
             return rStart.isBefore(range['end']!) &&
                 rEnd.isAfter(range['start']!);
           });
+
+          final recId = '${id.toHexString()}_$startMs';
 
           if (r.steps != null && r.steps! > 0) {
             if (isOverlapping) {
@@ -502,18 +528,58 @@ class HealthModule extends TabModule {
                   'startTime': startMs,
                   'endTime': endMs,
                   'count': r.steps!,
+                  'clientRecordId': '${recId}_steps',
                 }),
               );
             }
           }
+
+          if (r.calories != null && r.calories! > 0) {
+            if (isOverlapping) {
+              logger.info('skipping overlapping daily active calories', {
+                'timestamp': r.timestamp,
+                'calories': r.calories,
+              });
+            } else {
+              futures.add(
+                PlatformModule.module.invokeMethod('health.writeActiveCalories', {
+                  'startTime': startMs,
+                  'endTime': endMs,
+                  'kcal': r.calories!.toDouble(),
+                  'clientRecordId': '${recId}_cal',
+                }),
+              );
+            }
+          }
+
+          if (r.distance != null && r.distance! > 0) {
+            if (isOverlapping) {
+              logger.info('skipping overlapping daily distance', {
+                'timestamp': r.timestamp,
+                'distance': r.distance,
+              });
+            } else {
+              futures.add(
+                PlatformModule.module.invokeMethod('health.writeDistance', {
+                  'startTime': startMs,
+                  'endTime': endMs,
+                  'meters': r.distance!.toDouble(),
+                  'clientRecordId': '${recId}_dist',
+                }),
+              );
+            }
+          }
+
           if (r.hr != null && r.hr! > 0) {
             futures.add(
               PlatformModule.module.invokeMethod('health.writeHeartRate', {
                 'time': endMs,
                 'bpm': r.hr!,
+                'clientRecordId': '${recId}_hr',
               }),
             );
           }
+
           if (r.spo2 != null && r.spo2! > 0) {
             futures.add(
               PlatformModule.module.invokeMethod(
@@ -521,6 +587,21 @@ class HealthModule extends TabModule {
                 {
                   'time': endMs,
                   'percentage': r.spo2!.toDouble().clamp(0.0, 100.0),
+                  'clientRecordId': '${recId}_spo2',
+                },
+              ),
+            );
+          }
+
+          if (r.stress != null && r.stress! > 0) {
+            final hrvApprox = (105.0 - r.stress!.toDouble()).clamp(5.0, 150.0);
+            futures.add(
+              PlatformModule.module.invokeMethod(
+                'health.writeHeartRateVariabilityRmssd',
+                {
+                  'time': endMs,
+                  'hrvMillis': hrvApprox,
+                  'clientRecordId': '${recId}_hrv',
                 },
               ),
             );
@@ -568,12 +649,14 @@ class HealthModule extends TabModule {
 
     if (endTime.isAfter(startTime)) {
       final stages = sleep.formattedStages;
+      final recId = '${id.toHexString()}_sleep';
 
       try {
         await PlatformModule.module.invokeMethod('health.writeSleepSession', {
           'startTime': startTime.millisecondsSinceEpoch,
           'endTime': endTime.millisecondsSinceEpoch,
           'stages': stages,
+          'clientRecordId': recId,
         });
         logger.info('synced native sleep session', {
           'start': startTime.toIso8601String(),
@@ -637,6 +720,7 @@ class HealthModule extends TabModule {
           'calories': exercise.calories?.toDouble(),
           'distance': exercise.distance?.toDouble(),
           'skipCount': exercise.sportType == 14 ? exercise.steps : null,
+          'clientRecordId': '${id.toHexString()}_exercise',
         });
         logger.info('synced native exercise session', {
           'title': exercise.title,
@@ -654,6 +738,7 @@ class HealthModule extends TabModule {
 
     return true;
   }
+
 
   Future<void> saveHealth(Health settings) async {
     await HealthBlob.instance.update(settings);

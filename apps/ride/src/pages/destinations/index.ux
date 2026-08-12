@@ -1,0 +1,82 @@
+<!-- apps/ride/src/pages/destinations/index.ux -->
+<import name="mi-button" src="../../shared/components/button.ux"></import>
+<import name="mi-header" src="../../shared/components/header.ux"></import>
+
+<template>
+	<div class="mi-page" @swipe="handleSwipe">
+		<scroll class="mi-scroll" scroll-y="true">
+			<div class="mi-viewport">
+				<div class="mi-step-container">
+					<div class="mi-row">
+						<mi-header title="Select Destination"></mi-header>
+					</div>
+
+					<div if="{{ destinations.length === 0 }}" class="mi-row">
+						<text class="mi-text">No destinations configured on phone.</text>
+					</div>
+
+					<div for="{{ destinations }}" class="mi-row">
+						<mi-button
+							label="{{ $item.name }}"
+							classes="mi-last"
+							@tap="handleSelectDestination($item)"
+						></mi-button>
+					</div>
+				</div>
+			</div>
+			<div class="mi-spacer"></div>
+		</scroll>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import MiPage from "../../shared/modules/page.js";
+
+const page = MiPage({
+	protected: {
+		capacity: "4",
+	},
+
+	private: {
+		destinations: [],
+	},
+
+	onInit() {
+		this.send("getDestinations");
+	},
+
+	onMessage(message) {
+		if (message.destinations) {
+			this.destinations = message.destinations;
+		}
+	},
+
+	onRefresh() {
+		this.send("getDestinations");
+	},
+
+	handleSelectDestination(item) {
+		router.push({
+			uri: "pages/estimates",
+			params: {
+				destinationId: item.id,
+				destinationName: item.name,
+				capacity: this.capacity || "4",
+			},
+		});
+	},
+});
+
+export default page;
+</script>
+
+<style lang="less">
+@import "../../shared/styles/theme.less";
+
+.mi-step-container {
+	width: 100%;
+	flex-direction: column;
+	align-items: center;
+}
+</style>

@@ -309,3 +309,57 @@
   indicator-selected-color: @accent-color;
   indicator-size: 10px;
 }
+
+/* Core Radio Components */
+.mi-radios {
+  width: 100%;
+  flex-direction: column;
+}
+
+.mi-radio {
+  width: 100%;
+  height: 100%;
+  flex-direction: row;
+  align-items: center;
+  border-radius: @border-radius;
+  background-color: @bg-default;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.mi-radio-selected {
+  background-color: rgba(0, 229, 255, 0.12);
+  border: 1px solid @accent-color;
+}
+
+.mi-radio-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  border: 2px solid #666666;
+  justify-content: center;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.mi-radio-indicator-active {
+  border-color: @accent-color;
+}
+
+.mi-radio-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background-color: @accent-color;
+}
+
+.mi-radio-text {
+  font-size: @font-size-normal;
+  color: #ffffff;
+  flex: 1;
+}
+
+.mi-radio-text-active {
+  color: @accent-color;
+  font-weight: bold;
+}

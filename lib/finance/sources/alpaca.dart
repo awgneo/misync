@@ -101,13 +101,11 @@ class AlpacaSource implements InvestmentSource {
           final barsUri = Uri.parse(
             '$_dataBase/v2/stocks/bars?symbols=${symbols.join(',')}&timeframe=15Min&start=$startTime&limit=$totalLimit&feed=iex',
           );
-          print('[FINANCE] Alpaca fetching bars URI: $barsUri');
           final barsReq = await client.getUrl(barsUri);
           barsReq.headers.set('APCA-API-KEY-ID', apiKey);
           barsReq.headers.set('APCA-API-SECRET-KEY', secretKey);
           final barsResp = await barsReq.close();
           final String body = await barsResp.transform(utf8.decoder).join();
-          print('[FINANCE] Alpaca bars HTTP status: ${barsResp.statusCode}');
           if (barsResp.statusCode == 200) {
             final barsJson = jsonDecode(body) as Map<String, dynamic>;
             final barsBySymbol =
@@ -130,14 +128,10 @@ class AlpacaSource implements InvestmentSource {
               sparklinesMap[sym] = candles.length > 24
                   ? candles.sublist(candles.length - 24)
                   : candles;
-              print('[FINANCE] Alpaca OHLC candles for $sym: ${sparklinesMap[sym]?.length} bars');
             }
-          } else {
-            print('[FINANCE] Alpaca bars error ${barsResp.statusCode}: $body');
           }
-        } catch (e) {
-          print('[FINANCE] Alpaca bars exception: $e');
-        }
+        } catch (_) {}
+
 
         final List<InvestmentsWatchlistItem> itemsList = [];
 

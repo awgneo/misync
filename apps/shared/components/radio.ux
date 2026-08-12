@@ -1,0 +1,33 @@
+<!-- apps/shared/components/radio.ux -->
+<template>
+	<div
+		class="mi-radio {{ (selected === true || selected === 'true') ? 'mi-radio-selected' : '' }} {{ classes }}"
+		onclick="handleTap"
+	>
+		<div class="mi-radio-indicator {{ (selected === true || selected === 'true') ? 'mi-radio-indicator-active' : '' }}">
+			<div if="{{ selected === true || selected === 'true' }}" class="mi-radio-dot"></div>
+		</div>
+		<text
+			class="mi-radio-text {{ (selected === true || selected === 'true') ? 'mi-radio-text-active' : '' }}"
+			static
+		>
+			{{ label }}
+		</text>
+	</div>
+</template>
+
+<script>
+import vibrator from "@system.vibrator";
+
+export default {
+	props: ["label", "value", "selected", "classes"],
+	handleTap() {
+		vibrator.vibrate({ mode: "short" });
+		this.$emit("select", { value: this.value, label: this.label });
+	},
+};
+</script>
+
+<style lang="less">
+@import "../styles/theme.less";
+</style>

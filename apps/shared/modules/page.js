@@ -101,7 +101,7 @@ class MiPage {
 					const deltaY = touch.clientY - this.startY;
 					if (typeof this.currentIndex === "undefined" || this.currentIndex === 0) {
 						if (this.startX < 50 && deltaX > 35 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
-							MiSync.log("[PAGE] Left-edge swipe detected on swiper slide 0 -> terminating app");
+							MiSync.log("[PAGE] Left-edge swipe detected on root page -> terminating app");
 							app.terminate();
 							return;
 						}

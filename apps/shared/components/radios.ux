@@ -1,0 +1,16 @@
+<!-- apps/shared/components/radios.ux -->
+<template>
+	<div class="mi-radios {{ classes }}">
+		<slot></slot>
+	</div>
+</template>
+
+<script>
+export default {
+	props: ["value", "classes"],
+};
+</script>
+
+<style lang="less">
+@import "../styles/theme.less";
+</style>

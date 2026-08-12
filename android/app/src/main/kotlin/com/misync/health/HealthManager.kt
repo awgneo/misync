@@ -5,6 +5,8 @@ import android.util.Log
 import io.flutter.plugin.common.MethodChannel
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.records.metadata.Device
+import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.*
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -31,7 +33,35 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeSteps(startTimeMs: Long, endTimeMs: Long, count: Long, result: MethodChannel.Result) {
+    private val WATCH_DEVICE = Device(
+        type = Device.TYPE_WATCH,
+        manufacturer = "Xiaomi",
+        model = "Mi Band"
+    )
+
+    private fun getMetadata(clientRecordId: String? = null, isActivelyRecorded: Boolean = false): Metadata {
+        return if (isActivelyRecorded) {
+            if (clientRecordId != null) {
+                Metadata.activelyRecorded(device = WATCH_DEVICE, clientRecordId = clientRecordId)
+            } else {
+                Metadata.activelyRecorded(device = WATCH_DEVICE)
+            }
+        } else {
+            if (clientRecordId != null) {
+                Metadata.autoRecorded(device = WATCH_DEVICE, clientRecordId = clientRecordId)
+            } else {
+                Metadata.autoRecorded(device = WATCH_DEVICE)
+            }
+        }
+    }
+
+    fun writeSteps(
+        startTimeMs: Long,
+        endTimeMs: Long,
+        count: Long,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -45,7 +75,7 @@ class HealthManager(private val context: Context) {
                     endTime = Instant.ofEpochMilli(endTimeMs),
                     endZoneOffset = null,
                     count = count,
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -58,7 +88,7 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeHeartRate(timeMs: Long, bpm: Long, result: MethodChannel.Result) {
+    fun writeHeartRate(timeMs: Long, bpm: Long, clientRecordId: String? = null, result: MethodChannel.Result) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -72,7 +102,7 @@ class HealthManager(private val context: Context) {
                     endTime = Instant.ofEpochMilli(timeMs),
                     endZoneOffset = null,
                     samples = listOf(HeartRateRecord.Sample(Instant.ofEpochMilli(timeMs), bpm)),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -85,7 +115,12 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeOxygenSaturation(timeMs: Long, percentage: Double, result: MethodChannel.Result) {
+    fun writeOxygenSaturation(
+        timeMs: Long,
+        percentage: Double,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -97,7 +132,7 @@ class HealthManager(private val context: Context) {
                     time = Instant.ofEpochMilli(timeMs),
                     zoneOffset = null,
                     percentage = Percentage(percentage),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -110,7 +145,13 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeActiveCaloriesBurned(startTimeMs: Long, endTimeMs: Long, kcal: Double, result: MethodChannel.Result) {
+    fun writeActiveCaloriesBurned(
+        startTimeMs: Long,
+        endTimeMs: Long,
+        kcal: Double,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -124,7 +165,7 @@ class HealthManager(private val context: Context) {
                     endTime = Instant.ofEpochMilli(endTimeMs),
                     endZoneOffset = null,
                     energy = Energy.kilocalories(kcal),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -137,7 +178,13 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeDistance(startTimeMs: Long, endTimeMs: Long, meters: Double, result: MethodChannel.Result) {
+    fun writeDistance(
+        startTimeMs: Long,
+        endTimeMs: Long,
+        meters: Double,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -151,7 +198,7 @@ class HealthManager(private val context: Context) {
                     endTime = Instant.ofEpochMilli(endTimeMs),
                     endZoneOffset = null,
                     distance = Length.meters(meters),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -168,6 +215,7 @@ class HealthManager(private val context: Context) {
         startTimeMs: Long,
         endTimeMs: Long,
         stagesList: List<Map<String, Any>>,
+        clientRecordId: String? = null,
         result: MethodChannel.Result
     ) {
         val currentClient = client ?: run {
@@ -187,9 +235,9 @@ class HealthManager(private val context: Context) {
                     )
                 } else {
                     stagesList.map { stageMap ->
-                        val start = stageMap["start"] as Long
-                        val end = stageMap["end"] as Long
-                        val state = stageMap["stage"] as Int
+                        val start = (stageMap["start"] as Number).toLong()
+                        val end = (stageMap["end"] as Number).toLong()
+                        val state = (stageMap["stage"] as Number).toInt()
                         val type = when (state) {
                             2 -> SleepSessionRecord.STAGE_TYPE_DEEP
                             3 -> SleepSessionRecord.STAGE_TYPE_LIGHT
@@ -212,7 +260,7 @@ class HealthManager(private val context: Context) {
                     endZoneOffset = null,
                     stages = stages,
                     title = "Sleep",
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
 
                 withContext(Dispatchers.IO) {
@@ -234,6 +282,7 @@ class HealthManager(private val context: Context) {
         calories: Double?,
         distance: Double?,
         skipCount: Long?,
+        clientRecordId: String? = null,
         result: MethodChannel.Result
     ) {
         val currentClient = client ?: run {
@@ -260,7 +309,7 @@ class HealthManager(private val context: Context) {
                     11 -> ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL
                     12 -> ExerciseSessionRecord.EXERCISE_TYPE_YOGA
                     13 -> ExerciseSessionRecord.EXERCISE_TYPE_ROWING_MACHINE
-                    14 -> ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING // Jump Rope
+                    14 -> ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING
                     15 -> ExerciseSessionRecord.EXERCISE_TYPE_HIKING
                     16 -> ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING
                     19 -> ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL
@@ -290,10 +339,10 @@ class HealthManager(private val context: Context) {
                     startZoneOffset = null,
                     endTime = endInstant,
                     endZoneOffset = null,
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(),
                     exerciseType = exerciseType,
                     title = title,
                     notes = null,
+                    metadata = getMetadata(clientRecordId, isActivelyRecorded = true),
                     segments = segments,
                     laps = emptyList()
                 )
@@ -308,7 +357,7 @@ class HealthManager(private val context: Context) {
                             endTime = endInstant,
                             endZoneOffset = null,
                             energy = Energy.kilocalories(calories),
-                            metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                            metadata = getMetadata(clientRecordId?.let { "${it}_cal" }, isActivelyRecorded = true)
                         )
                     )
                 }
@@ -321,7 +370,7 @@ class HealthManager(private val context: Context) {
                             endTime = endInstant,
                             endZoneOffset = null,
                             distance = Length.meters(distance),
-                            metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                            metadata = getMetadata(clientRecordId?.let { "${it}_dist" }, isActivelyRecorded = true)
                         )
                     )
                 }
@@ -334,7 +383,7 @@ class HealthManager(private val context: Context) {
                             endTime = endInstant,
                             endZoneOffset = null,
                             count = skipCount,
-                            metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                            metadata = getMetadata(clientRecordId?.let { "${it}_skip" }, isActivelyRecorded = true)
                         )
                     )
                 }
@@ -350,7 +399,160 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeMindfulnessSession(timeMs: Long, stress: Int, result: MethodChannel.Result) {
+    fun writeHeartRateVariabilityRmssd(
+        timeMs: Long,
+        hrvMillis: Double,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
+        val currentClient = client ?: run {
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = HeartRateVariabilityRmssdRecord(
+                    time = Instant.ofEpochMilli(timeMs),
+                    zoneOffset = null,
+                    heartRateVariabilityMillis = hrvMillis,
+                    metadata = getMetadata(clientRecordId)
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write HRV: ", e)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write HRV", null)
+            }
+        }
+    }
+
+    fun writeRestingHeartRate(timeMs: Long, bpm: Long, clientRecordId: String? = null, result: MethodChannel.Result) {
+        val currentClient = client ?: run {
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = RestingHeartRateRecord(
+                    time = Instant.ofEpochMilli(timeMs),
+                    zoneOffset = null,
+                    beatsPerMinute = bpm,
+                    metadata = getMetadata(clientRecordId)
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write resting heart rate: ", e)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write resting heart rate", null)
+            }
+        }
+    }
+
+    fun writeRespiratoryRate(timeMs: Long, rate: Double, clientRecordId: String? = null, result: MethodChannel.Result) {
+        val currentClient = client ?: run {
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = RespiratoryRateRecord(
+                    time = Instant.ofEpochMilli(timeMs),
+                    zoneOffset = null,
+                    rate = rate,
+                    metadata = getMetadata(clientRecordId)
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write respiratory rate: ", e)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write respiratory rate", null)
+            }
+        }
+    }
+
+    fun writeVo2Max(timeMs: Long, vo2Max: Double, clientRecordId: String? = null, result: MethodChannel.Result) {
+        val currentClient = client ?: run {
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val record = Vo2MaxRecord(
+                    time = Instant.ofEpochMilli(timeMs),
+                    zoneOffset = null,
+                    vo2MillilitersPerMinuteKilogram = vo2Max,
+                    measurementMethod = Vo2MaxRecord.MEASUREMENT_METHOD_OTHER,
+                    metadata = getMetadata(clientRecordId, isActivelyRecorded = true)
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write VO2 Max: ", e)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write VO2 Max", null)
+            }
+        }
+    }
+
+    fun writeSkinTemperature(
+        startTimeMs: Long,
+        endTimeMs: Long,
+        deltasList: List<Map<String, Any>>,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
+        val currentClient = client ?: run {
+            result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val deltas = deltasList.map { map ->
+                    val time = (map["time"] as Number).toLong()
+                    val delta = (map["delta"] as Number).toDouble()
+                    SkinTemperatureRecord.Delta(
+                        time = Instant.ofEpochMilli(time),
+                        delta = TemperatureDelta.celsius(delta)
+                    )
+                }
+                val record = SkinTemperatureRecord(
+                    startTime = Instant.ofEpochMilli(startTimeMs),
+                    startZoneOffset = null,
+                    endTime = Instant.ofEpochMilli(endTimeMs),
+                    endZoneOffset = null,
+                    deltas = deltas,
+                    measurementLocation = SkinTemperatureRecord.MEASUREMENT_LOCATION_WRIST,
+                    metadata = getMetadata(clientRecordId)
+                )
+                withContext(Dispatchers.IO) {
+                    currentClient.insertRecords(listOf(record))
+                }
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write skin temperature: ", e)
+                result.error("WRITE_ERROR", e.message ?: "Failed to write skin temperature", null)
+            }
+        }
+    }
+
+    fun writeMindfulnessSession(
+        timeMs: Long,
+        stress: Int,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -366,7 +568,7 @@ class HealthManager(private val context: Context) {
                     title = "Stress Measurement",
                     notes = "Stress Level: $stress",
                     mindfulnessSessionType = MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -379,7 +581,13 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeBodyTemperature(timeMs: Long, skinTemp: Double?, bodyTemp: Double?, result: MethodChannel.Result) {
+    fun writeBodyTemperature(
+        timeMs: Long,
+        skinTemp: Double?,
+        bodyTemp: Double?,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -396,7 +604,7 @@ class HealthManager(private val context: Context) {
                     time = Instant.ofEpochMilli(timeMs),
                     zoneOffset = null,
                     temperature = Temperature.celsius(temp),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
@@ -409,7 +617,13 @@ class HealthManager(private val context: Context) {
         }
     }
 
-    fun writeBloodPressure(timeMs: Long, systolic: Int, diastolic: Int, result: MethodChannel.Result) {
+    fun writeBloodPressure(
+        timeMs: Long,
+        systolic: Int,
+        diastolic: Int,
+        clientRecordId: String? = null,
+        result: MethodChannel.Result
+    ) {
         val currentClient = client ?: run {
             result.error("CLIENT_NOT_INITIALIZED", "Health Connect client is not initialized", null)
             return
@@ -422,7 +636,7 @@ class HealthManager(private val context: Context) {
                     zoneOffset = null,
                     systolic = Pressure.millimetersOfMercury(systolic.toDouble()),
                     diastolic = Pressure.millimetersOfMercury(diastolic.toDouble()),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod()
+                    metadata = getMetadata(clientRecordId)
                 )
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))

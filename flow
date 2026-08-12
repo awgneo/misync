@@ -164,7 +164,7 @@ build() {
 
 clean() {
   info "Cleaning watch app build directories..."
-  rm -rf apps/messages/build apps/messages/dist
+  rm -rf apps/*/build apps/*/dist
   info "Cleaning Flutter build artifacts..."
   flutter clean
   success "Clean completed successfully."
@@ -201,17 +201,57 @@ release() {
   flutter run -d "$dev" --release
 }
 
-doc() {
-  info "Documenting Mi Fitness Vela Quick App Guide..."
+doc-quickapp() {
+  info "Documenting Mi Fitness Vela Quick App Guide to .docs/QUICKAPP.md..."
+  mkdir -p .docs "${TEMPORARY_DIRECTORY:-/tmp/flow}"
+  local tmp_dir="${TEMPORARY_DIRECTORY:-/tmp/flow}/quickapp"
+  mkdir -p "$tmp_dir"
   siteone-crawler \
     --url="https://iot.mi.com/vela/quickapp/en/guide/" \
-    --max-depth=0 \
     --include-regex="\/vela\/quickapp\/en\/" \
+    --disable-all-assets \
+    --remove-query-params \
     --ignore-robots-txt \
     --browser \
-    --offline-export-preserve-url-structure \
-    --markdown-export-dir="./docs/xiaomi_vela_quickapp" \
-    --markdown-move-content-before-h1-to-end
+    --markdown-export-dir="$tmp_dir" \
+    --markdown-export-single-file="./.docs/QUICKAPP.md" \
+    --markdown-move-content-before-h1-to-end \
+    --markdown-disable-images \
+    --markdown-disable-files \
+    --output-html-report='' \
+    --output-json-file='' \
+    --output-text-file=''
+  rm -rf "$tmp_dir"
+}
+
+doc-healthconnect() {
+  info "Documenting Android Health Connect Guide & Records Reference to .docs/HEALTHCONNECT.md..."
+  mkdir -p .docs "${TEMPORARY_DIRECTORY:-/tmp/flow}"
+  local tmp_dir="${TEMPORARY_DIRECTORY:-/tmp/flow}/healthconnect"
+  mkdir -p "$tmp_dir"
+  siteone-crawler \
+    --url="https://developer.android.com/health-and-fitness/health-connect" \
+    --max-depth=4 \
+    --include-regex="(\/health-and-fitness\/health-connect|\/reference\/kotlin\/androidx\/health\/connect\/client\/records)" \
+    --remove-query-params \
+    --ignore-robots-txt \
+    --browser \
+    --browser-wait="networkidle" \
+    --markdown-export-dir="$tmp_dir" \
+    --markdown-export-single-file="./.docs/HEALTHCONNECT.md" \
+    --markdown-move-content-before-h1-to-end \
+    --markdown-disable-images \
+    --markdown-disable-files \
+    --output-html-report='' \
+    --output-json-file='' \
+    --output-text-file=''
+  rm -rf "$tmp_dir"
+}
+
+doc() {
+  doc-quickapp || exit $?
+  doc-healthconnect || exit $?
+  success "Documentation completed successfully."
 }
 
 misync-usage() {
@@ -226,6 +266,9 @@ misync-usage() {
   echo "analyze|Run static analysis checks."
   echo "debug|Run Flutter app in debug mode on connected device."
   echo "release|Run Flutter app in release mode on connected device."
+  echo "doc|Document Vela Quick App and Android Health Connect guides."
+  echo "doc-quickapp|Document Mi Fitness Vela Quick App Guide."
+  echo "doc-healthconnect|Document Android Health Connect Guide."
 }
 
 misync-flow() {
@@ -241,6 +284,9 @@ misync-flow() {
     analyze) analyze; return $?;;
     debug) build && debug; return $?;;
     release) release; return $?;;
+    doc) doc; return $?;;
+    doc-quickapp) doc-quickapp; return $?;;
+    doc-healthconnect) doc-healthconnect; return $?;;
     *) return 127 ;;
   esac
 }

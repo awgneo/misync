@@ -1,0 +1,91 @@
+<!-- apps/ride/src/pages/index/index.ux -->
+<import name="mi-button" src="../../shared/components/button.ux"></import>
+<import name="mi-header" src="../../shared/components/header.ux"></import>
+<import name="mi-radio" src="../../shared/components/radio.ux"></import>
+
+<template>
+	<div
+		class="mi-page"
+		@touchstart="handleTouchStart"
+		@touchmove="handleTouchMove"
+	>
+		<scroll class="mi-scroll" scroll-y="true">
+			<div class="mi-viewport">
+				<div class="mi-step-container">
+					<div class="mi-row">
+						<mi-header title="Select Passengers"></mi-header>
+					</div>
+
+					<div class="mi-row">
+						<mi-radio
+							value="4"
+							label="4 Passengers"
+							selected="{{ passengers === '4' }}"
+							@select="handleSelectPassengers"
+						></mi-radio>
+					</div>
+
+					<div class="mi-row">
+						<mi-radio
+							value="6"
+							label="6 Passengers"
+							selected="{{ passengers === '6' }}"
+							@select="handleSelectPassengers"
+						></mi-radio>
+					</div>
+
+					<div class="mi-row">
+						<mi-button
+							label="Next"
+							classes="mi-accent mi-last"
+							@tap="goToDestinations"
+						></mi-button>
+					</div>
+				</div>
+			</div>
+			<div class="mi-spacer"></div>
+		</scroll>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import MiPage from "../../shared/modules/page.js";
+
+const page = MiPage({
+	private: {
+		passengers: "4",
+	},
+
+	handleSelectPassengers(evt) {
+		let val = "4";
+		if (typeof evt === "object" && evt && evt.detail && evt.detail.value) {
+			val = String(evt.detail.value);
+		} else if (typeof evt === "string" || typeof evt === "number") {
+			val = String(evt);
+		}
+		this.passengers = val;
+	},
+
+	goToDestinations() {
+		router.push({
+			uri: "pages/destinations",
+			params: {
+				capacity: this.passengers,
+			},
+		});
+	},
+});
+
+export default page;
+</script>
+
+<style lang="less">
+@import "../../shared/styles/theme.less";
+
+.mi-step-container {
+	width: 100%;
+	flex-direction: column;
+	align-items: center;
+}
+</style>
