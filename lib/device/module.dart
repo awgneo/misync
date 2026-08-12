@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter/services.dart';
 import 'package:misync/screen.dart';
@@ -95,7 +95,9 @@ class DeviceModule extends TabModule {
   void _observeDevicePresence() async {
     if (_deviceAssociated) {
       try {
-        await PlatformModule.module.invokeMethod('device.observeDevicePresence');
+        await PlatformModule.module.invokeMethod(
+          'device.observeDevicePresence',
+        );
       } catch (e) {
         logger.error('failed to observe device presence: $e');
       }
@@ -237,18 +239,12 @@ class DeviceModule extends TabModule {
     }
 
     logger.info('syncing GPS helper data...');
-    final client = HttpClient();
     try {
-      final request = await client.getUrl(
+      final response = await http.get(
         Uri.parse('http://epodownload.mediatek.com/EPO.DAT'),
       );
-      final response = await request.close();
       if (response.statusCode == 200) {
-        final bytesBuilder = BytesBuilder();
-        await for (final chunk in response) {
-          bytesBuilder.add(chunk);
-        }
-        final bytes = bytesBuilder.takeBytes();
+        final bytes = response.bodyBytes;
 
         final success = await connection.uploadData(type: 1, bytes: bytes);
         if (success) {
@@ -265,9 +261,7 @@ class DeviceModule extends TabModule {
         logger.error('failed to fetch GPS data: HTTP ${response.statusCode}');
       }
     } catch (e) {
-      logger.error('GPS sync error: $e');
-    } finally {
-      client.close();
+      logger.error('failed to fetch GPS data: $e');
     }
   }
 
@@ -376,7 +370,10 @@ class DeviceModule extends TabModule {
     if (findDevice == 1) {
       PlatformModule.module.findingWatch.value = false;
       try {
-        await PlatformModule.module.invokeMethod('device.updateFindWatchState', false);
+        await PlatformModule.module.invokeMethod(
+          'device.updateFindWatchState',
+          false,
+        );
       } catch (e) {
         logger.error('failed to update find watch state: $e');
       }
@@ -408,9 +405,7 @@ class DeviceModule extends TabModule {
 
   Future<void> toggleTrustedAlerts(bool enabled) async {
     final current = TrustedBlob.instance.value;
-    await TrustedBlob.instance.update(
-      current.copyWith(enabled: enabled),
-    );
+    await TrustedBlob.instance.update(current.copyWith(enabled: enabled));
   }
 
   Future<void> addTrustedContact(String name, String phone) async {
@@ -437,8 +432,9 @@ class DeviceModule extends TabModule {
 
   Future<void> pickContact() async {
     try {
-      final Map? contactMap = await PlatformModule.module
-          .invokeMethod<Map>('notifications.pickContact');
+      final Map? contactMap = await PlatformModule.module.invokeMethod<Map>(
+        'notifications.pickContact',
+      );
       if (contactMap != null) {
         final String name = (contactMap['name'] ?? '').toString().trim();
         final String phone = (contactMap['phone'] ?? '').toString().trim();
@@ -466,30 +462,34 @@ class DeviceModule extends TabModule {
         .toList();
 
     if (phoneNumbers.isEmpty) {
-      logger.info('deviceDisappeared: no trusted contacts configured, skipping');
+      logger.info(
+        'deviceDisappeared: no trusted contacts configured, skipping',
+      );
       return;
     }
 
     try {
-      final Map? loc = await PlatformModule.module.invokeMethod<Map>('device.getLocation');
+      final Map? loc = await PlatformModule.module.invokeMethod<Map>(
+        'device.getLocation',
+      );
       final double? lat = loc?['latitude'] as double?;
       final double? lon = loc?['longitude'] as double?;
 
       final String message;
       if (lat != null && lon != null) {
-        message = "AWG left their phone behind! Last seen coordinates: https://maps.google.com/?q=$lat,$lon";
+        message =
+            "AWG left their phone behind! Last seen coordinates: https://maps.google.com/?q=$lat,$lon";
       } else {
         message = "AWG left their phone behind! (Unable to acquire GPS lock)";
       }
 
       final bool? success = await PlatformModule.module.invokeMethod<bool>(
         'notifications.sendText',
-        {
-          'recipients': phoneNumbers,
-          'message': message,
-        },
+        {'recipients': phoneNumbers, 'message': message},
       );
-      logger.info('deviceDisappeared: emergency alert text dispatched to ${phoneNumbers.length} contacts: $success');
+      logger.info(
+        'deviceDisappeared: emergency alert text dispatched to ${phoneNumbers.length} contacts: $success',
+      );
     } catch (e) {
       logger.error('deviceDisappeared: failed to handle event: $e');
     }

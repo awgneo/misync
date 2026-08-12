@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:misync/screen.dart';
 import '../device/module.dart';
@@ -105,52 +105,34 @@ class WeatherModule extends TabModule {
   }
 
   Future<Map<String, dynamic>?> _fetchWeather(double lat, double lon) async {
-    final client = HttpClient();
-    try {
-      final uri = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast'
-        '?latitude=$lat&longitude=$lon'
-        '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl,uv_index'
-        '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset'
-        '&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m'
-        '&wind_speed_unit=ms&temperature_unit=celsius&timezone=auto',
-      );
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      if (response.statusCode == 200) {
-        final jsonString = await response.transform(utf8.decoder).join();
-        return json.decode(jsonString) as Map<String, dynamic>;
-      } else {
-        logger.error('weather API returned status code ${response.statusCode}');
-      }
-    } catch (e) {
-      logger.error('weather API request failed: $e');
-    } finally {
-      client.close();
+    final uri = Uri.parse(
+      'https://api.open-meteo.com/v1/forecast'
+      '?latitude=$lat&longitude=$lon'
+      '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl,uv_index'
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset'
+      '&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m'
+      '&wind_speed_unit=ms&temperature_unit=celsius&timezone=auto',
+    );
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      logger.error('weather API returned status code ${response.statusCode}');
     }
     return null;
   }
 
   Future<int?> _fetchAqi(double lat, double lon) async {
-    final client = HttpClient();
-    try {
-      final uri = Uri.parse(
-        'https://air-quality-api.open-meteo.com/v1/air-quality'
-        '?latitude=$lat&longitude=$lon'
-        '&current=us_aqi',
-      );
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      if (response.statusCode == 200) {
-        final jsonString = await response.transform(utf8.decoder).join();
-        final data = json.decode(jsonString) as Map<String, dynamic>;
-        final current = data['current'] as Map<String, dynamic>;
-        return (current['us_aqi'] as num).round();
-      }
-    } catch (e) {
-      logger.error('failed to fetch AQI from API: $e');
-    } finally {
-      client.close();
+    final uri = Uri.parse(
+      'https://air-quality-api.open-meteo.com/v1/air-quality'
+      '?latitude=$lat&longitude=$lon'
+      '&current=us_aqi',
+    );
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final current = data['current'] as Map<String, dynamic>;
+      return (current['us_aqi'] as num).round();
     }
     return null;
   }
