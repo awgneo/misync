@@ -146,3 +146,24 @@ com.xiaomi.fitness.repo
 - **`android/app/src/main/kotlin/com/misync/health/HealthModule.kt`**: Added Health Connect write permissions and registered MethodChannel handlers.
 - **`lib/health/parsers/id.dart`**: Provides clean `toHexString()` identifier method.
 - **`lib/health/module.dart`**: Implemented `isOverlapping` filtering for active calories and distance in daily snapshots. Passed deterministic `toHexString()` clientRecordId keys across all sync calls. Added HRV sync for stress logs.
+- **`android/app/src/main/AndroidManifest.xml`**: Declared all 18 Health Connect `<uses-permission>` permissions to enforce runtime security compliance.
+
+---
+
+## 6. Technical Audit Notes & Integration Clarifications
+
+> [!NOTE]
+> **Health Connect Manifest Permissions**:
+> In Android Health Connect SDK (SDK 34+), runtime permission checks verify both Health Connect granted status and `AndroidManifest.xml` `<uses-permission>` tags. All 18 Health Connect data types (including `WRITE_HEART_RATE_VARIABILITY`, `WRITE_RESTING_HEART_RATE`, `WRITE_RESPIRATORY_RATE`, `WRITE_VO2_MAX`, `WRITE_SKIN_TEMPERATURE`) are declared in `AndroidManifest.xml` to prevent `SecurityException` runtime errors.
+
+> [!NOTE]
+> **Google Health / Fitbit "Sleep Score" Policy**:
+> 1. `SleepSessionRecord` in Health Connect intentionally lacks a `SleepScore` API field because sleep scores are manufacturer-proprietary algorithms.
+> 2. The Google Health (Fitbit) Android app restricts its "Sleep Score" tab to 1st-party Fitbit and Pixel Watch hardware.
+> 3. For third-party apps like MiSync, Google Health displays full sleep sessions, sleep stage charts (Deep, Light, REM, Awake), and efficiency under **"Total Duration"** and **"Main Sleep"**.
+
+> [!NOTE]
+> **Respiration & Temperature Sampling Scope**:
+> 1. **Respiration (Breathing Rate)**: Reverse engineering of `SleepBiz.java` and `HMProSyncDataBaseProfile` confirms Xiaomi hardware samples PPG-respiration (`DATA_TYPE_SLEEP_BREATH_RATE_DATA`) exclusively during sleep to conserve battery. Zero daytime respiration samples are taken by the Mi Band hardware outside of sleep sessions.
+> 2. **Skin & Body Temperature**: Wrist skin temperature delta variation is mapped to `SkinTemperatureRecord`, while manual spot-checks map to `BodyTemperatureRecord`.
+
