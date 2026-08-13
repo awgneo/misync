@@ -111,14 +111,15 @@ com.xiaomi.fitness.repo
 | **Exercise Session** (`ExerciseSessionRecord`) | Yes (150+ workout modes) | Yes | **FULLY SUPPORTED** | Mapped for Running, Walking, Biking, Swimming, Jump Rope, Yoga, Hiking, etc. Stamped with `toHexString()` deduplication key. |
 | **Heart Rate** (`HeartRateRecord`) | Yes (Continuous 1-min + Workouts + Spot checks) | Yes | **FULLY SUPPORTED** | Written as 1-minute series samples and spot measurements with deduplication key. |
 | **Oxygen Saturation** (`OxygenSaturationRecord`) | Yes (Periodic + Spot checks) | Yes | **FULLY SUPPORTED** | Written as percentage instantaneous records with deduplication key. |
-| **Sleep Session** (`SleepSessionRecord`) | Yes (Night + Daytime Naps + Sleep Stages) | Yes | **FULLY SUPPORTED** | Written with formatted stages: Deep, Light, REM, Awake. Stamped with `toHexString()` deduplication key. |
+| **Sleep Session** (`SleepSessionRecord`) | Yes (Night + Daytime Naps + Sleep Stages) | Yes | **FULLY SUPPORTED** | Written with formatted stages: Deep, Light, REM, Awake. Empty/general sleep uses `STAGE_TYPE_SLEEPING`. Stamped with `toHexString()` deduplication key. |
+| **Mindfulness Session** (`MindfulnessSessionRecord`) | Yes (Guided Breathing: Box, Bee, Abdominal + Stress) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: Guided breathing (Relax, Concentrate, Sleep Soundly apps) mapped to `MINDFULNESS_SESSION_TYPE_BREATHING`. Stress logs mapped to `MINDFULNESS_SESSION_TYPE_UNGUIDED`. |
 | **Heart Rate Variability** (`HeartRateVariabilityRmssdRecord`) | Yes (Hardware measures RMSSD for stress) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: Stress readings are mapped directly to `HeartRateVariabilityRmssdRecord` (RMSSD ms) in Health Connect. |
 | **Resting Heart Rate** (`RestingHeartRateRecord`) | Yes (Watch calculates sleep resting HR) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: `writeRestingHeartRate` implemented in `HealthManager.kt` and `HealthModule.kt`. |
 | **Respiratory Rate** (`RespiratoryRateRecord`) | Yes (Watch tracks sleep breathing rate) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: `writeRespiratoryRate` implemented in `HealthManager.kt` and `HealthModule.kt`. |
 | **Skin Temperature** (`SkinTemperatureRecord`) | Yes (Mi Band 10 Pro has skin temp sensor) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: `writeSkinTemperature` implemented in `HealthManager.kt` and `HealthModule.kt`. |
 | **Body Temperature** (`BodyTemperatureRecord`) | Yes (Spot checks) | No | **FULLY SUPPORTED** | Supported for manual/spot temp readings with deduplication key. |
 | **Blood Pressure** (`BloodPressureRecord`) | Yes (Manual / Cuff sync) | No | **FULLY SUPPORTED** | Systolic and Diastolic written cleanly with deduplication key. |
-| **VO2 Max** (`Vo2MaxRecord`) | Yes (Calculated post-running workouts) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: `writeVo2Max` implemented in `HealthManager.kt` and `HealthModule.kt`. |
+| **VO2 Max** (`Vo2MaxRecord`) | Yes (Calculated post-running workouts) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: `writeVo2Max` implemented with `MEASUREMENT_METHOD_HEART_RATE_RATIO` in `HealthManager.kt`. |
 | **Metadata Attribution** (`Metadata`) | Full SDK support | Yes | **FULLY SUPPORTED (FIXED)** | Replaced deprecated `unknownRecordingMethod()` with `Metadata.autoRecorded` / `activelyRecorded`, `Device(type = TYPE_WATCH, manufacturer = "Xiaomi", model = "Mi Band 10 Pro")`, and `toHexString()` clientRecordId. |
 
 ---
@@ -136,16 +137,16 @@ com.xiaomi.fitness.repo
 
 > [!TIP]
 > **Expanded Beyond Official Mi Fitness Health Connect Sync**:
-> MiSync now syncs **HeartRateVariabilityRmssdRecord** (from HRV stress logs), **RestingHeartRateRecord** (from sleep), **RespiratoryRateRecord** (from sleep breathing), **Vo2MaxRecord** (from running summaries), and **SkinTemperatureRecord** (from wrist temp deltas).
+> MiSync now syncs **MindfulnessSessionRecord** (Guided Breathing & Stress logs), **HeartRateVariabilityRmssdRecord** (from HRV stress logs), **RestingHeartRateRecord** (from sleep), **RespiratoryRateRecord** (from sleep breathing), **Vo2MaxRecord** (from running summaries with `MEASUREMENT_METHOD_HEART_RATE_RATIO`), and **SkinTemperatureRecord** (from wrist temp deltas).
 
 ---
 
 ## 5. Summary of Refactored Files
 
-- **`android/app/src/main/kotlin/com/misync/health/HealthManager.kt`**: Upgraded `Metadata` to `autoRecorded`/`activelyRecorded` with `Device(TYPE_WATCH)` and `clientRecordId`. Added write methods for HRV, Resting HR, Sleep Respiratory Rate, VO2 Max, and Skin Temp.
+- **`android/app/src/main/kotlin/com/misync/health/HealthManager.kt`**: Upgraded `Metadata` to `autoRecorded`/`activelyRecorded` with `Device(TYPE_WATCH)` and `clientRecordId`. Added write methods for Mindfulness Sessions, HRV, Resting HR, Sleep Respiratory Rate, VO2 Max (`MEASUREMENT_METHOD_HEART_RATE_RATIO`), and Skin Temp. Refined sleep stage fallbacks to `STAGE_TYPE_SLEEPING`.
 - **`android/app/src/main/kotlin/com/misync/health/HealthModule.kt`**: Added Health Connect write permissions and registered MethodChannel handlers.
 - **`lib/health/parsers/id.dart`**: Provides clean `toHexString()` identifier method.
-- **`lib/health/module.dart`**: Implemented `isOverlapping` filtering for active calories and distance in daily snapshots. Passed deterministic `toHexString()` clientRecordId keys across all sync calls. Added HRV sync for stress logs.
+- **`lib/health/module.dart`**: Implemented `isOverlapping` filtering for active calories and distance in daily snapshots. Passed deterministic `toHexString()` clientRecordId keys across all sync calls. Added Mindfulness and HRV sync for stress logs.
 - **`android/app/src/main/AndroidManifest.xml`**: Declared all 18 Health Connect `<uses-permission>` permissions to enforce runtime security compliance.
 
 ---
@@ -163,7 +164,16 @@ com.xiaomi.fitness.repo
 > 3. For third-party apps like MiSync, Google Health displays full sleep sessions, sleep stage charts (Deep, Light, REM, Awake), and efficiency under **"Total Duration"** and **"Main Sleep"**.
 
 > [!NOTE]
-> **Respiration & Temperature Sampling Scope**:
-> 1. **Respiration (Breathing Rate)**: Reverse engineering of `SleepBiz.java` and `HMProSyncDataBaseProfile` confirms Xiaomi hardware samples PPG-respiration (`DATA_TYPE_SLEEP_BREATH_RATE_DATA`) exclusively during sleep to conserve battery. Zero daytime respiration samples are taken by the Mi Band hardware outside of sleep sessions.
-> 2. **Skin & Body Temperature**: Wrist skin temperature delta variation is mapped to `SkinTemperatureRecord`, while manual spot-checks map to `BodyTemperatureRecord`.
+> **Mindfulness, Guided Breathing & Stress Apps**:
+> 1. **Relax, Concentrate & Sleep Soundly Apps**: Watch-initiated guided breathing sessions (Box breathing, Bee breathing, Abdominal breathing) are logged to Health Connect as `MindfulnessSessionRecord` (`mindfulnessSessionType = MINDFULNESS_SESSION_TYPE_BREATHING`) alongside `HeartRateRecord` and `HeartRateVariabilityRmssdRecord`.
+> 2. **Passive Stress Logs**: Continuous stress logs are written to Health Connect as `MindfulnessSessionRecord` (`mindfulnessSessionType = MINDFULNESS_SESSION_TYPE_UNGUIDED`) and `HeartRateVariabilityRmssdRecord`.
+
+> [!NOTE]
+> **Daytime Naps ("Take a Nap") vs. Main Sleep**:
+> Decompiled APK logic (`DayNightSleepConverter.java`) splits sleep into Main Sleep (nighttime) and Naps (daytime sessions $\ge 20$ min). MiSync parses all sleep segments regardless of time of day and writes them to Health Connect as valid `SleepSessionRecord` instances.
+
+> [!NOTE]
+> **Xiaomi Vitality Score (PAI Successor)**:
+> HyperOS calculates a 7-day rolling 0–100 **Vitality Score** based on heart rate exertion over time. Health Connect does not store 0–100 proprietary scores, but stores the underlying exertion via `ActivityIntensityRecord` (Moderate vs. Vigorous exertion minutes) and `HeartRateRecord`.
+
 

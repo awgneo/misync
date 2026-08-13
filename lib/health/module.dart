@@ -410,8 +410,10 @@ class HealthModule extends TabModule {
                   .invokeMethod('health.writeMindfulnessSession', {
                     'time': timeMs,
                     'stress': r.stress,
+                    'sessionType': 'unguided',
                     'clientRecordId': '${recId}_stress',
                   }),
+
             );
             final hrvApprox = (105.0 - r.stress.toDouble()).clamp(5.0, 150.0);
             futures.add(

@@ -167,9 +167,11 @@ class HealthModule(
             "writeMindfulnessSession" -> {
                 val time = call.argument<Long>("time")!!
                 val stress = call.argument<Int>("stress")!!
-                healthManager.writeMindfulnessSession(time, stress, clientRecordId, result)
+                val sessionType = call.argument<String>("sessionType")
+                healthManager.writeMindfulnessSession(time, stress, sessionType, clientRecordId, result)
                 true
             }
+
             "writeBodyTemperature" -> {
                 val time = call.argument<Long>("time")!!
                 val skinTemp = call.argument<Double>("skinTemp")

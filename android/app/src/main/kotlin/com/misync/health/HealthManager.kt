@@ -230,7 +230,7 @@ class HealthManager(private val context: Context) {
                         SleepSessionRecord.Stage(
                             startTime = Instant.ofEpochMilli(startTimeMs),
                             endTime = Instant.ofEpochMilli(endTimeMs),
-                            stage = SleepSessionRecord.STAGE_TYPE_UNKNOWN
+                            stage = SleepSessionRecord.STAGE_TYPE_SLEEPING
                         )
                     )
                 } else {
@@ -243,7 +243,7 @@ class HealthManager(private val context: Context) {
                             3 -> SleepSessionRecord.STAGE_TYPE_LIGHT
                             4 -> SleepSessionRecord.STAGE_TYPE_REM
                             1, 5 -> SleepSessionRecord.STAGE_TYPE_AWAKE
-                            else -> SleepSessionRecord.STAGE_TYPE_UNKNOWN
+                            else -> SleepSessionRecord.STAGE_TYPE_SLEEPING
                         }
                         SleepSessionRecord.Stage(
                             startTime = Instant.ofEpochMilli(start),
@@ -252,6 +252,7 @@ class HealthManager(private val context: Context) {
                         )
                     }
                 }
+
 
                 val sleepSession = SleepSessionRecord(
                     startTime = Instant.ofEpochMilli(startTimeMs),
@@ -491,7 +492,7 @@ class HealthManager(private val context: Context) {
                     time = Instant.ofEpochMilli(timeMs),
                     zoneOffset = null,
                     vo2MillilitersPerMinuteKilogram = vo2Max,
-                    measurementMethod = Vo2MaxRecord.MEASUREMENT_METHOD_OTHER,
+                    measurementMethod = Vo2MaxRecord.MEASUREMENT_METHOD_HEART_RATE_RATIO,
                     metadata = getMetadata(clientRecordId, isActivelyRecorded = true)
                 )
                 withContext(Dispatchers.IO) {
@@ -550,6 +551,7 @@ class HealthManager(private val context: Context) {
     fun writeMindfulnessSession(
         timeMs: Long,
         stress: Int,
+        sessionType: String? = null,
         clientRecordId: String? = null,
         result: MethodChannel.Result
     ) {
@@ -560,16 +562,25 @@ class HealthManager(private val context: Context) {
 
         scope.launch {
             try {
+                val startInstant = Instant.ofEpochMilli(timeMs)
+                val endInstant = Instant.ofEpochMilli(timeMs + 60000)
+                val sessionTypeEnum = when (sessionType) {
+                    "breathing" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_BREATHING
+                    "meditation" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MEDITATION
+                    "guided" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_GUIDED
+                    else -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNGUIDED
+                }
                 val record = MindfulnessSessionRecord(
-                    startTime = Instant.ofEpochMilli(timeMs),
+                    startTime = startInstant,
                     startZoneOffset = null,
-                    endTime = Instant.ofEpochMilli(timeMs),
+                    endTime = endInstant,
                     endZoneOffset = null,
-                    title = "Stress Measurement",
+                    title = if (sessionType == "breathing") "Guided Breathing" else "Stress Measurement",
                     notes = "Stress Level: $stress",
-                    mindfulnessSessionType = MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+                    mindfulnessSessionType = sessionTypeEnum,
                     metadata = getMetadata(clientRecordId)
                 )
+
                 withContext(Dispatchers.IO) {
                     currentClient.insertRecords(listOf(record))
                 }
@@ -580,6 +591,7 @@ class HealthManager(private val context: Context) {
             }
         }
     }
+
 
     fun writeBodyTemperature(
         timeMs: Long,
