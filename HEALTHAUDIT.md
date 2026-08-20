@@ -111,7 +111,7 @@ com.xiaomi.fitness.repo
 | **Exercise Session** (`ExerciseSessionRecord`) | Yes (150+ workout modes) | Yes | **FULLY SUPPORTED** | Mapped for Running, Walking, Biking, Swimming, Jump Rope, Yoga, Hiking, etc. Stamped with `toHexString()` deduplication key. |
 | **Heart Rate** (`HeartRateRecord`) | Yes (Continuous 1-min + Workouts + Spot checks) | Yes | **FULLY SUPPORTED** | Written as 1-minute series samples and spot measurements with deduplication key. |
 | **Oxygen Saturation** (`OxygenSaturationRecord`) | Yes (Periodic + Spot checks) | Yes | **FULLY SUPPORTED** | Written as percentage instantaneous records with deduplication key. |
-| **Sleep Session** (`SleepSessionRecord`) | Yes (Night + Daytime Naps + Sleep Stages) | Yes | **FULLY SUPPORTED** | Written with formatted stages: Deep, Light, REM, Awake. Empty/general sleep uses `STAGE_TYPE_SLEEPING`. Stamped with `toHexString()` deduplication key. |
+| **Sleep Session** (`SleepSessionRecord`) | Yes (Night + Daytime Naps + Sleep Stages) | Yes | **FULLY SUPPORTED (FIXED)** | **NOCTURNAL AWAKE & TRUNCATION BUGS RESOLVED**: Uses authoritative `bedTime`/`wakeupTime` header boundaries. Recovers trailing stages. Implements stage padding and bridges nocturnal wake-up gaps with `STAGE_TYPE_AWAKE`. Enforces Health Connect `[startTimeMs, endTimeMs]` clamping and chronological sorting. Stamped with `toHexString()` deduplication key. |
 | **Mindfulness Session** (`MindfulnessSessionRecord`) | Yes (Guided Breathing: Box, Bee, Abdominal + Stress) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: Guided breathing (Relax, Concentrate, Sleep Soundly apps) mapped to `MINDFULNESS_SESSION_TYPE_BREATHING`. Stress logs mapped to `MINDFULNESS_SESSION_TYPE_UNGUIDED`. |
 | **Heart Rate Variability** (`HeartRateVariabilityRmssdRecord`) | Yes (Hardware measures RMSSD for stress) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: Stress readings are mapped directly to `HeartRateVariabilityRmssdRecord` (RMSSD ms) in Health Connect. |
 | **Resting Heart Rate** (`RestingHeartRateRecord`) | Yes (Watch calculates sleep resting HR) | No | **FULLY SUPPORTED (NEW)** | **ADDED**: `writeRestingHeartRate` implemented in `HealthManager.kt` and `HealthModule.kt`. |
@@ -131,6 +131,14 @@ com.xiaomi.fitness.repo
 > In `lib/health/module.dart`, `_syncSnapshotsFile()` now checks `isOverlapping` against active workout time ranges (`exerciseRanges`). Daily active calories and daily distance falling inside workout windows are explicitly suppressed, eliminating double-counting in Health Connect.
 
 > [!IMPORTANT]
+> **Nocturnal Wake-Up & Sleep Duration Continuity RESOLVED**:
+> Reverse-engineering of `SleepSyncBiz.java`, `SleepAggregateUtils.java`, and `DayNightSleepConverter.java` revealed that nocturnal awakenings (e.g. getting out of bed for a pet, water, or restroom) generated split stage sequences that were previously truncated in Health Connect:
+> 1. **Header-First Session Boundaries**: `Sleep.startTime` and `Sleep.endTime` now prioritize the watch's official `bedTime` and `wakeupTime` headers, ensuring the overall session reflects the true night span (Time in Bed) regardless of intermediate waking breaks.
+> 2. **Trailing Stage Recovery**: `_parseNightSleep` and `_parseDaytimeSleep` now capture the final sleep stage from the last transition timestamp up to `wakeupTime`, eliminating the dropped tail stage bug.
+> 3. **Automatic Stage Padding & Intermediate Wake-Gap Bridging**: `formattedStages` automatically pads sleep onset/wake-up buffers with `STAGE_TYPE_AWAKE` and bridges intermediate waking gaps with explicit `STAGE_TYPE_AWAKE` records.
+> 4. **Strict Health Connect Range Clamping & Chronological Sorting**: `HealthManager.kt` clamps all stages strictly within `[startTimeMs, endTimeMs]`, discards malformed non-positive intervals, and sorts stages chronologically to satisfy Health Connect SDK constraints.
+
+> [!IMPORTANT]
 > **Metadata & Native De-duplication (`clientRecordId`) INSTALLED**:
 > 1. **`clientRecordId` added**: Every record now passes a deterministic `clientRecordId` constructed from `${id.toHexString()}_<type>`. If a sync attempt retries, Health Connect natively updates existing records instead of inserting duplicates.
 > 2. **Device attribution added**: All records are attributed to `Device(type = Device.TYPE_WATCH, manufacturer = "Xiaomi", model = "Mi Band 10 Pro")`.
@@ -143,8 +151,10 @@ com.xiaomi.fitness.repo
 
 ## 5. Summary of Refactored Files
 
-- **`android/app/src/main/kotlin/com/misync/health/HealthManager.kt`**: Upgraded `Metadata` to `autoRecorded`/`activelyRecorded` with `Device(TYPE_WATCH)` and `clientRecordId`. Added write methods for Mindfulness Sessions, HRV, Resting HR, Sleep Respiratory Rate, VO2 Max (`MEASUREMENT_METHOD_HEART_RATE_RATIO`), and Skin Temp. Refined sleep stage fallbacks to `STAGE_TYPE_SLEEPING`.
+- **`android/app/src/main/kotlin/com/misync/health/HealthManager.kt`**: Upgraded `Metadata` to `autoRecorded`/`activelyRecorded` with `Device(TYPE_WATCH)` and `clientRecordId`. Added write methods for Mindfulness Sessions, HRV, Resting HR, Sleep Respiratory Rate, VO2 Max (`MEASUREMENT_METHOD_HEART_RATE_RATIO`), and Skin Temp. Implemented sleep stage boundary clamping, chronological sorting, and fallback handling to `STAGE_TYPE_SLEEPING`.
 - **`android/app/src/main/kotlin/com/misync/health/HealthModule.kt`**: Added Health Connect write permissions and registered MethodChannel handlers.
+- **`lib/health/parsers/types/sleep.dart`**: Prioritized `bedTime` and `wakeupTime` for session boundaries. Implemented `formattedStages` continuous stage padding and intermediate awake gap bridging.
+- **`lib/health/parsers/sleep.dart`**: Implemented trailing stage capture after while-loops in `_parseNightSleep` and `_parseDaytimeSleep`.
 - **`lib/health/parsers/id.dart`**: Provides clean `toHexString()` identifier method.
 - **`lib/health/module.dart`**: Implemented `isOverlapping` filtering for active calories and distance in daily snapshots. Passed deterministic `toHexString()` clientRecordId keys across all sync calls. Added Mindfulness and HRV sync for stress logs.
 - **`android/app/src/main/AndroidManifest.xml`**: Declared all 18 Health Connect `<uses-permission>` permissions to enforce runtime security compliance.
@@ -152,6 +162,17 @@ com.xiaomi.fitness.repo
 ---
 
 ## 6. Technical Audit Notes & Integration Clarifications
+
+> [!NOTE]
+> **Nocturnal Wake-Up Handling & DayNightSleepConverter Mechanics**:
+> 1. In official Mi Fitness (`DayNightSleepConverter.java`), when a user wakes up during the night:
+>    - Awake intervals $\le 10$ minutes are maintained inline within the active sleep segment.
+>    - Awake intervals $> 10$ minutes generate a split segment boundary, but `mergeTwoSleepInNeed()` merges segments back together if total combined sleep $\ge 180$ minutes and the intervening break is marked as `AWAKE` (`state = 5`).
+> 2. In MiSync, by using authoritative `bedTime`/`wakeupTime` headers and encoding intermediate waking gaps as `STAGE_TYPE_AWAKE`, Health Connect accurately computes:
+>    $$\text{Time in Bed} = \text{wakeupTime} - \text{bedTime}$$
+>    $$\text{Total Sleep Duration} = \sum (\text{DEEP} + \text{LIGHT} + \text{REM})$$
+>    $$\text{Awake Duration} = \sum \text{AWAKE}$$
+>    This matches the watch's display and eliminates shortened/fragmented sessions in Google Health Connect.
 
 > [!NOTE]
 > **Health Connect Manifest Permissions**:
