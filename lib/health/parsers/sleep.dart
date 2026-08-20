@@ -112,6 +112,17 @@ class SleepParser {
       prevState = s;
     }
 
+    if (prevTime != null && prevState != null) {
+      final finalEnd = (report.wakeupTime != null && report.wakeupTime! > prevTime)
+          ? report.wakeupTime!
+          : (report.bedTime != null && report.sleepDuration != null)
+              ? report.bedTime! + (report.sleepDuration! * 60)
+              : prevTime;
+      if (finalEnd > prevTime) {
+        report.stages.add(SleepStage(prevTime, finalEnd, prevState));
+      }
+    }
+
     return report;
   }
 
@@ -148,6 +159,22 @@ class SleepParser {
       }
       prevTime = t;
       prevState = s;
+    }
+
+    if (prevTime != null && prevState != null) {
+      final durSec = (report.sleepDuration != null && report.sleepDuration! > 0)
+          ? report.sleepDuration! * 60
+          : 0;
+      final finalEnd = (report.wakeupTime != null && report.wakeupTime! > prevTime)
+          ? report.wakeupTime!
+          : (durSec > 0 && report.stages.isNotEmpty)
+              ? report.stages.first.startTime + durSec
+              : (durSec > 0)
+                  ? prevTime + durSec
+                  : prevTime;
+      if (finalEnd > prevTime) {
+        report.stages.add(SleepStage(prevTime, finalEnd, prevState));
+      }
     }
 
     return report;

@@ -223,21 +223,23 @@ class HealthManager(private val context: Context) {
             return
         }
 
+        if (endTimeMs <= startTimeMs) {
+            result.error("INVALID_TIME_RANGE", "Sleep session endTime must be after startTime", null)
+            return
+        }
+
         scope.launch {
             try {
-                val stages = if (stagesList.isEmpty()) {
-                    listOf(
-                        SleepSessionRecord.Stage(
-                            startTime = Instant.ofEpochMilli(startTimeMs),
-                            endTime = Instant.ofEpochMilli(endTimeMs),
-                            stage = SleepSessionRecord.STAGE_TYPE_SLEEPING
-                        )
-                    )
-                } else {
-                    stagesList.map { stageMap ->
-                        val start = (stageMap["start"] as Number).toLong()
-                        val end = (stageMap["end"] as Number).toLong()
-                        val state = (stageMap["stage"] as Number).toInt()
+                val mappedStages = mutableListOf<SleepSessionRecord.Stage>()
+                for (stageMap in stagesList) {
+                    val rawStart = (stageMap["start"] as Number).toLong()
+                    val rawEnd = (stageMap["end"] as Number).toLong()
+                    val state = (stageMap["stage"] as Number).toInt()
+
+                    val clampedStart = maxOf(startTimeMs, minOf(endTimeMs, rawStart))
+                    val clampedEnd = maxOf(startTimeMs, minOf(endTimeMs, rawEnd))
+
+                    if (clampedEnd > clampedStart) {
                         val type = when (state) {
                             2 -> SleepSessionRecord.STAGE_TYPE_DEEP
                             3 -> SleepSessionRecord.STAGE_TYPE_LIGHT
@@ -245,21 +247,35 @@ class HealthManager(private val context: Context) {
                             1, 5 -> SleepSessionRecord.STAGE_TYPE_AWAKE
                             else -> SleepSessionRecord.STAGE_TYPE_SLEEPING
                         }
-                        SleepSessionRecord.Stage(
-                            startTime = Instant.ofEpochMilli(start),
-                            endTime = Instant.ofEpochMilli(end),
-                            stage = type
+                        mappedStages.add(
+                            SleepSessionRecord.Stage(
+                                startTime = Instant.ofEpochMilli(clampedStart),
+                                endTime = Instant.ofEpochMilli(clampedEnd),
+                                stage = type
+                            )
                         )
                     }
                 }
 
+                val sortedStages = mappedStages.sortedBy { it.startTime }
+                val finalStages = if (sortedStages.isNotEmpty()) {
+                    sortedStages
+                } else {
+                    listOf(
+                        SleepSessionRecord.Stage(
+                            startTime = Instant.ofEpochMilli(startTimeMs),
+                            endTime = Instant.ofEpochMilli(endTimeMs),
+                            stage = SleepSessionRecord.STAGE_TYPE_SLEEPING
+                        )
+                    )
+                }
 
                 val sleepSession = SleepSessionRecord(
                     startTime = Instant.ofEpochMilli(startTimeMs),
                     startZoneOffset = null,
                     endTime = Instant.ofEpochMilli(endTimeMs),
                     endZoneOffset = null,
-                    stages = stages,
+                    stages = finalStages,
                     title = "Sleep",
                     metadata = getMetadata(clientRecordId)
                 )
@@ -567,9 +583,11 @@ class HealthManager(private val context: Context) {
                 val sessionTypeEnum = when (sessionType) {
                     "breathing" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_BREATHING
                     "meditation" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MEDITATION
-                    "guided" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_GUIDED
+                    "music" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MUSIC
+                    "movement" -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MOVEMENT
                     else -> MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNGUIDED
                 }
+
                 val record = MindfulnessSessionRecord(
                     startTime = startInstant,
                     startZoneOffset = null,
