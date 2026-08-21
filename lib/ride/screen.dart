@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:misync/screen.dart';
-import '../widgets/panel.dart';
+import '../screen.dart';
 import '../widgets/tabs.dart';
+import '../widgets/panel.dart';
 import '../widgets/items.dart';
 import '../widgets/item.dart';
 import '../widgets/button.dart';
+import '../widgets/modal.dart';
 import '../widgets/popup.dart';
 import 'blobs/destinations.dart';
 import 'blobs/rides.dart';
@@ -18,6 +19,194 @@ class RideScreen extends Screen<RideModule> {
 }
 
 class _RideScreenState extends ScreenState<RideScreen> {
+  final _uberFormKey = GlobalKey<FormState>();
+  final _lyftFormKey = GlobalKey<FormState>();
+
+  late final TextEditingController _uberClientIdController;
+  late final TextEditingController _uberClientSecretController;
+  late final TextEditingController _uberServerTokenController;
+  late final TextEditingController _uberAccessTokenController;
+
+  late final TextEditingController _lyftClientIdController;
+  late final TextEditingController _lyftClientSecretController;
+  late final TextEditingController _lyftAccessTokenController;
+
+  @override
+  void initState() {
+    super.initState();
+    final rides = RidesBlob.rides;
+
+    _uberClientIdController = TextEditingController(text: rides.uber.clientId);
+    _uberClientSecretController = TextEditingController(text: rides.uber.clientSecret);
+    _uberServerTokenController = TextEditingController(text: rides.uber.serverToken);
+    _uberAccessTokenController = TextEditingController(text: rides.uber.accessToken);
+
+    _lyftClientIdController = TextEditingController(text: rides.lyft.clientId);
+    _lyftClientSecretController = TextEditingController(text: rides.lyft.clientSecret);
+    _lyftAccessTokenController = TextEditingController(text: rides.lyft.accessToken);
+  }
+
+  @override
+  void dispose() {
+    _uberClientIdController.dispose();
+    _uberClientSecretController.dispose();
+    _uberServerTokenController.dispose();
+    _uberAccessTokenController.dispose();
+
+    _lyftClientIdController.dispose();
+    _lyftClientSecretController.dispose();
+    _lyftAccessTokenController.dispose();
+    super.dispose();
+  }
+
+  void _showUberAuthModal() {
+    final rides = RidesBlob.rides;
+    _uberClientIdController.text = rides.uber.clientId;
+    _uberClientSecretController.text = rides.uber.clientSecret;
+    _uberServerTokenController.text = rides.uber.serverToken;
+    _uberAccessTokenController.text = rides.uber.accessToken;
+
+    MiPopup.show(
+      context,
+      title: 'Uber API Credentials',
+      child: Form(
+        key: _uberFormKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _uberClientIdController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Client ID / Application ID'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _uberClientSecretController,
+                style: const TextStyle(color: Colors.white),
+                obscureText: true,
+                decoration: _buildInputDecoration('Client Secret'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _uberAccessTokenController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Access Token / Bearer Token (Optional)'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _uberServerTokenController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Server Token (Optional)'),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  final current = RidesBlob.rides;
+                  final updated = current.copyWith(
+                    uber: current.uber.copyWith(
+                      serverToken: _uberServerTokenController.text.trim(),
+                      accessToken: _uberAccessTokenController.text.trim(),
+                      clientId: _uberClientIdController.text.trim(),
+                      clientSecret: _uberClientSecretController.text.trim(),
+                    ),
+                  );
+                  await widget.module.saveRides(updated);
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00E5FF),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLyftAuthModal() {
+    final rides = RidesBlob.rides;
+    _lyftClientIdController.text = rides.lyft.clientId;
+    _lyftClientSecretController.text = rides.lyft.clientSecret;
+    _lyftAccessTokenController.text = rides.lyft.accessToken;
+
+    MiPopup.show(
+      context,
+      title: 'Lyft API Credentials',
+      child: Form(
+        key: _lyftFormKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _lyftAccessTokenController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Bearer Token / Client Token'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _lyftClientIdController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Client ID (Optional)'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _lyftClientSecretController,
+                style: const TextStyle(color: Colors.white),
+                obscureText: true,
+                decoration: _buildInputDecoration('Client Secret (Optional)'),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  final current = RidesBlob.rides;
+                  final updated = current.copyWith(
+                    lyft: current.lyft.copyWith(
+                      accessToken: _lyftAccessTokenController.text.trim(),
+                      clientId: _lyftClientIdController.text.trim(),
+                      clientSecret: _lyftClientSecretController.text.trim(),
+                    ),
+                  );
+                  await widget.module.saveRides(updated);
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00E5FF),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget buildScreen(BuildContext context, bool connected) {
     return MiTabs(
@@ -38,7 +227,18 @@ class _RideScreenState extends ScreenState<RideScreen> {
     return ListenableBuilder(
       listenable: RidesBlob.blob,
       builder: (context, _) {
-        final ride = RidesBlob.blob.value;
+        final rides = RidesBlob.rides;
+
+        final uberHasKeys = rides.uber.hasCredentials;
+        final uberSubtitle = uberHasKeys
+            ? 'Configured (${rides.uber.clientId.isNotEmpty ? 'ID: ${rides.uber.clientId.substring(0, rides.uber.clientId.length > 6 ? 6 : rides.uber.clientId.length)}...' : 'Token active'})'
+            : 'Tap to configure credentials';
+
+        final lyftHasKeys = rides.lyft.hasCredentials;
+        final lyftSubtitle = lyftHasKeys
+            ? 'Configured (${rides.lyft.clientId.isNotEmpty ? 'ID: ${rides.lyft.clientId.substring(0, rides.lyft.clientId.length > 6 ? 6 : rides.lyft.clientId.length)}...' : 'Token active'})'
+            : 'Tap to configure credentials';
+
         return MiPanel(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -46,32 +246,26 @@ class _RideScreenState extends ScreenState<RideScreen> {
               MiItems(
                 children: [
                   MiItem(
-                    title: 'Mock Mode Engine',
-                    subtitle: 'Simulate live pricing without OAuth keys',
-                    primaryIcon: Icons.science_outlined,
-                    enabled: ride.mockMode,
-                    toggled: (val) => widget.module.setMockMode(val),
-                  ),
-                  MiItem(
                     title: 'Uber',
-                    subtitle: ride.uber.enabled ? 'Enabled' : 'Disabled',
-                    primaryIcon: Icons.local_taxi,
-                    enabled: ride.uber.enabled,
+                    subtitle: uberSubtitle,
+                    primaryIcon: const Icon(
+                      Icons.local_taxi,
+                      color: Color(0xFF00E5FF),
+                    ),
+                    enabled: rides.uber.enabled,
                     toggled: (val) => widget.module.toggleUber(val),
+                    clicked: connected ? _showUberAuthModal : null,
                   ),
                   MiItem(
                     title: 'Lyft',
-                    subtitle: ride.lyft.enabled ? 'Enabled' : 'Disabled',
-                    primaryIcon: Icons.directions_car,
-                    enabled: ride.lyft.enabled,
+                    subtitle: lyftSubtitle,
+                    primaryIcon: const Icon(
+                      Icons.directions_car,
+                      color: Color(0xFF00E5FF),
+                    ),
+                    enabled: rides.lyft.enabled,
                     toggled: (val) => widget.module.toggleLyft(val),
-                  ),
-                  MiItem(
-                    title: 'Waymo',
-                    subtitle: ride.waymo.enabled ? 'Enabled' : 'Disabled',
-                    primaryIcon: Icons.smart_toy_outlined,
-                    enabled: ride.waymo.enabled,
-                    toggled: (val) => widget.module.toggleWaymo(val),
+                    clicked: connected ? _showLyftAuthModal : null,
                   ),
                 ],
               ),
@@ -117,9 +311,12 @@ class _RideScreenState extends ScreenState<RideScreen> {
                       title: dest.name,
                       subtitle:
                           '${dest.address} (${dest.latitude}, ${dest.longitude})',
-                      primaryIcon: Icons.location_on,
+                      primaryIcon: const Icon(
+                        Icons.location_on,
+                        color: Color(0xFF00E5FF),
+                      ),
                       clicked: () => _editDestination(dest),
-                      delete: () => widget.module.deleteDestination(dest.id),
+                      delete: () => _deleteDestination(dest),
                     );
                   }).toList(),
                 ),
@@ -134,11 +331,11 @@ class _RideScreenState extends ScreenState<RideScreen> {
     final result = await MiPopup.show<Destination>(
       context,
       title: 'Add Destination',
-      child: const _DestinationSetupSheet(),
+      child: const _DestinationSetupModal(),
     );
 
     if (result != null) {
-      await widget.module.addDestination(result);
+      await widget.module.saveDestination(result);
     }
   }
 
@@ -146,25 +343,58 @@ class _RideScreenState extends ScreenState<RideScreen> {
     final result = await MiPopup.show<Destination>(
       context,
       title: 'Edit Destination',
-      child: _DestinationSetupSheet(destination: dest),
+      child: _DestinationSetupModal(destination: dest),
     );
 
     if (result != null) {
-      await widget.module.addDestination(result);
+      await widget.module.saveDestination(result);
     }
+  }
+
+  Future<void> _deleteDestination(Destination dest) async {
+    final confirm = await showMiModal<bool>(
+      context: context,
+      title: 'Delete',
+      label: 'Are you sure you want to delete "${dest.name}"?',
+      confirm: 'Delete',
+    );
+    if (confirm == true) {
+      await widget.module.deleteDestination(dest.id);
+    }
+  }
+
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.grey),
+      filled: true,
+      fillColor: const Color(0xFF0F111A),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF26324D)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF26324D)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF00E5FF)),
+      ),
+    );
   }
 }
 
-class _DestinationSetupSheet extends StatefulWidget {
+class _DestinationSetupModal extends StatefulWidget {
   final Destination? destination;
 
-  const _DestinationSetupSheet({this.destination});
+  const _DestinationSetupModal({this.destination});
 
   @override
-  State<_DestinationSetupSheet> createState() => _DestinationSetupSheetState();
+  State<_DestinationSetupModal> createState() => _DestinationSetupModalState();
 }
 
-class _DestinationSetupSheetState extends State<_DestinationSetupSheet> {
+class _DestinationSetupModalState extends State<_DestinationSetupModal> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _addressController;
@@ -227,24 +457,7 @@ class _DestinationSetupSheetState extends State<_DestinationSetupSheet> {
             TextFormField(
               controller: _nameController,
               style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Destination Name (e.g. Home, Work)',
-                labelStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: const Color(0xFF141822),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF26324D)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF26324D)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                ),
-              ),
+              decoration: _buildInputDecoration('Destination Name (e.g. Home, Work)'),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) {
                   return 'Please enter a destination name';
@@ -256,24 +469,7 @@ class _DestinationSetupSheetState extends State<_DestinationSetupSheet> {
             TextFormField(
               controller: _addressController,
               style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Full Address',
-                labelStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: const Color(0xFF141822),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF26324D)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF26324D)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                ),
-              ),
+              decoration: _buildInputDecoration('Full Address'),
             ),
             const SizedBox(height: 16),
             Row(
@@ -284,24 +480,7 @@ class _DestinationSetupSheetState extends State<_DestinationSetupSheet> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Latitude',
-                      labelStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: const Color(0xFF141822),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF26324D)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF26324D)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                      ),
-                    ),
+                    decoration: _buildInputDecoration('Latitude'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -311,50 +490,53 @@ class _DestinationSetupSheetState extends State<_DestinationSetupSheet> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Longitude',
-                      labelStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: const Color(0xFF141822),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF26324D)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF26324D)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF00E5FF)),
-                      ),
-                    ),
+                    decoration: _buildInputDecoration('Longitude'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            TextButton(
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+            ElevatedButton(
+              onPressed: _save,
+              style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00E5FF),
-                minimumSize: const Size.fromHeight(50),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: _save,
               child: const Text(
                 'Save Destination',
                 style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.grey),
+      filled: true,
+      fillColor: const Color(0xFF0F111A),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF26324D)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF26324D)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF00E5FF)),
       ),
     );
   }

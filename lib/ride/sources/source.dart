@@ -1,4 +1,4 @@
-import 'dart:math';
+import '../blobs/rides.dart';
 
 class RideEstimate {
   final String provider;
@@ -45,37 +45,23 @@ class RideEstimate {
 }
 
 abstract class RideSource {
+  Future<bool> authenticate(RideProviderConfig config);
+
   Future<List<RideEstimate>> getEstimates({
+    required RideProviderConfig config,
     required double originLat,
     required double originLon,
     required double destLat,
     required double destLon,
     required int capacity,
-    required bool mockMode,
   });
 
   Future<bool> book({
+    required RideProviderConfig config,
     required String fareId,
     required double originLat,
     required double originLon,
     required double destLat,
     required double destLon,
-    required bool mockMode,
   });
-}
-
-double calculateDistanceMiles(
-  double lat1,
-  double lon1,
-  double lat2,
-  double lon2,
-) {
-  if (lat1 == lat2 && lon1 == lon2) return 6.5;
-  const p = 0.017453292519943295;
-  final a = 0.5 -
-      cos((lat2 - lat1) * p) / 2 +
-      cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2;
-  final km = 12742 * asin(sqrt(a));
-  final miles = km * 0.621371;
-  return miles < 1.0 ? 6.5 : miles;
 }

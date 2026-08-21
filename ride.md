@@ -1,6 +1,6 @@
-# Ride QuickApp & Companion Module Implementation Plan (`com.misync.ride`)
+# Ride QuickApp & Companion Module Specification (`com.misync.ride`)
 
-Build an on-demand ride-hailing QuickApp for Xiaomi Smart Band (`apps/ride/`) and an accompanying Flutter phone module (`lib/ride/`) providing live price-and-ETA-sorted rides across **Uber**, **Lyft**, and **Waymo** for phone-configured destinations with 100% watch-driven booking.
+On-demand ride-hailing QuickApp for Xiaomi Smart Band (`apps/ride/`) and companion Flutter module (`lib/ride/`) providing live price-and-ETA-sorted rides across **Uber** and **Lyft** for phone-configured destinations with watch-driven booking.
 
 ---
 
@@ -18,13 +18,30 @@ flowchart TD
     subgraph Phone Module ["Flutter App (lib/ride)"]
         M1["RideModule Bluetooth Interconnect"] --> M2["Read Destinations (DestinationsBlob)"]
         M1 --> M3["Fetch Phone GPS (device.getLocation)"]
-        M1 --> M4["Query Ride APIs (Uber, Lyft, Waymo / Mock Engine)"]
+        M1 --> M4["Query Live Ride APIs (Uber & Lyft)"]
         M4 --> M5["Filter by Capacity & Sort Dynamically (Price ASC, then ETA ASC)"]
         M5 -->|SPP JSON Payload| P4
-        P5 -->|Command: 'book'| M6["Execute API Ride Booking (POST /requests)"]
-        M6 -->|Native Notifications Take Over| N1["Phone Status Bar & Watch Sync"]
+        P5 -->|Command: 'book'| M6["Execute API Ride Booking (POST /requests / POST /rides)"]
     end
 ```
+
+---
+
+## Architecture
+
+1. **Watch QuickApp (`apps/ride/`)**:
+   - `pages/index/index.ux`: Passenger capacity selection (`4` vs `6` passengers) using `<mi-radios>` / `<mi-radio>`.
+   - `pages/destinations/index.ux`: Saved destination picker populated from phone over Bluetooth (`getDestinations`).
+   - `pages/estimates/index.ux`: Live list of available ride options sorted strictly by **Cheapest Price First**, and **Shortest ETA Second**. Tapping any option dispatches `book` and calls `app.terminate()`.
+
+2. **Phone Module & Storage (`lib/ride/`)**:
+   - `blobs/destinations.dart`: `DestinationsBlob` holds saved destinations with coordinates.
+   - `blobs/rides.dart`: `RidesBlob` holds provider configurations and credentials for Uber and Lyft.
+   - `sources/source.dart`: Abstract `RideSource` interface (`authenticate`, `getEstimates`, `book`).
+   - `sources/uber.dart`: `UberSource` calling live Uber Rides REST APIs (`GET /v1.2/estimates/price`, `POST /v1.2/requests`).
+   - `sources/lyft.dart`: `LyftSource` calling live Lyft REST APIs (`GET /v1/cost`, `POST /v1/rides`).
+   - `module.dart`: `RideModule` manages Bluetooth interconnect messages, queries GPS coordinates, dispatches concurrent API requests, sorts results, and handles booking.
+   - `screen.dart`: `RideScreen` follows the `FinanceScreen` pattern: reads blobs for UI, opens `MiPopup.show` credential modals for Uber and Lyft, and mutates state exclusively via module methods..
 
 ---
 
@@ -39,82 +56,6 @@ flowchart TD
 > 3. **QuickApp Bootstrap**: Bootstrap `apps/ride/` directly by copying `apps/messages/` as the initial base layout.
 > 4. **Immediate Booking Action**: Tapping an option on Page 3 dispatches `book` to the phone and immediately calls `app.terminate()`.
 > 5. **Dynamic Estimates (No Blob Storage)**: Ride estimates are transient and pulled dynamically on-demand when requested by the watch. No estimate data is saved in blobs.
-> 6. **Blob & File Naming**:
->    - `Destination` model inside `DestinationsBlob` (`lib/ride/blobs/destinations.dart`).
->    - `Ride` model inside `RidesBlob` (`lib/ride/blobs/rides.dart`).
->    - Source interface in [lib/ride/sources/source.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/sources/source.dart).
-
----
-
-## Proposed Changes
-
-### Component 1: QuickApp Shared Library (`apps/shared/`)
-
-#### [NEW] [radio.ux](file:///Users/awgneo/Repositories/awgneo/misync/apps/shared/components/radio.ux)
-- `<mi-radio>` component: Renders a single radio option row with indicator dot/circle, value, label, active selection styling, haptic feedback, and `@select` event.
-
-#### [NEW] [radios.ux](file:///Users/awgneo/Repositories/awgneo/misync/apps/shared/components/radios.ux)
-- `<mi-radios>` container component: Manages single-selection `value` state across child `<mi-radio>` elements and emits `@change`.
-
----
-
-### Component 2: Watch QuickApp (`apps/ride/`)
-
-#### [NEW] [apps/ride/](file:///Users/awgneo/Repositories/awgneo/misync/apps/ride/)
-- Bootstrap directory structure by copying `apps/messages/` to `apps/ride/`.
-
-#### [MODIFY] [manifest.json](file:///Users/awgneo/Repositories/awgneo/misync/apps/ride/src/manifest.json)
-- Define QuickApp package `com.misync.ride`, name `"Ride"`, and system features (`system.router`, `system.interconnect`, `system.vibrator`, `system.file`, `system.app`).
-
-#### [MODIFY] [pages/index/index.ux](file:///Users/awgneo/Repositories/awgneo/misync/apps/ride/src/pages/index/index.ux)
-- **Page 1 (Passenger Selector)**: `<mi-radios>` with `<mi-radio value="4" label="4 Passengers"></mi-radio>` and `<mi-radio value="6" label="6 Passengers"></mi-radio>`. Selecting a capacity advances to Page 2.
-- **Page 2 (Destination Picker)**: Pre-configured destination rows ("Home", "Work", "Airport", etc.) loaded dynamically from the phone via `getDestinations`.
-- **Page 3 (Price & ETA Sorted Options)**: Displays live ride options sorted strictly by **Cheapest Price First**, and **Shortest Wait Time (ETA) Second**.
-- **Booking**: Tapping an option dispatches command `book` and immediately invokes `app.terminate()`.
-
----
-
-### Component 3: Phone App State & Storage (`lib/ride/blobs/`)
-
-#### [NEW] [destinations.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/blobs/destinations.dart)
-- `Destination`: Model with `id`, `name`, `address`, `latitude`, `longitude`, `icon`.
-- `DestinationsBlob`: Persistent storage extending `Blob<List<Destination>>`.
-
-#### [NEW] [rides.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/blobs/rides.dart)
-- `Ride`: Model holding provider credentials, active toggles, and mock mode configuration.
-- `RidesBlob`: Persistent storage extending `Blob<Ride>`.
-
----
-
-### Component 4: Phone Ride Provider Integrations (`lib/ride/sources/`)
-
-#### [NEW] [source.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/sources/source.dart)
-- Abstract `RideSource` interface defining `getEstimate` and `bookRide`.
-
-#### [NEW] [uber.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/sources/uber.dart)
-- Uber Rides API integration with Mock Provider fallback.
-
-#### [NEW] [lyft.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/sources/lyft.dart)
-- Lyft Cost API integration with Mock Provider fallback.
-
-#### [NEW] [waymo.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/sources/waymo.dart)
-- Waymo API driver integration with Mock Provider fallback.
-
----
-
-### Component 5: Phone Ride Module & Management UI (`lib/ride/`)
-
-#### [NEW] [module.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/module.dart)
-- `RideModule` extending `TabModule`.
-- Registers interconnect listener for `com.misync.ride`:
-  - `getDestinations`: Returns stored destinations from `DestinationsBlob`.
-  - `getEstimates`: Obtains GPS, queries enabled sources concurrently, filters by capacity, sorts dynamically (Price ASC, then ETA ASC), and returns JSON to watch.
-  - `book`: Executes ride booking via target provider API.
-
-#### [NEW] [screen.dart](file:///Users/awgneo/Repositories/awgneo/misync/lib/ride/screen.dart)
-- Phone UI with **2 MiSync Tabs**:
-  - **Providers Tab**: Provider toggles, credentials, and Mock Mode switch.
-  - **Destinations Tab**: Add/edit/delete saved destinations.
 
 ---
 

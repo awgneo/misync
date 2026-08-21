@@ -11,7 +11,6 @@ import 'blobs/rides.dart';
 import 'sources/source.dart';
 import 'sources/uber.dart';
 import 'sources/lyft.dart';
-import 'sources/waymo.dart';
 import 'screen.dart';
 
 class RideModule extends TabModule {
@@ -27,12 +26,6 @@ class RideModule extends TabModule {
   static final RideModule _module = RideModule._();
   static RideModule get module => _module;
   RideModule._();
-
-  final List<RideSource> _sources = const [
-    UberSource(),
-    LyftSource(),
-    WaymoSource(),
-  ];
 
   @override
   Future<void> start() async {
@@ -117,22 +110,42 @@ class RideModule extends TabModule {
       return;
     }
 
-    final rideConfig = RidesBlob.blob.value;
-    final bool mockMode = rideConfig.mockMode;
+    final ridesConfig = RidesBlob.rides;
+    final List<Future<List<RideEstimate>>> queryFutures = [];
 
-    // Fetch estimates from all sources concurrently
-    final futures = _sources.map((source) {
-      return source.getEstimates(
-        originLat: originLat!,
-        originLon: originLon!,
-        destLat: dest.latitude,
-        destLon: dest.longitude,
-        capacity: capacity,
-        mockMode: mockMode,
+    if (ridesConfig.uber.enabled && ridesConfig.uber.hasCredentials) {
+      queryFutures.add(
+        const UberSource().getEstimates(
+          config: ridesConfig.uber,
+          originLat: originLat,
+          originLon: originLon,
+          destLat: dest.latitude,
+          destLon: dest.longitude,
+          capacity: capacity,
+        ).catchError((e) {
+          logger.error('Failed to fetch Uber estimates: $e');
+          return <RideEstimate>[];
+        }),
       );
-    });
+    }
 
-    final results = await Future.wait(futures);
+    if (ridesConfig.lyft.enabled && ridesConfig.lyft.hasCredentials) {
+      queryFutures.add(
+        const LyftSource().getEstimates(
+          config: ridesConfig.lyft,
+          originLat: originLat,
+          originLon: originLon,
+          destLat: dest.latitude,
+          destLon: dest.longitude,
+          capacity: capacity,
+        ).catchError((e) {
+          logger.error('Failed to fetch Lyft estimates: $e');
+          return <RideEstimate>[];
+        }),
+      );
+    }
+
+    final results = await Future.wait(queryFutures);
     final List<RideEstimate> allEstimates = [];
     for (final list in results) {
       allEstimates.addAll(list);
@@ -179,23 +192,34 @@ class RideModule extends TabModule {
       }
     } catch (_) {}
 
-    final mockMode = RidesBlob.blob.value.mockMode;
+    final ridesConfig = RidesBlob.rides;
+    bool success = false;
 
-    RideSource targetSource = const UberSource();
     if (provider == 'lyft') {
-      targetSource = const LyftSource();
-    } else if (provider == 'waymo') {
-      targetSource = const WaymoSource();
+      success = await const LyftSource().book(
+        config: ridesConfig.lyft,
+        fareId: fareId,
+        originLat: originLat,
+        originLon: originLon,
+        destLat: dest.latitude,
+        destLon: dest.longitude,
+      ).catchError((e) {
+        logger.error('Failed to book Lyft ride: $e');
+        return false;
+      });
+    } else {
+      success = await const UberSource().book(
+        config: ridesConfig.uber,
+        fareId: fareId,
+        originLat: originLat,
+        originLon: originLon,
+        destLat: dest.latitude,
+        destLon: dest.longitude,
+      ).catchError((e) {
+        logger.error('Failed to book Uber ride: $e');
+        return false;
+      });
     }
-
-    final success = await targetSource.book(
-      fareId: fareId,
-      originLat: originLat,
-      originLon: originLon,
-      destLat: dest.latitude,
-      destLon: dest.longitude,
-      mockMode: mockMode,
-    );
 
     logger.info('Ride booking result for $provider: success=$success');
   }
@@ -231,35 +255,32 @@ class RideModule extends TabModule {
     return null;
   }
 
-  Future<void> setMockMode(bool enabled) async {
-    final current = RidesBlob.blob.value;
-    await RidesBlob.blob.update(current.copyWith(mockMode: enabled));
+  Future<void> saveRides(Ride updated) async {
+    await RidesBlob.blob.update(updated);
   }
 
   Future<void> toggleUber(bool enabled) async {
-    final current = RidesBlob.blob.value;
+    final current = RidesBlob.rides;
     await RidesBlob.blob.update(
       current.copyWith(uber: current.uber.copyWith(enabled: enabled)),
     );
   }
 
   Future<void> toggleLyft(bool enabled) async {
-    final current = RidesBlob.blob.value;
+    final current = RidesBlob.rides;
     await RidesBlob.blob.update(
       current.copyWith(lyft: current.lyft.copyWith(enabled: enabled)),
     );
   }
 
-  Future<void> toggleWaymo(bool enabled) async {
-    final current = RidesBlob.blob.value;
-    await RidesBlob.blob.update(
-      current.copyWith(waymo: current.waymo.copyWith(enabled: enabled)),
-    );
-  }
-
-  Future<void> addDestination(Destination destination) async {
-    final list = List<Destination>.from(DestinationsBlob.blob.value)
-      ..add(destination);
+  Future<void> saveDestination(Destination destination) async {
+    final list = List<Destination>.from(DestinationsBlob.blob.value);
+    final index = list.indexWhere((d) => d.id == destination.id);
+    if (index >= 0) {
+      list[index] = destination;
+    } else {
+      list.add(destination);
+    }
     await DestinationsBlob.blob.update(list);
   }
 
