@@ -88,7 +88,7 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
                     Icon(Icons.wallet_giftcard, size: 48, color: Colors.grey),
                     SizedBox(height: 16),
                     Text(
-                      'No Boarding Passes Intercepted',
+                      'No Passes Captured',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -98,7 +98,7 @@ class _WalletScreenState extends ScreenState<WalletScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Open a .pkpass file from an airline app or browser link. MiSync will automatically capture the barcode data.',
+                      'Take a screenshot of any pass or ticket and share the image to MiSync to display and sync it to your watch.',
                       style: TextStyle(color: Colors.grey, fontSize: 12),
                       textAlign: TextAlign.center,
                     ),

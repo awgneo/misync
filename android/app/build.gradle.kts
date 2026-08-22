@@ -55,4 +55,6 @@ dependencies {
     implementation("androidx.health.connect:connect-client:1.2.0-alpha03")
     implementation("androidx.glance:glance-appwidget:1.1.0")
     implementation("androidx.glance:glance-material3:1.1.0")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }

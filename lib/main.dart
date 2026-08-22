@@ -14,7 +14,6 @@ import 'calendar/module.dart';
 import 'weather/module.dart';
 import 'media/module.dart';
 import 'wallet/module.dart';
-import 'ride/module.dart';
 import 'module.dart';
 
 final List<Module> modules = [
@@ -32,7 +31,6 @@ final List<Module> modules = [
   ActionsModule.module,
   FinanceModule.module,
   WalletModule.module,
-  RideModule.module,
   DebugModule.module,
 ];
 

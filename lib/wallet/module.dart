@@ -41,7 +41,7 @@ class WalletModule extends TabModule {
         'wallet.getPendingPass',
       );
       if (data != null) {
-        logger.info('Found pending pkpass on startup');
+        logger.info('Found pending Google Wallet pass on startup');
         final pass = Pass.fromJson(Map<String, dynamic>.from(data));
         await PassesBlob.instance.addPass(pass);
         select();
@@ -53,7 +53,7 @@ class WalletModule extends TabModule {
 
   Future<dynamic> _receivePhoneMethod(MethodCall call) async {
     if (call.method == 'passIntercepted') {
-      logger.info('Received passIntercepted callback from native side');
+      logger.info('Received passIntercepted callback from Google Wallet share');
       final data = Map<String, dynamic>.from(call.arguments);
       final pass = Pass.fromJson(data);
       await PassesBlob.instance.addPass(pass);

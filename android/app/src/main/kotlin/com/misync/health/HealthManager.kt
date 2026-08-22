@@ -258,8 +258,25 @@ class HealthManager(private val context: Context) {
                 }
 
                 val sortedStages = mappedStages.sortedBy { it.startTime }
-                val finalStages = if (sortedStages.isNotEmpty()) {
-                    sortedStages
+                val nonOverlappingStages = mutableListOf<SleepSessionRecord.Stage>()
+                var lastEnd = startTimeMs
+                for (stage in sortedStages) {
+                    val sStart = maxOf(lastEnd, stage.startTime.toEpochMilli())
+                    val sEnd = maxOf(sStart, stage.endTime.toEpochMilli())
+                    if (sEnd > sStart) {
+                        nonOverlappingStages.add(
+                            SleepSessionRecord.Stage(
+                                startTime = Instant.ofEpochMilli(sStart),
+                                endTime = Instant.ofEpochMilli(sEnd),
+                                stage = stage.stage
+                            )
+                        )
+                        lastEnd = sEnd
+                    }
+                }
+
+                val finalStages = if (nonOverlappingStages.isNotEmpty()) {
+                    nonOverlappingStages
                 } else {
                     listOf(
                         SleepSessionRecord.Stage(
