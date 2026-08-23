@@ -23,7 +23,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import java.util.regex.Pattern
 import kotlin.math.abs
 
 class WalletManager(private val context: Context) {
@@ -128,13 +127,7 @@ class WalletManager(private val context: Context) {
         val imageWidth = inputImage.width.coerceAtLeast(1)
         val imageHeight = inputImage.height.coerceAtLeast(1)
 
-        // 3. IATA BCBP Boarding Pass Check
-        if (rawBarcodeValue.startsWith("M1") && rawBarcodeValue.length > 20) {
-            val iataPass = parseIataBoardingPass(rawBarcodeValue, barcodeFormat, backgroundColor, visionText, barcodeBoundingBox, imageWidth, imageHeight)
-            if (iataPass != null) return iataPass
-        }
-
-        // 4. Spatial 2D Layout Extraction for Movie, Event, Transit, or Store Passes
+        // 3. Pure 2D OCR Layout Extraction
         return parseSpatialPass(
             rawBarcodeValue = rawBarcodeValue,
             barcodeFormat = barcodeFormat,
@@ -144,158 +137,6 @@ class WalletManager(private val context: Context) {
             imageWidth = imageWidth,
             imageHeight = imageHeight
         )
-    }
-
-    private fun parseIataBoardingPass(
-        barcodeValue: String,
-        barcodeFormat: String,
-        bgColor: String,
-        visionText: Text?,
-        barcodeBox: Rect?,
-        imageWidth: Int,
-        imageHeight: Int
-    ): Map<String, Any>? {
-        try {
-            val nameRaw = if (barcodeValue.length >= 22) barcodeValue.substring(2, 22).trim() else ""
-            var passengerName = cleanPassengerName(nameRaw)
-
-            var fromAirport = if (barcodeValue.length >= 33) barcodeValue.substring(30, 33).trim() else ""
-            var toAirport = if (barcodeValue.length >= 36) barcodeValue.substring(33, 36).trim() else ""
-            var airlineCode = if (barcodeValue.length >= 39) barcodeValue.substring(36, 39).trim() else ""
-            var flightNum = if (barcodeValue.length >= 44) barcodeValue.substring(39, 44).trim().trimStart('0') else ""
-            val rawSeatField = if (barcodeValue.length >= 52) barcodeValue.substring(48, 52).trim() else ""
-
-            val isSouthwest = airlineCode == "WN" || barcodeValue.contains("BWN")
-
-            var seat = ""
-            var boardingPosition = ""
-
-            if (isSouthwest && rawSeatField.isNotEmpty()) {
-                if (rawSeatField.endsWith("A") || rawSeatField.endsWith("B") || rawSeatField.endsWith("C")) {
-                    val groupLetter = rawSeatField.last()
-                    val posNum = rawSeatField.dropLast(1).trimStart('0').padStart(2, '0')
-                    boardingPosition = "$groupLetter / $posNum"
-                }
-            } else if (rawSeatField.isNotEmpty()) {
-                seat = rawSeatField.trimStart('0')
-            }
-
-            var issuer = if (airlineCode.isNotEmpty()) getAirlineName(airlineCode) else "Airline"
-
-            val allLines = if (visionText != null) getAllLines(visionText) else emptyList()
-            val barcodeTopY = barcodeBox?.top ?: (imageHeight * 0.52).toInt()
-            val cardLines = allLines.filter { line ->
-                val box = line.boundingBox
-                box != null && box.top < barcodeTopY && box.top > (imageHeight * 0.04)
-            }
-
-            val fieldsList = mutableListOf<Map<String, String>>()
-            var gate = ""
-            var boardingTime = ""
-            var groupPos = boardingPosition
-
-            if (cardLines.isNotEmpty()) {
-                val rows = clusterIntoRows(cardLines)
-
-                val firstRow = rows.firstOrNull()
-                if (firstRow != null && firstRow.isNotEmpty()) {
-                    val headerText = firstRow.first().text.trim()
-                    if (headerText.contains("Southwest", true) || headerText.contains("Delta", true) ||
-                        headerText.contains("United", true) || headerText.contains("American", true)) {
-                        issuer = cleanIssuer(headerText)
-                    }
-                }
-
-                var r = 1
-                while (r < rows.size) {
-                    val currentRow = rows[r]
-                    val nextRow = if (r + 1 < rows.size) rows[r + 1] else null
-
-                    val isLabelRow = currentRow.any { isLabelKeyword(it.text) }
-                    if (isLabelRow && nextRow != null && nextRow.isNotEmpty()) {
-                        val usedValueIndices = mutableSetOf<Int>()
-                        for (labelLine in currentRow) {
-                            val labelBox = labelLine.boundingBox ?: continue
-                            val labelText = labelLine.text.trim()
-                            val labelCenterX = labelBox.centerX()
-
-                            var closestValIndex = -1
-                            var minXDist = Int.MAX_VALUE
-                            for (vIdx in nextRow.indices) {
-                                if (usedValueIndices.contains(vIdx)) continue
-                                val valBox = nextRow[vIdx].boundingBox ?: continue
-                                val dist = abs(labelCenterX - valBox.centerX())
-                                if (dist < minXDist) {
-                                    minXDist = dist
-                                    closestValIndex = vIdx
-                                }
-                            }
-
-                            if (closestValIndex != -1 && minXDist < imageWidth * 0.45) {
-                                usedValueIndices.add(closestValIndex)
-                                val valText = nextRow[closestValIndex].text.trim()
-                                val cleanLbl = cleanLabel(labelText)
-
-                                if (cleanLbl.contains("Gate", true)) gate = valText
-                                else if (cleanLbl.contains("Boarding", true)) boardingTime = valText
-                                else if (cleanLbl.contains("Group", true) || cleanLbl.contains("Position", true)) groupPos = valText
-                                else if (cleanLbl.contains("Seat", true) && !isSouthwest) seat = valText
-                                else if (cleanLbl.contains("Passenger", true)) passengerName = cleanPassengerName(valText)
-                                else if (!isGenericWord(valText) && valText != cleanLbl) {
-                                    fieldsList.add(mapOf("label" to cleanLbl, "value" to valText))
-                                }
-                            }
-                        }
-                        r += 2
-                        continue
-                    }
-                    r++
-                }
-            }
-
-            val orderedFields = mutableListOf<Map<String, String>>()
-            if (flightNum.isNotEmpty()) {
-                val flightLabel = if (airlineCode.isNotEmpty()) "$airlineCode $flightNum" else "Flight $flightNum"
-                orderedFields.add(mapOf("label" to "Flight", "value" to flightLabel))
-            }
-            if (fromAirport.isNotEmpty() && toAirport.isNotEmpty()) {
-                orderedFields.add(mapOf("label" to "Route", "value" to "$fromAirport → $toAirport"))
-            }
-            if (passengerName.isNotEmpty()) {
-                orderedFields.add(mapOf("label" to "Passenger", "value" to passengerName))
-            }
-            if (seat.isNotEmpty()) {
-                orderedFields.add(mapOf("label" to "Seat", "value" to seat))
-            }
-            if (groupPos.isNotEmpty()) {
-                orderedFields.add(mapOf("label" to "Group / Pos", "value" to groupPos))
-            }
-            if (gate.isNotEmpty()) {
-                orderedFields.add(mapOf("label" to "Gate", "value" to gate))
-            }
-            if (boardingTime.isNotEmpty()) {
-                orderedFields.add(mapOf("label" to "Boarding", "value" to boardingTime))
-            }
-
-            orderedFields.addAll(fieldsList)
-
-            val title = if (fromAirport.isNotEmpty() && toAirport.isNotEmpty()) "$fromAirport → $toAirport" else if (flightNum.isNotEmpty()) "Flight $flightNum" else issuer
-            val id = "${issuer.lowercase(Locale.ROOT).replace("[^a-z0-9]".toRegex(), "_")}_${fromAirport}_${toAirport}_${flightNum}".ifBlank { "pass_${System.currentTimeMillis()}" }
-
-            return buildPassMap(
-                id = id,
-                issuer = issuer,
-                title = title,
-                type = "boardingPass",
-                backgroundColor = if (bgColor != "#111827") bgColor else "#0D1B3E",
-                barcodeValue = barcodeValue,
-                barcodeFormat = barcodeFormat,
-                fields = orderedFields
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in parseIataBoardingPass: ", e)
-            return null
-        }
     }
 
     private fun parseSpatialPass(
@@ -309,78 +150,118 @@ class WalletManager(private val context: Context) {
     ): Map<String, Any>? {
         if (rawBarcodeValue.isEmpty() && visionText == null) return null
 
-        val barcodeTopY = barcodeBox?.top ?: (imageHeight * 0.52).toInt()
+        val allLines = if (visionText != null) getAllLines(visionText) else emptyList()
+        if (allLines.isEmpty() && rawBarcodeValue.isEmpty()) return null
 
-        // 1. Identify Issuer from the top-most header text (Y < 0.16H)
-        var issuer = "Pass"
-        val topLines = if (visionText != null) {
-            getAllLines(visionText).filter {
-                val box = it.boundingBox
-                box != null && box.top < imageHeight * 0.16 && box.top > (imageHeight * 0.04)
-            }.sortedBy { it.boundingBox?.top ?: 0 }
-        } else emptyList()
-
-        if (topLines.isNotEmpty()) {
-            issuer = cleanIssuer(topLines.first().text)
+        // 1. Barcode Cutoff: Ignore any OCR text whose vertical center is inside or below the barcode
+        val barcodeTopY = barcodeBox?.top ?: (imageHeight * 0.55).toInt()
+        val cardLines = allLines.filter { line ->
+            val box = line.boundingBox
+            box != null && box.top > (imageHeight * 0.03) && box.top < barcodeTopY && box.centerY() < barcodeTopY
         }
 
-        // 2. Identify Hero Title (supports multi-line titles like "The Matrix in Shared Reality")
-        var title = ""
-        val titleLineTexts = mutableSetOf<String>()
+        // 2. Issuer Identification: Top-most header line(s) (Y < 0.18H)
+        var issuer = "Pass"
+        val topHeaderLines = cardLines.filter { line ->
+            val box = line.boundingBox
+            box != null && box.top < (imageHeight * 0.18)
+        }.sortedBy { it.boundingBox?.top ?: 0 }
 
-        if (visionText != null) {
-            // Find text blocks in the upper region (0.08H to 0.48H)
-            val candidateBlocks = visionText.textBlocks.filter { block ->
-                val box = block.boundingBox
-                box != null && box.top < (imageHeight * 0.48) && box.top > (imageHeight * 0.08) &&
-                        !isGenericWord(block.text) && !isLabelKeyword(block.text)
-            }
+        val usedLineTexts = mutableSetOf<String>()
+        val fieldsList = mutableListOf<Map<String, String>>()
 
-            // Pick the block with the largest average line height (font size)
-            val heroBlock = candidateBlocks.maxByOrNull { block ->
-                val lineCount = block.lines.size.coerceAtLeast(1)
-                (block.boundingBox?.height() ?: 0) / lineCount
-            }
+        if (topHeaderLines.isNotEmpty()) {
+            val headerRows = clusterIntoRows(topHeaderLines)
+            val firstHeaderRow = headerRows.firstOrNull() ?: emptyList()
 
-            if (heroBlock != null && heroBlock.text.isNotBlank()) {
-                val blockText = heroBlock.text.replace("\n", " ").trim()
-                if (blockText.length in 3..60 && !isGenericWord(blockText)) {
-                    title = cleanTitle(blockText)
-                    for (line in heroBlock.lines) {
-                        titleLineTexts.add(line.text.trim())
-                    }
+            if (firstHeaderRow.isNotEmpty()) {
+                val headerItems = firstHeaderRow.map { it.text.trim() }
+                for (item in headerItems) {
+                    usedLineTexts.add(item)
+                }
+
+                val lastItem = headerItems.last()
+                if (headerItems.size > 1 && lastItem.matches("^[A-Z0-9]{2,3}\\s*\\d{1,4}$".toRegex())) {
+                    issuer = headerItems.dropLast(1).joinToString(" ").ifBlank { "Pass" }
+                    fieldsList.add(mapOf("label" to "Flight", "value" to lastItem))
+                } else {
+                    issuer = headerItems.joinToString(" ").ifBlank { "Pass" }
                 }
             }
         }
 
-        // 3. Extract remaining card lines for structured fields
-        val allLines = if (visionText != null) getAllLines(visionText) else emptyList()
-        val cardLines = allLines.filter { line ->
+        // 3. Hero Title Identification: Prominent lines with largest font height in upper card region (0.06H to 0.48H)
+        var title = ""
+        var titleTopY = 0
+        var titleBottomY = 0
+
+        val candidateTitleLines = cardLines.filter { line ->
             val box = line.boundingBox
-            val text = line.text.trim()
-            box != null && box.top < barcodeTopY && box.top > (imageHeight * 0.05) &&
-                    text != issuer && !titleLineTexts.contains(text) && text != title
+            box != null && box.top < (imageHeight * 0.48) && box.top > (imageHeight * 0.06) && !usedLineTexts.contains(line.text.trim())
+        }.sortedBy { it.boundingBox?.top ?: 0 }
+
+        if (candidateTitleLines.isNotEmpty()) {
+            val maxLineHeight = candidateTitleLines.maxOf { it.boundingBox?.height() ?: 0 }
+            val titleLines = candidateTitleLines.filter { line ->
+                val h = line.boundingBox?.height() ?: 0
+                h >= maxLineHeight * 0.68
+            }
+
+            if (titleLines.isNotEmpty()) {
+                title = titleLines.joinToString(" ") { it.text.trim() }
+                titleTopY = titleLines.first().boundingBox?.top ?: 0
+                titleBottomY = titleLines.last().boundingBox?.bottom ?: 0
+                for (l in titleLines) {
+                    usedLineTexts.add(l.text.trim())
+                }
+            }
         }
 
-        val fieldsList = mutableListOf<Map<String, String>>()
+        // 4. Subtitle / Venue Line: Text directly above the Hero Title
+        if (titleTopY > 0) {
+            val subheaderLines = cardLines.filter { line ->
+                val box = line.boundingBox
+                val text = line.text.trim()
+                box != null && box.bottom <= (titleTopY + 5) && !usedLineTexts.contains(text) && text != issuer
+            }.sortedBy { it.boundingBox?.top ?: 0 }
 
-        if (cardLines.isNotEmpty()) {
-            val rows = clusterIntoRows(cardLines)
+            if (subheaderLines.isNotEmpty()) {
+                val subheaderText = subheaderLines.joinToString(" ") { it.text.trim() }
+                val label = when {
+                    subheaderText.contains(" to ", true) || subheaderText.contains("→") || subheaderText.contains("✈") -> "Route"
+                    else -> "Venue"
+                }
+                fieldsList.add(mapOf("label" to label, "value" to subheaderText))
+                for (l in subheaderLines) {
+                    usedLineTexts.add(l.text.trim())
+                }
+            }
+        }
+
+        // 5. Structured Field Extraction: Stacked Label-Value Rows, Inline Key-Values, and Date/Time
+        val contentLines = cardLines.filter { line ->
+            val box = line.boundingBox
+            val text = line.text.trim()
+            box != null && box.top >= (titleBottomY - 10) && !usedLineTexts.contains(text) && text != title && text != issuer
+        }
+
+        if (contentLines.isNotEmpty()) {
+            val rows = clusterIntoRows(contentLines)
             var r = 0
 
             while (r < rows.size) {
                 val currentRow = rows[r]
                 val nextRow = if (r + 1 < rows.size) rows[r + 1] else null
 
-                // Case A: Label Row followed by Value Row (e.g. Section, Level, Sub-Sec -> Dome, 2, Right)
-                val isLabelRow = currentRow.any { isLabelKeyword(it.text) }
+                // Check if currentRow is a row of labels for nextRow
+                val isStackedGrid = nextRow != null && nextRow.isNotEmpty() && isLikelyLabelRow(currentRow, nextRow)
 
-                if (isLabelRow && nextRow != null && nextRow.isNotEmpty()) {
+                if (isStackedGrid && nextRow != null) {
                     val usedValueIndices = mutableSetOf<Int>()
+
                     for (labelLine in currentRow) {
                         val labelBox = labelLine.boundingBox ?: continue
                         val labelText = labelLine.text.trim()
-                        val labelCenterX = labelBox.centerX()
 
                         var closestValIndex = -1
                         var minXDist = Int.MAX_VALUE
@@ -388,27 +269,17 @@ class WalletManager(private val context: Context) {
                         for (vIdx in nextRow.indices) {
                             if (usedValueIndices.contains(vIdx)) continue
                             val valBox = nextRow[vIdx].boundingBox ?: continue
-                            val dist = abs(labelCenterX - valBox.centerX())
+                            val dist = calculateColumnDistance(labelBox, valBox)
                             if (dist < minXDist) {
                                 minXDist = dist
                                 closestValIndex = vIdx
                             }
                         }
 
-                        if (closestValIndex != -1 && minXDist < imageWidth * 0.40) {
+                        if (closestValIndex != -1 && minXDist < imageWidth * 0.45) {
                             usedValueIndices.add(closestValIndex)
                             val valText = nextRow[closestValIndex].text.trim()
                             fieldsList.add(mapOf("label" to cleanLabel(labelText), "value" to valText))
-                        } else {
-                            // Smart detection for standalone label
-                            addFieldSmart(labelText, fieldsList)
-                        }
-                    }
-
-                    for (vIdx in nextRow.indices) {
-                        if (!usedValueIndices.contains(vIdx)) {
-                            val leftoverText = nextRow[vIdx].text.trim()
-                            addFieldSmart(leftoverText, fieldsList)
                         }
                     }
 
@@ -416,16 +287,16 @@ class WalletManager(private val context: Context) {
                     continue
                 }
 
-                // Case B: Process single row
+                // Inline Key:Value rows or standalone Time/Date values
                 for (line in currentRow) {
                     val text = line.text.trim()
-                    if (text == title || isGenericWord(text) || titleLineTexts.contains(text)) continue
-
                     if (isInlineKeyValue(text)) {
                         val parts = text.split(":", limit = 2)
                         fieldsList.add(mapOf("label" to cleanLabel(parts[0]), "value" to parts[1].trim()))
-                    } else {
-                        addFieldSmart(text, fieldsList)
+                    } else if (isTimeValue(text)) {
+                        fieldsList.add(mapOf("label" to "Time", "value" to text))
+                    } else if (isDateValue(text)) {
+                        fieldsList.add(mapOf("label" to "Date", "value" to text))
                     }
                 }
 
@@ -434,16 +305,21 @@ class WalletManager(private val context: Context) {
         }
 
         if (title.isBlank()) {
-            title = if (issuer != "Pass") issuer else "Event Pass"
+            title = if (issuer != "Pass") issuer else "Pass"
         }
 
         val id = "${issuer.lowercase(Locale.ROOT).replace("[^a-z0-9]".toRegex(), "_")}_${rawBarcodeValue.takeLast(12)}".ifBlank { "pass_${System.currentTimeMillis()}" }
+        val passType = if (title.contains("Flight", true) || title.contains("→") || title.contains("✈") || barcodeFormat == "PKBarcodeFormatAztec" || barcodeFormat == "PKBarcodeFormatPDF417") {
+            "boardingPass"
+        } else {
+            "eventTicket"
+        }
 
         return buildPassMap(
             id = id,
             issuer = issuer,
             title = title,
-            type = if (title.contains("Flight", true) || title.contains("→")) "boardingPass" else "eventTicket",
+            type = passType,
             backgroundColor = backgroundColor,
             barcodeValue = rawBarcodeValue,
             barcodeFormat = barcodeFormat,
@@ -451,38 +327,38 @@ class WalletManager(private val context: Context) {
         )
     }
 
-    private fun addFieldSmart(text: String, fieldsList: MutableList<Map<String, String>>) {
-        val trimmed = text.trim()
-        if (trimmed.isBlank() || isGenericWord(trimmed) || trimmed.length > 50) return
+    private fun isTimeValue(text: String): Boolean {
+        return text.matches("^(?:\\d{1,2}:\\d{2}(?:\\s*(?:AM|PM|am|pm))?)$".toRegex())
+    }
 
-        // 1. Time Match: "09:00 PM", "4:20pm", "19:30"
-        if (trimmed.matches("^(?:\\d{1,2}:\\d{2}(?:\\s*(?:AM|PM|am|pm))?)$".toRegex())) {
-            fieldsList.add(mapOf("label" to "Time", "value" to trimmed))
-            return
+    private fun isDateValue(text: String): Boolean {
+        return text.matches("^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s+\\d{1,2}(?:,\\s*\\d{4})?|\\d{1,2}/\\d{1,2}/\\d{2,4})$".toRegex(RegexOption.IGNORE_CASE))
+    }
+
+    private fun calculateColumnDistance(labelBox: Rect, valBox: Rect): Int {
+        val centerDist = abs(labelBox.centerX() - valBox.centerX())
+        val leftDist = abs(labelBox.left - valBox.left)
+        val rightDist = abs(labelBox.right - valBox.right)
+        return minOf(centerDist, leftDist, rightDist)
+    }
+
+    private fun isLikelyLabelRow(currentRow: List<Text.Line>, nextRow: List<Text.Line>): Boolean {
+        // Time and Date strings are values, never labels for other rows
+        if (currentRow.any { isTimeValue(it.text.trim()) || isDateValue(it.text.trim()) }) return false
+
+        var pairedCount = 0
+        for (cLine in currentRow) {
+            val cBox = cLine.boundingBox ?: continue
+            if (nextRow.any { nLine ->
+                val nBox = nLine.boundingBox ?: return@any false
+                val dist = calculateColumnDistance(cBox, nBox)
+                dist < (cBox.width().coerceAtLeast(nBox.width()) * 1.5).coerceAtLeast(80.0)
+            }) {
+                pairedCount++
+            }
         }
 
-        // 2. Date Match: "Aug 17, 2026", "May 9, 2026", "11/24/2024"
-        if (trimmed.matches("^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s+\\d{1,2}(?:,\\s*\\d{4})?|\\d{1,2}/\\d{1,2}/\\d{2,4})$".toRegex(RegexOption.IGNORE_CASE))) {
-            fieldsList.add(mapOf("label" to "Date", "value" to trimmed))
-            return
-        }
-
-        // 3. Venue / Location Match: e.g. "Cosm Atlanta", "Midtown Art Cinema", "Walter Kerr Theatre"
-        if (trimmed.contains("Atlanta", true) || trimmed.contains("Cinema", true) ||
-            trimmed.contains("Theatre", true) || trimmed.contains("Center", true) ||
-            trimmed.contains("Hall", true) || trimmed.contains("Arena", true) ||
-            trimmed.contains("Stadium", true)) {
-            fieldsList.add(mapOf("label" to "Venue", "value" to trimmed))
-            return
-        }
-
-        // 4. Admission / General Info
-        if (trimmed.contains("Admission", true) || trimmed.contains("Pass", true)) {
-            fieldsList.add(mapOf("label" to "Type", "value" to trimmed))
-            return
-        }
-
-        fieldsList.add(mapOf("label" to "Info", "value" to trimmed))
+        return pairedCount >= (currentRow.size / 2.0).coerceAtLeast(1.0)
     }
 
     private fun clusterIntoRows(lines: List<Text.Line>): List<List<Text.Line>> {
@@ -492,10 +368,12 @@ class WalletManager(private val context: Context) {
         for (line in sortedLines) {
             val box = line.boundingBox ?: continue
             val centerY = box.centerY()
+            val lineHeight = box.height().coerceAtLeast(20)
+            val tolerance = (lineHeight * 0.85).toInt().coerceIn(20, 45)
 
             val matchingRow = rows.find { row ->
                 val rowCenterY = row.firstOrNull()?.boundingBox?.centerY() ?: 0
-                abs(centerY - rowCenterY) <= 18
+                abs(centerY - rowCenterY) <= tolerance
             }
 
             if (matchingRow != null) {
@@ -519,26 +397,6 @@ class WalletManager(private val context: Context) {
         return parts.size == 2 && parts[0].trim().length in 2..20 && parts[1].trim().isNotBlank()
     }
 
-    private fun isGenericWord(text: String): Boolean {
-        val lower = text.lowercase(Locale.ROOT).trim()
-        return lower == "tickets" || lower == "ticket" || lower == "pass" || lower == "passes" ||
-                lower == "boarding pass" || lower == "details" || lower == "show details" ||
-                lower == "admission"
-    }
-
-    private fun isLabelKeyword(text: String): Boolean {
-        val lower = text.lowercase(Locale.ROOT).trim()
-        return lower == "date" || lower == "time" || lower == "screen" || lower == "seat" ||
-                lower == "row" || lower == "section" || lower == "row / seat" || lower == "row/seat" ||
-                lower == "gate" || lower == "terminal" || lower == "boarding" || lower == "cabin" ||
-                lower == "passenger" || lower == "valid until" || lower == "rides used" ||
-                lower == "group / position" || lower == "group/position" || lower == "member" ||
-                lower == "account" || lower == "venue" || lower == "visit date" || lower == "start time" ||
-                lower == "admission tickets" || lower == "extras" || lower == "level" ||
-                lower == "sub-sec" || lower == "sub-section" || lower == "subsec" ||
-                lower == "tier" || lower == "box"
-    }
-
     private fun getAllLines(visionText: Text): List<Text.Line> {
         val list = mutableListOf<Text.Line>()
         for (block in visionText.textBlocks) {
@@ -549,46 +407,12 @@ class WalletManager(private val context: Context) {
         return list
     }
 
-    private fun cleanIssuer(text: String): String {
-        return text.replace("Landmark Theatres", "Landmark Theatres", ignoreCase = true)
-            .replace("SeatGeek", "SeatGeek", ignoreCase = true)
-            .replace("Southwest Airlines", "Southwest", ignoreCase = true)
-            .replace("Delta Air Lines", "Delta", ignoreCase = true)
-            .replace("Las Vegas Monorail", "Las Vegas Monorail", ignoreCase = true)
-            .trim()
-    }
-
-    private fun cleanTitle(text: String): String {
-        return text.replace("\n", " ").trim()
-    }
-
     private fun cleanLabel(text: String): String {
         val clean = text.replace(":", "").trim()
         return clean.split(" ").joinToString(" ") { w ->
-            if (w.isEmpty()) "" else w.substring(0, 1).uppercase(Locale.ROOT) + w.substring(1).lowercase(Locale.ROOT)
-        }
-    }
-
-    private fun cleanPassengerName(raw: String): String {
-        val cleaned = raw.replace("\n", " ").trim()
-        if (cleaned.contains("/")) {
-            val parts = cleaned.split("/")
-            val last = parts[0].trim()
-            val first = parts[1].replace("MR", "").replace("MS", "").replace("MRS", "").trim()
-            return "$first $last".trim()
-        }
-        return cleaned
-    }
-
-    private fun getAirlineName(code: String): String {
-        return when (code.uppercase(Locale.ROOT)) {
-            "DL", "DAL" -> "Delta"
-            "WN", "SWA" -> "Southwest"
-            "AA", "AAL" -> "American Airlines"
-            "UA", "UAL" -> "United Airlines"
-            "B6", "JBU" -> "JetBlue"
-            "AS", "ASA" -> "Alaska Airlines"
-            else -> code
+            if (w.isEmpty()) ""
+            else if (w == "/" || w == "&" || w == "-") w
+            else w.substring(0, 1).uppercase(Locale.ROOT) + w.substring(1).lowercase(Locale.ROOT)
         }
     }
 
